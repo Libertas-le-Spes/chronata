@@ -466,7 +466,7 @@ function renderLabels(state) {
     el("table", { class: "label-table" },
       el("tr", {}, el("th", {}, "Label"), el("th", {}, "Folder"), el("th", { class: "number" }, "This week"), el("th", { class: "number" }, "All time"), el("th", {}, "")),
       ...rows.map((row) => el("tr", {},
-        el("td", {}, row.label), el("td", { class: "muted" }, `${row.folder}/`),
+        el("td", {}, row.label, row.openNow ? el("span", { class: "chip live" }, " open") : null), el("td", { class: "muted" }, `${row.folder}/`),
         el("td", { class: "number" }, hours(row.week)), el("td", { class: "number" }, hours(row.all)),
         el("td", {}, el("button", { type: "button", class: "link", onclick: () => renameLabel(row.label, state.labels) }, "Rename")),
       )),

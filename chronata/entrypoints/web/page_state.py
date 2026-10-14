@@ -5,9 +5,9 @@ from chronata.presenters.readable_copy import label_folder
 from chronata.presenters.text_report import LATE_ENOUGH_TO_FLAG
 from chronata.timekeeping.durations import minutes
 from chronata.timekeeping.pc_sessions import PcSession, support
-from chronata.timekeeping.labels import known_labels
+from chronata.timekeeping.labels import hours_by_label, known_labels
 from chronata.timekeeping.shifts import Shift, completed, open_shift
-from chronata.timekeeping.working_day import WEEKDAY_NAMES, Week, WorkingDay, weeks, worked_by_label
+from chronata.timekeeping.working_day import WEEKDAY_NAMES, Week, WorkingDay, weeks
 from chronata.use_cases import typed_input
 
 
@@ -128,10 +128,8 @@ def _chart_day(day: date, week: Week | None, now: datetime, running: Shift | Non
 
 
 def _label_summary(all_shifts: list[Shift], now: datetime) -> list[dict]:
-    finished = completed(all_shifts)
-    this_week = worked_by_label([s for s in finished if s.start.date() >= now.date() - timedelta(days=now.weekday())])
-    return [{"label": label, "folder": label_folder(label), "week": minutes(this_week.get(label, timedelta())), "all": minutes(total)}
-            for label, total in worked_by_label(finished).items()]
+    return [{"label": row.label, "folder": label_folder(row.label), "week": minutes(row.this_week), "all": minutes(row.all_time), "openNow": row.open_now}
+            for row in hours_by_label(all_shifts, now)]
 
 
 def _saving(app) -> dict:

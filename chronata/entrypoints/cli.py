@@ -1,7 +1,7 @@
 import argparse
 import json
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 from chronata.entrypoints.omarchy import bar
@@ -9,6 +9,7 @@ from chronata.entrypoints.web.server import DEFAULT_PORT
 from chronata.presenters.readable_copy import label_folder
 from chronata.presenters.text_report import report_lines, shift_lines
 from chronata.timekeeping.durations import hours
+from chronata.timekeeping.labels import hours_by_label
 from chronata.timekeeping.record import TamperedRecord
 from chronata.timekeeping.shifts import completed, open_shift
 from chronata.timekeeping.working_day import worked_by_label
@@ -39,14 +40,12 @@ def label(args, app: App) -> Outcome:
 
 
 def list_labels(args, app: App) -> None:
-    now = app.sheet.clock()
-    finished = completed(app.sheet.shifts())
-    this_week = worked_by_label([s for s in finished if s.start.date() >= now.date() - timedelta(days=now.weekday())])
-    every = worked_by_label(finished)
-    if not every:
+    summary = hours_by_label(app.sheet.shifts(), app.sheet.clock())
+    if not summary:
         print("no labels yet; add one with: chronata in --label NAME")
-    for name, total in every.items():
-        print(f"{name or '(no label)':24} folder {label_folder(name):24} this week {hours(this_week.get(name, timedelta())):>6}   all time {hours(total):>7}")
+    for row in summary:
+        running = "  (shift still open)" if row.open_now else ""
+        print(f"{row.label or '(no label)':24} folder {label_folder(row.label):24} this week {hours(row.this_week):>6}   all time {hours(row.all_time):>7}{running}")
 
 
 def rename_label(args, app: App) -> Outcome:
