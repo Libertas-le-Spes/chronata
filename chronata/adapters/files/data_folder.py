@@ -1,4 +1,6 @@
+import hashlib
 import os
+import tempfile
 from pathlib import Path
 
 LEDGER = "ledger.jsonl"
@@ -17,7 +19,8 @@ class DataFolder:
         self.ledger = directory / LEDGER
         self.working_day = directory / WORKING_DAY
         self.timestamps = directory / TIMESTAMPS
-        self.lock = directory / ".git" / "chronata.lock"
+        guarded = hashlib.sha256(str(directory.resolve()).encode()).hexdigest()[:16]
+        self.lock = Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()) / f"chronata-{guarded}.lock"
 
     def sealed_files(self) -> dict[str, bytes]:
         files = {f"sealed/{path.name}": path.read_bytes() for path in (self.ledger, self.working_day) if path.exists()}

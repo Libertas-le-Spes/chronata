@@ -78,7 +78,9 @@ def check(args, app: App) -> None:
     if findings.problems:
         print("\n".join(findings.problems), file=sys.stderr)
         raise UserError("the log has been altered; see above")
-    print(f"intact: {findings.entries} entries, each sealed to the one before" + ("" if args.folder else ", none rewritten in history"))
+    kept = not args.folder and app.history.keeps_history()
+    counted = f"{findings.entries} {'entry' if findings.entries == 1 else 'entries'}"
+    print(f"intact: {counted}, each sealed to the one before" + (", none rewritten in history" if kept else ""))
     newest = findings.latest_stamped
     if newest is None:
         print("no independent timestamps yet")

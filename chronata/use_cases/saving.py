@@ -26,6 +26,7 @@ class Saving:
                 self.history.commit(f"timestamped entry {head[0]} by {', '.join(s.authority_name for s in made)}")
             if failures:
                 warnings.append(f"timestamp not taken ({'; '.join(failures)}); will try again on the next save")
+        self.history.commit("brought the history up to date before saving")
         warnings += self._save_everywhere(sheet)
         return "; ".join(warnings) or None
 

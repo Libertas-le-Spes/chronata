@@ -62,7 +62,8 @@ class Fixture:
         self.now = at(now)
         self.power = FakePower()
         self.desktop = FakeDesktop()
-        self.app: App = open_app(Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp()), clock=lambda: self.now,
+        self.data = Path(tempfile.mkdtemp())
+        self.app: App = open_app(self.data, Path(tempfile.mkdtemp()), clock=lambda: self.now,
                                  power=self.power, timestamper=NoTimestamps(), desktop=self.desktop)
         self.sheet = self.app.sheet
 

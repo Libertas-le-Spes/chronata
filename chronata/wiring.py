@@ -7,7 +7,7 @@ from chronata.adapters.files.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.files.ledger_file import LedgerFile
 from chronata.adapters.files.working_day_file import WorkingDayFile
 from chronata.adapters.files.write_lock import write_lock
-from chronata.adapters.history.git_history import GitHistory
+from chronata.adapters.history.optional_history import OptionalHistory
 from chronata.adapters.linux.desktop import LinuxDesktop
 from chronata.adapters.linux.power_journal import PowerJournal
 from chronata.adapters.places import place_book
@@ -37,9 +37,10 @@ def local_now() -> datetime:
 def open_app(data: Path | None = None, config: Path | None = None, clock: Clock = local_now,
              power: PowerHistory | None = None, timestamper: Timestamper | None = None, desktop: Desktop | None = None) -> App:
     folder = DataFolder(data or data_folder.default_location())
-    history = GitHistory(folder.directory, data_folder.LEDGER)
     power = power or PowerJournal()
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
+    places = PlaceBook(config or place_book.default_location(), GitRemotes(folder.directory))
+    history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
     sheet = Timesheet(LedgerFile(folder.ledger), history, WorkingDayFile(folder.working_day), power, write_lock(folder.lock), clock)
 
     def readable_copies(current: Timesheet, now: datetime) -> dict[str, dict[str, bytes]]:
@@ -49,7 +50,6 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
         notes["Chronata.md"] = overview(stamps, entries).encode()
         return {"obsidian": notes, "webdav": notes, "folder": {"Chronata time log.txt": text_log(days, stamps, entries).encode()}}
 
-    places = PlaceBook(config or place_book.default_location(), GitRemotes(folder.directory))
     saving = Saving(places, timestamper, history, folder.sealed_files, readable_copies)
     sheet.publish = saving
     return App(sheet, saving, history, timestamper, desktop or LinuxDesktop(), power)

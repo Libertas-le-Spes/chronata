@@ -9,9 +9,13 @@ class GitHistory:
         if not (directory / ".git").exists():
             self._git("init", "-q", "-b", "main")
 
+    def keeps_history(self) -> bool:
+        return True
+
     def commit(self, message: str) -> None:
         self._git("add", "-A")
-        self._git("commit", "-q", "-m", message)
+        if self._git("diff", "--cached", "--quiet", check=False).returncode != 0:
+            self._git("commit", "-q", "-m", message)
 
     def rewrites(self) -> list[str]:
         revisions = self._git("rev-list", "--reverse", "HEAD", "--", self.watched_file, check=False).stdout.split()
