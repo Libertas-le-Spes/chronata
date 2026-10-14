@@ -1,5 +1,5 @@
 import sys
 
-from chronata.cli import main
+from chronata.entrypoints.cli import main
 
 sys.exit(main())

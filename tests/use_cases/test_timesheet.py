@@ -1,0 +1,97 @@
+import unittest
+from datetime import timedelta
+
+from chronata.timekeeping.pc_sessions import Boot
+from chronata.use_cases.outcome import UserError
+from tests.fakes import Fixture, at
+
+
+class SameDayShifts(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:03:00")
+        self.f.sheet.configure("12:00 for 60 min", "08:00 to 17:00")
+        self.f.sheet.clock_in(None, None, "Acme")
+
+    def test_clocking_back_in_the_same_day_continues_the_shift_without_counting_the_break(self):
+        self.f.at("2026-10-14T10:00:00")
+        self.f.sheet.clock_out(None, None)
+        self.f.at("2026-10-14T10:04:00")
+        self.f.sheet.clock_in(None, None)
+        self.f.at("2026-10-14T17:03:00")
+        self.f.sheet.clock_out(None, None)
+        self.assertEqual(len(self.f.sheet.shifts()), 1)
+        self.assertEqual(self.f.sheet.weeks()[0].days[0].worked, timedelta(hours=8, minutes=56))
+
+    def test_a_label_change_stays_on_the_record(self):
+        self.f.at("2026-10-14T12:00:00")
+        self.f.sheet.clock_out(None, None)
+        self.f.sheet.label(self.f.sheet.shifts()[0].id, "Globex")
+        shift = self.f.sheet.shifts()[0]
+        self.assertEqual(shift.label, "Globex")
+        self.assertIn("label changed from Acme to Globex", shift.changes[-1])
+
+    def test_setting_up_the_working_day(self):
+        self.f.sheet.configure("12h30 for 30 min", "07:30 to 16:00")
+        self.assertEqual(self.f.sheet.working_day.daily_hours, 8.0)
+        with self.assertRaises(UserError):
+            self.f.sheet.configure("12:00", "")
+
+
+class PowerSessions(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T09:00:00")
+        self.f.power.boot_list = [Boot("yesterday", at("2026-10-13T08:30:00"), at("2026-10-13T19:12:52"), False),
+                                  Boot("today", at("2026-10-14T08:29:56"), at("2026-10-14T09:00:00"), True)]
+
+    def test_each_session_is_recorded_once(self):
+        self.f.sheet.record_pc_sessions()
+        self.assertIsNone(self.f.sheet.record_pc_sessions())
+        self.assertEqual([(s.boot, s.off) for s in self.f.sheet.pc_sessions()], [("yesterday", at("2026-10-13T19:12:52")), ("today", None)])
+
+    def test_an_exact_shutdown_time_is_kept_over_the_journal_guess(self):
+        self.f.sheet.record_pc_sessions()
+        self.f.at("2026-10-14T18:02:09")
+        self.f.sheet.record_shutdown()
+        self.f.power.boot_list = [Boot("today", at("2026-10-14T08:29:56"), at("2026-10-14T18:02:15"), False),
+                                  Boot("tomorrow", at("2026-10-15T08:00:00"), at("2026-10-15T08:00:00"), True)]
+        self.f.power.booted = "tomorrow"
+        self.f.sheet.record_pc_sessions()
+        today = next(s for s in self.f.sheet.pc_sessions() if s.boot == "today")
+        self.assertEqual((today.off, today.exact), (at("2026-10-14T18:02:09"), True))
+
+
+class PcOffDuringAShift(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:31:00")
+        self.f.power.boot_list = [Boot("morning", at("2026-10-14T08:30:00"), at("2026-10-14T08:31:00"), True)]
+        self.f.power.booted = "morning"
+        self.f.sheet.record_pc_sessions()
+        self.f.sheet.clock_in(None, None)
+
+    def restart(self, went_off: str, came_on: str) -> None:
+        self.f.power.boot_list = [Boot("morning", at("2026-10-14T08:30:00"), at(went_off), False),
+                                  Boot("after", at(came_on), at(came_on), True)]
+        self.f.power.booted = "after"
+        self.f.at(came_on)
+        self.f.sheet.record_pc_sessions()
+
+    def test_the_same_day_the_off_time_is_a_break_and_the_shift_carries_on(self):
+        self.restart("2026-10-14T12:10:00", "2026-10-14T12:13:00")
+        self.assertIsNone(self.f.sheet.interrupted())
+        self.f.at("2026-10-14T17:31:00")
+        self.f.sheet.clock_out(None, None)
+        self.assertEqual(self.f.sheet.weeks()[0].days[0].worked, timedelta(hours=8, minutes=57))
+
+    def test_a_reason_can_be_added_for_the_off_time(self):
+        self.restart("2026-10-14T12:10:00", "2026-10-14T12:13:00")
+        shift = self.f.sheet.shifts()[0]
+        self.f.sheet.explain_break(shift.id, shift.breaks[0].start.isoformat(), "power cut")
+        self.assertEqual(self.f.sheet.shifts()[0].breaks[0].reason, "power cut")
+
+    def test_off_overnight_offers_to_clock_out_at_the_shutdown(self):
+        self.restart("2026-10-14T19:12:52", "2026-10-15T08:00:00")
+        self.assertEqual(self.f.sheet.interrupted().pc_went_off, at("2026-10-14T19:12:52"))
+
+
+if __name__ == "__main__":
+    unittest.main()

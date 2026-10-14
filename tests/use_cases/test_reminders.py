@@ -1,0 +1,66 @@
+import unittest
+
+from chronata.timekeeping.pc_sessions import Boot
+from chronata.use_cases.reminders import Reminders
+from tests.fakes import Fixture, at
+
+
+class Lunch(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:30:00")
+        self.f.sheet.configure("12:00 for 60 min", "08:30 to 17:30")
+        self.f.sheet.clock_in(None, None)
+        self.reminders = Reminders(self.f.sheet, self.f.desktop, "http://page/")
+
+    def test_at_lunch_time_you_are_asked_and_ignoring_it_keeps_you_working(self):
+        self.f.at("2026-10-14T12:00:30")
+        self.reminders.tick()
+        self.reminders.tick()
+        self.assertEqual([summary for summary, _ in self.f.desktop.notices], ["Lunch time"])
+        self.assertTrue(self.f.sheet.shifts()[0].end is None)
+
+    def test_clocking_out_for_lunch_then_being_asked_back(self):
+        self.f.at("2026-10-14T12:00:30")
+        self.reminders.tick()
+        self.f.desktop.click("Lunch time")
+        self.assertIsNotNone(self.f.sheet.shifts()[0].end)
+        self.f.at("2026-10-14T13:00:30")
+        self.reminders.tick()
+        self.f.desktop.click("Lunch is over")
+        self.assertIsNone(self.f.sheet.shifts()[0].end)
+        self.assertEqual(len(self.f.sheet.shifts()), 1)
+
+
+class NotClockedIn(unittest.TestCase):
+    def test_at_the_weekend_the_reminder_asks_whether_you_are_working(self):
+        f = Fixture("2026-10-17T09:15:00")
+        Reminders(f.sheet, f.desktop, "http://page/").tick()
+        self.assertEqual(f.desktop.notices[0][0], "It's Saturday. Working today?")
+
+    def test_on_a_workday_it_reminds_twice_at_most(self):
+        f = Fixture("2026-10-14T08:40:00")
+        reminders = Reminders(f.sheet, f.desktop, "http://page/")
+        for moment in ("08:40", "09:00", "09:41", "10:50"):
+            f.at(f"2026-10-14T{moment}:00")
+            reminders.tick()
+        self.assertEqual([summary for summary, _ in f.desktop.notices], ["Not clocked in", "Not clocked in"])
+
+
+class PcOffPrompt(unittest.TestCase):
+    def test_logging_in_after_the_pc_was_off_mid_shift_asks_why(self):
+        f = Fixture("2026-10-14T08:31:00")
+        f.power.boot_list = [Boot("morning", at("2026-10-14T08:30:00"), at("2026-10-14T08:31:00"), True)]
+        f.power.booted = "morning"
+        f.sheet.record_pc_sessions()
+        f.sheet.clock_in(None, None)
+        f.power.boot_list = [Boot("morning", at("2026-10-14T08:30:00"), at("2026-10-14T12:10:00"), False),
+                             Boot("after", at("2026-10-14T12:13:00"), at("2026-10-14T12:13:00"), True)]
+        f.power.booted = "after"
+        f.at("2026-10-14T12:13:30")
+        Reminders(f.sheet, f.desktop, "http://page/").on_login()
+        f.desktop.click("Your PC was off 12:10–12:13")
+        self.assertEqual(f.desktop.opened, ["http://page/#explain-break"])
+
+
+if __name__ == "__main__":
+    unittest.main()
