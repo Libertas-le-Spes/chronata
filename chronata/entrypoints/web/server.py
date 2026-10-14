@@ -86,7 +86,7 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
             if self.path == "/api/state":
                 return self._json(200, page_state(app))
             if self.path == "/api/verify":
-                return self._json(200, {"problems": verify(app.sheet.record, app.timestamper, app.git).problems})
+                return self._json(200, {"problems": verify(app.sheet.record, app.timestamper, app.history).problems})
             return self._json(404, {"error": "not found"})
 
         def do_POST(self):

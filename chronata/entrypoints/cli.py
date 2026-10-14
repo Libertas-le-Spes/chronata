@@ -74,7 +74,7 @@ def check(args, app: App) -> None:
         record, timestamper = open_saved_copy(Path(args.folder).expanduser())
         findings = verify(record, timestamper)
     else:
-        findings = verify(app.sheet.record, app.timestamper, app.git)
+        findings = verify(app.sheet.record, app.timestamper, app.history)
     if findings.problems:
         print("\n".join(findings.problems), file=sys.stderr)
         raise UserError("the log has been altered; see above")

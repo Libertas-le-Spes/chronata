@@ -1,11 +1,12 @@
 import base64
+import subprocess
 import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from chronata.adapters.git.history import GitHistory
+from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.places.webdav_upload import upload_changed
 from chronata.use_cases.ports import SaveError
@@ -13,7 +14,7 @@ from chronata.use_cases.ports import SaveError
 
 class Folders(unittest.TestCase):
     def setUp(self):
-        self.book = PlaceBook(Path(tempfile.mkdtemp()), GitHistory(Path(tempfile.mkdtemp()), "ledger.jsonl"))
+        self.book = PlaceBook(Path(tempfile.mkdtemp()), GitRemotes(Path(tempfile.mkdtemp())))
 
     def test_a_folder_that_is_not_a_vault_is_refused_as_one(self):
         with self.assertRaises(SaveError):
@@ -36,6 +37,29 @@ class Folders(unittest.TestCase):
     def test_the_place_list_is_private_to_this_user(self):
         self.book.add("folder", "", tempfile.mkdtemp())
         self.assertEqual(self.book.path.stat().st_mode & 0o077, 0)
+
+
+class GitPlaces(unittest.TestCase):
+    def setUp(self):
+        self.log = Path(tempfile.mkdtemp())
+        subprocess.run(["git", "-C", str(self.log), "init", "-q", "-b", "main"], check=True)
+        (self.log / "ledger.jsonl").write_text("entry\n")
+        subprocess.run(["git", "-C", str(self.log), "add", "-A"], check=True)
+        subprocess.run(["git", "-C", str(self.log), "commit", "-q", "-m", "entry"], check=True)
+        self.remotes = GitRemotes(self.log)
+
+    def test_the_log_is_pushed_to_a_git_place(self):
+        backup = Path(tempfile.mkdtemp())
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(backup)], check=True)
+        self.remotes.add("backup", str(backup))
+        self.remotes.push("backup")
+        pushed = subprocess.run(["git", "-C", str(backup), "log", "--format=%s"], capture_output=True, text=True).stdout
+        self.assertEqual(pushed.strip(), "entry")
+
+    def test_a_place_that_cannot_be_reached_says_so(self):
+        self.remotes.add("nowhere", str(Path(tempfile.mkdtemp()) / "missing.git"))
+        with self.assertRaisesRegex(SaveError, "will try again on the next save"):
+            self.remotes.push("nowhere")
 
 
 class FakeWebDav(BaseHTTPRequestHandler):

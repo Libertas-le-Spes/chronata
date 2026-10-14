@@ -6,8 +6,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
-from chronata.adapters.git.history import GitHistory
 from chronata.adapters.places.folder_copy import write_changed
+from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.webdav_upload import upload_changed
 from chronata.use_cases.ports import SaveError
 
@@ -35,11 +35,11 @@ def default_location() -> Path:
 
 
 class PlaceBook:
-    def __init__(self, directory: Path, git: GitHistory):
+    def __init__(self, directory: Path, git_remotes: GitRemotes):
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / "places.json"
         self.saves_path = directory / "saves.json"
-        self.git = git
+        self.git_remotes = git_remotes
         if not self.path.exists():
             self._adopt_existing_remote()
 
@@ -57,7 +57,7 @@ class PlaceBook:
         target = _checked_target(kind, target.strip())
         place = SavedPlace(f"{kind}-{secrets.token_hex(3)}", kind, name.strip() or KINDS[kind], target, username.strip(), password)
         if kind == "git":
-            self.git.add_remote(place.id, target)
+            self.git_remotes.add(place.id, target)
         self._write([*self.places(), place])
         return place
 
@@ -66,7 +66,7 @@ class PlaceBook:
         if place is None:
             raise SaveError(f"there is no place {place_id}")
         if place.kind == "git" and place.id != "origin":
-            self.git.remove_remote(place.id)
+            self.git_remotes.remove(place.id)
         self._write([p for p in self.places() if p.id != place_id])
         return place
 
@@ -75,9 +75,7 @@ class PlaceBook:
             raise SaveError(f"{place.target} is missing; if it is on a drive that is not plugged in, plug it in and save again")
         match place.kind:
             case "git":
-                failure = self.git.push(place.id, timeout=20)
-                if failure:
-                    raise SaveError(failure)
+                self.git_remotes.push(place.id)
             case "obsidian":
                 write_changed(Path(place.target) / "Chronata", bundle)
             case "folder":
@@ -103,7 +101,7 @@ class PlaceBook:
         return json.loads(self.saves_path.read_text(encoding="utf-8")) if self.saves_path.exists() else {}
 
     def _adopt_existing_remote(self) -> None:
-        remote = self.git.remote()
+        remote = self.git_remotes.address()
         if remote:
             self._write([SavedPlace("origin", "git", "GitHub" if "github.com" in remote else "Git repository", remote)])
 
