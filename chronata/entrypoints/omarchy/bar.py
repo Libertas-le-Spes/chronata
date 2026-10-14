@@ -1,6 +1,7 @@
 from chronata.entrypoints.web.server import DEFAULT_PORT, page_url
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.shifts import labels, open_shift
+from chronata.timekeeping.labels import known_labels
+from chronata.timekeeping.shifts import open_shift
 from chronata.use_cases.outcome import UserError
 from chronata.use_cases.timesheet import Timesheet
 
@@ -25,7 +26,9 @@ def status(sheet: Timesheet) -> dict:
             "state": "in",
             "elapsed": worked,
         }
-    return {"text": CLOCK_ICON, "tooltip": "Not clocked in\nClick to clock in · right-click to open Chronata", "state": "out"}
+    recent = known_labels(sheet.shifts())
+    on_label = f" on {recent[0]}" if recent else ""
+    return {"text": CLOCK_ICON, "tooltip": f"Not clocked in\nClick to clock in{on_label} · right-click to open Chronata", "state": "out"}
 
 
 def toggle(app) -> None:
@@ -39,7 +42,7 @@ def toggle(app) -> None:
         app.desktop.open_page(page_url(DEFAULT_PORT) + "#confirm-out")
         return
     try:
-        recent = labels(all_shifts)
+        recent = known_labels(all_shifts)
         outcome = sheet.clock_out(None, None) if clocked_in else sheet.clock_in(None, None, recent[0] if recent else "")
     except UserError as error:
         app.desktop.notify("Could not log that", str(error))

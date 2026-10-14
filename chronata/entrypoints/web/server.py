@@ -4,10 +4,12 @@ import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from chronata.entrypoints.web.page_state import page_state
 from chronata.timekeeping.record import TamperedRecord
-from chronata.use_cases.outcome import UserError
+from chronata.presenters.readable_copy import label_folder
+from chronata.use_cases.outcome import UnconfirmedLabel, UserError
 from chronata.use_cases.verification import verify
 
 PAGES = Path(__file__).parent / "page"
@@ -43,10 +45,12 @@ def serve_in_background(app, port: int) -> bool:
 def _actions(app) -> dict:
     sheet, saving = app.sheet, app.saving
     return {
-        "/api/in": lambda body: sheet.clock_in(body.get("at"), body.get("note"), body.get("label", "")),
+        "/api/in": lambda body: sheet.clock_in(body.get("at"), body.get("note"), body.get("label", ""), bool(body.get("newLabel"))),
         "/api/out": lambda body: sheet.clock_out(body.get("at"), body.get("note")),
-        "/api/add": lambda body: sheet.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note"), body.get("label", "")),
-        "/api/label": lambda body: sheet.label(int(body["id"]), body.get("label", "")),
+        "/api/add": lambda body: sheet.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note"),
+                                           body.get("label", ""), bool(body.get("newLabel"))),
+        "/api/label": lambda body: sheet.label(int(body["id"]), body.get("label", ""), bool(body.get("newLabel"))),
+        "/api/labels/rename": lambda body: sheet.rename_label(body.get("from", ""), body.get("to", ""), bool(body.get("newLabel"))),
         "/api/correct": lambda body: sheet.correct(int(body["id"]), body.get("start"), body.get("end"), body.get("reason")),
         "/api/strike": lambda body: sheet.strike(int(body["id"]), body.get("reason")),
         "/api/explain": lambda body: sheet.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
@@ -85,6 +89,11 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
                 return self._json(403, {"error": "forbidden"})
             if self.path == "/api/state":
                 return self._json(200, page_state(app))
+            if self.path.startswith("/api/label-check?"):
+                typed = parse_qs(urlparse(self.path).query).get("text", [""])[0]
+                choice = app.sheet.check_label(typed)
+                return self._json(200, {"label": choice.label, "exists": choice.exists, "folder": label_folder(choice.label) if choice.label else "",
+                                        "nearMisses": list(choice.near_misses)})
             if self.path == "/api/verify":
                 return self._json(200, {"problems": verify(app.sheet.record, app.timestamper, app.history).problems})
             return self._json(404, {"error": "not found"})
@@ -100,6 +109,8 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
                 outcome = action(body)
+            except UnconfirmedLabel as error:
+                return self._json(409, {"error": str(error), "label": error.label, "nearMisses": list(error.near_misses)})
             except (UserError, TamperedRecord) as error:
                 return self._json(400, {"error": str(error)})
             except (KeyError, ValueError):

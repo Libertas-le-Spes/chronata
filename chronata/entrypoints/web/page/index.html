@@ -40,6 +40,7 @@
     <p id="this-week" class="muted"></p>
     <form id="clock-form" class="clock-form">
       <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="Label: client or project (optional)">
+      <p class="label-hint muted small"></p>
       <input name="note" type="text" autocomplete="off" placeholder="Note: what kept you, who asked, where the proof is">
       <details>
         <summary>Use a different time</summary>
@@ -119,6 +120,7 @@
         <label>Finished <input name="end" type="time" step="1" required></label>
         <label class="wide">Why it wasn't clocked at the time <input name="reason" type="text" required></label>
         <label class="wide">Label <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="Client or project (optional)"></label>
+        <p class="label-hint muted small wide"></p>
         <label class="wide">Note <input name="note" type="text" placeholder="What kept you, who asked, where the proof is"></label>
         <button class="primary wide" type="submit">Add shift</button>
       </form>
@@ -179,6 +181,14 @@
       <button type="button" data-close>No, keep working</button>
       <button class="primary" type="submit">Yes, clock out</button>
     </div>
+  </form>
+</dialog>
+
+<dialog id="label-choice">
+  <form method="dialog" class="grid-form">
+    <h2 class="wide">New label?</h2>
+    <p id="label-choice-text" class="wide"></p>
+    <div id="label-choice-buttons" class="wide actions"></div>
   </form>
 </dialog>
 

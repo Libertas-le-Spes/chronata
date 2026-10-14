@@ -1,10 +1,12 @@
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 
+from chronata.presenters.readable_copy import label_folder
 from chronata.presenters.text_report import LATE_ENOUGH_TO_FLAG
 from chronata.timekeeping.durations import minutes
 from chronata.timekeeping.pc_sessions import PcSession, support
-from chronata.timekeeping.shifts import Shift, completed, labels, open_shift
+from chronata.timekeeping.labels import known_labels
+from chronata.timekeeping.shifts import Shift, completed, open_shift
 from chronata.timekeeping.working_day import WEEKDAY_NAMES, Week, WorkingDay, weeks, worked_by_label
 from chronata.use_cases import typed_input
 
@@ -40,16 +42,13 @@ def page_state(app) -> dict:
             {"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()}
             for shift in all_shifts for gap in shift.breaks if gap.cause == "PC off" and not gap.reason
         ],
-        "labels": labels(all_shifts),
+        "labels": known_labels(all_shifts),
         "chart": _chart(all_shifts, working_day, now, running=None if interrupted else current),
         "days": {
             day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
             for week in all_weeks for day in week.days if day.late > timedelta() or day.short > timedelta()
         },
-        "byLabel": {
-            "week": _by_label([s for s in completed(all_shifts) if s.start.date() >= now.date() - timedelta(days=now.weekday())]),
-            "all": _by_label(completed(all_shifts)),
-        },
+        "labelSummary": _label_summary(all_shifts, now),
         "periods": [
             {"start": period.start.isoformat(), "end": period.end.isoformat(), "owed": minutes(period.owed),
              "paid": minutes(period.paid), "timeOff": minutes(period.time_off), "shortfall": minutes(period.shortfall),
@@ -128,8 +127,11 @@ def _chart_day(day: date, week: Week | None, now: datetime, running: Shift | Non
     }
 
 
-def _by_label(chosen: list[Shift]) -> list[dict]:
-    return [{"label": label, "worked": minutes(worked)} for label, worked in worked_by_label(chosen).items()]
+def _label_summary(all_shifts: list[Shift], now: datetime) -> list[dict]:
+    finished = completed(all_shifts)
+    this_week = worked_by_label([s for s in finished if s.start.date() >= now.date() - timedelta(days=now.weekday())])
+    return [{"label": label, "folder": label_folder(label), "week": minutes(this_week.get(label, timedelta())), "all": minutes(total)}
+            for label, total in worked_by_label(finished).items()]
 
 
 def _saving(app) -> dict:

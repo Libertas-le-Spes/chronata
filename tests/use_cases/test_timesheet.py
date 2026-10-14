@@ -2,7 +2,7 @@ import unittest
 from datetime import timedelta
 
 from chronata.timekeeping.pc_sessions import Boot
-from chronata.use_cases.outcome import UserError
+from chronata.use_cases.outcome import UnconfirmedLabel, UserError
 from tests.fakes import Fixture, at
 
 
@@ -35,6 +35,44 @@ class SameDayShifts(unittest.TestCase):
         self.assertEqual(self.f.sheet.working_day.daily_hours, 8.0)
         with self.assertRaises(UserError):
             self.f.sheet.configure("12:00", "")
+
+
+class Labels(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T17:00:00")
+        self.f.sheet.add("2026-10-13", "08:00", "12:00", "written later", None, "Northwind")
+
+    def labels_of_shifts(self) -> list[str]:
+        return [shift.label for shift in self.f.sheet.shifts()]
+
+    def test_the_existing_spelling_is_used_whatever_the_capitals(self):
+        self.f.sheet.add("2026-10-14", "08:00", "12:00", "written later", None, "northwind ")
+        self.assertEqual(self.labels_of_shifts(), ["Northwind", "Northwind"])
+
+    def test_a_near_miss_needs_confirming_before_it_becomes_a_new_label(self):
+        with self.assertRaises(UnconfirmedLabel) as raised:
+            self.f.sheet.add("2026-10-14", "08:00", "12:00", "written later", None, "Northwnid")
+        self.assertEqual(raised.exception.near_misses, ("Northwind",))
+        self.f.sheet.add("2026-10-14", "08:00", "12:00", "written later", None, "Northwnid", new_label=True)
+        self.assertIn("Northwnid", self.labels_of_shifts())
+
+    def test_renaming_moves_every_shift_and_stays_on_the_record(self):
+        self.f.sheet.add("2026-10-14", "08:00", "12:00", "written later", None, "Northwind")
+        outcome = self.f.sheet.rename_label("northwind", "Northwind Ltd")
+        self.assertEqual(self.labels_of_shifts(), ["Northwind Ltd", "Northwind Ltd"])
+        self.assertIn("on 2 shifts", outcome.message)
+        self.assertIn("label changed from Northwind to Northwind Ltd", self.f.sheet.shifts()[0].changes[-1])
+
+    def test_renaming_onto_an_existing_label_merges_them(self):
+        self.f.sheet.add("2026-10-14", "08:00", "12:00", "written later", None, "Acme")
+        outcome = self.f.sheet.rename_label("Acme", "northwind")
+        self.assertEqual(self.labels_of_shifts(), ["Northwind", "Northwind"])
+        self.assertTrue(outcome.message.startswith("merged Acme into Northwind"))
+
+    def test_the_readable_folder_follows_a_rename(self):
+        self.f.sheet.rename_label("Northwind", "Northwind Ltd")
+        self.assertTrue((self.f.data / "Northwind Ltd" / "Days" / "2026-10-13.md").exists())
+        self.assertFalse((self.f.data / "Northwind").exists())
 
 
 class PowerSessions(unittest.TestCase):

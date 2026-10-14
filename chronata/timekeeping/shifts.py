@@ -115,10 +115,5 @@ def unexplained_pc_breaks(all_shifts: list[Shift], day) -> list[tuple[Shift, Bre
             if gap.cause == "PC off" and not gap.reason and gap.start.date() == day]
 
 
-def labels(all_shifts: list[Shift]) -> list[str]:
-    recent = sorted((s for s in all_shifts if s.label), key=lambda s: s.start, reverse=True)
-    return list(dict.fromkeys(s.label for s in recent))
-
-
 def _span(start: datetime, end: datetime | None) -> str:
     return f"{start:%Y-%m-%d %H:%M:%S}–{end:%H:%M:%S}" if end else f"{start:%Y-%m-%d %H:%M:%S}–open"

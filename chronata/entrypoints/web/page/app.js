@@ -63,7 +63,7 @@ async function api(path, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || `request failed (${response.status})`);
+  if (!response.ok) throw Object.assign(new Error(payload.error || `request failed (${response.status})`), { payload, status: response.status });
   return payload;
 }
 
@@ -86,11 +86,52 @@ async function act(path, body, form) {
     await refresh();
     return true;
   } catch (error) {
+    if (error.status === 409 && error.payload.nearMisses) {
+      buttons.forEach((button) => (button.disabled = false));
+      const choice = await askAboutNewLabel(error.payload);
+      if (!choice) return false;
+      const field = "label" in body ? "label" : "to";
+      return act(path, choice.use ? { ...body, [field]: choice.use } : { ...body, newLabel: true }, form);
+    }
     toast(error.message, "bad");
     return false;
   } finally {
     buttons.forEach((button) => (button.disabled = false));
   }
+}
+
+function askAboutNewLabel({ label, nearMisses }) {
+  return new Promise((resolve) => {
+    const dialog = $("#label-choice");
+    $("#label-choice-text").textContent = `“${label}” would start a new label, with its own folder. Did you mean ${nearMisses.map((m) => `“${m}”`).join(" or ")}?`;
+    const choose = (answer) => () => { dialog.close(); resolve(answer); };
+    $("#label-choice-buttons").replaceChildren(
+      el("button", { type: "button", onclick: choose(null) }, "Cancel"),
+      el("button", { type: "button", onclick: choose({ create: true }) }, `Create “${label}”`),
+      ...nearMisses.map((miss) => el("button", { type: "button", class: "primary", onclick: choose({ use: miss }) }, `Use “${miss}”`)),
+    );
+    dialog.showModal();
+  });
+}
+
+let hintTimer;
+function watchLabel(input) {
+  const hint = input.closest("form").querySelector(".label-hint");
+  const describe = async () => {
+    const typed = input.value;
+    if (!typed.trim()) {
+      hint.textContent = "No label: goes into the “No label” folder";
+      return;
+    }
+    const { label, exists, folder, nearMisses } = await api(`/api/label-check?text=${encodeURIComponent(typed)}`);
+    if (input.value !== typed) return;
+    if (exists) hint.replaceChildren(`Adds to the “${folder}” folder` + (label !== typed.trim() ? ` (as ${label})` : ""));
+    else if (nearMisses.length) hint.replaceChildren(`New folder “${folder}”. Did you mean `,
+      ...nearMisses.map((miss) => el("button", { type: "button", class: "link", onclick: () => { input.value = miss; describe(); } }, miss)), "?");
+    else hint.textContent = `Creates a new folder: “${folder}”`;
+  };
+  input.addEventListener("input", () => { clearTimeout(hintTimer); hintTimer = setTimeout(describe, 200); });
+  return describe;
 }
 
 function fields(form) {
@@ -283,6 +324,7 @@ function renderShifts(state) {
 }
 
 const SVG = "http://www.w3.org/2000/svg";
+let labelHints = [];
 let chartWeek = null;
 let lastState = null;
 
@@ -417,11 +459,27 @@ function renderLabels(state) {
   const labelInput = $("#clock-form").elements.label;
   labelInput.hidden = Boolean(current) && !interrupted;
   if (!current && document.activeElement !== labelInput && !labelInput.value && state.labels.length) labelInput.value = state.labels[0];
-  const week = state.byLabel.week.filter((row) => row.label);
-  $("#by-label").replaceChildren(...(week.length ? [el("div", { class: "card" },
-    el("h3", {}, "This week by label"),
-    el("div", { class: "by-label" }, state.byLabel.week.map((row) => el("span", {}, `${row.label || "No label"} `, el("strong", {}, hours(row.worked))))),
+  labelHints.forEach((describe) => describe().catch(() => {}));
+  const rows = state.labelSummary.filter((row) => row.label);
+  $("#by-label").replaceChildren(...(rows.length ? [el("div", { class: "card" },
+    el("h3", {}, "Labels"),
+    el("table", { class: "label-table" },
+      el("tr", {}, el("th", {}, "Label"), el("th", {}, "Folder"), el("th", { class: "number" }, "This week"), el("th", { class: "number" }, "All time"), el("th", {}, "")),
+      ...rows.map((row) => el("tr", {},
+        el("td", {}, row.label), el("td", { class: "muted" }, `${row.folder}/`),
+        el("td", { class: "number" }, hours(row.week)), el("td", { class: "number" }, hours(row.all)),
+        el("td", {}, el("button", { type: "button", class: "link", onclick: () => renameLabel(row.label, state.labels) }, "Rename")),
+      )),
+    ),
   )] : []));
+}
+
+function renameLabel(old, known) {
+  const to = prompt(`New name for “${old}”. Every shift labelled ${old} moves with it.`, old);
+  if (to === null || !to.trim() || to.trim() === old) return;
+  const existing = known.find((name) => name.toLowerCase() === to.trim().toLowerCase() && name !== old);
+  if (existing && !confirm(`“${existing}” already exists. Merge ${old} into ${existing}? Both folders become one.`)) return;
+  act("/api/labels/rename", { from: old, to: to.trim() });
 }
 
 function renderPay(state) {
@@ -618,6 +676,7 @@ function showTab(name) {
 }
 
 wire();
+labelHints = [...document.querySelectorAll('input[name="label"]')].map(watchLabel);
 refresh().then(() => {
   $("#add-form").elements.date.value = today();
   const linked = location.hash.slice(1);

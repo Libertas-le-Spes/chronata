@@ -4,12 +4,13 @@ from functools import wraps
 from typing import Callable
 
 from chronata.timekeeping.durations import hours
+from chronata.timekeeping.labels import LabelChoice, choose, known_labels, tidy
 from chronata.timekeeping.pay import Reconciliation, reconcile
 from chronata.timekeeping.pc_sessions import PcSession, pc_sessions, session_at
 from chronata.timekeeping.shifts import Shift, completed, open_shift, resumable, shifts
 from chronata.timekeeping.working_day import Week, WorkingDay, check_fits, weeks
 from chronata.use_cases import typed_input
-from chronata.use_cases.outcome import Outcome, UserError
+from chronata.use_cases.outcome import Outcome, UnconfirmedLabel, UserError
 from chronata.use_cases.ports import Clock, History, PowerHistory, RecordStore, WorkingDayStore, WriteLock
 
 
@@ -130,7 +131,7 @@ class Timesheet:
         return self._write("pc_session", data, f"PC shutting down at {now:%Y-%m-%d %H:%M:%S}", now)
 
     @_one_writer_at_a_time
-    def clock_in(self, at: str | None, note: str | None, label: str = "") -> Outcome:
+    def clock_in(self, at: str | None, note: str | None, label: str = "", new_label: bool = False) -> Outcome:
         now = self.clock()
         all_shifts = self.shifts()
         current = open_shift(all_shifts)
@@ -142,8 +143,9 @@ class Timesheet:
             data = _with_note({"shift": earlier_today.id, "at": start.isoformat(), "boot": self.power.current_boot_id()}, note)
             message = f"back on today's shift at {start:%H:%M:%S} after a {hours(start - earlier_today.end)} break"
             return self._write("clock_resumed", data, message, now)
+        label = self._settled_label(label, new_label, all_shifts)
         data = _with_note({"at": start.isoformat(), "boot": self.power.current_boot_id(), **_with_label(label)}, note)
-        return self._write("clock_in", data, f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {label.strip()}" if label.strip() else ""), now)
+        return self._write("clock_in", data, f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {label}" if label else ""), now)
 
     @_one_writer_at_a_time
     def clock_out(self, at: str | None, note: str | None) -> Outcome:
@@ -158,20 +160,46 @@ class Timesheet:
         return self._write("clock_out", data, f"out {end:%Y-%m-%d %H:%M:%S}, worked {hours(current.worked(end))}", now)
 
     @_one_writer_at_a_time
-    def label(self, shift_id: int, label: str) -> Outcome:
+    def label(self, shift_id: int, label: str, new_label: bool = False) -> Outcome:
         shift = self._shift(shift_id)
-        if shift.label == label.strip():
-            raise UserError(f"shift {shift_id} is already labelled {label.strip() or 'with nothing'}")
-        return self._write("shift_labelled", {"shift": shift.id, "label": label.strip()},
-                           f"labelled shift {shift.id} {label.strip() or '(no label)'}", self.clock())
+        label = self._settled_label(label, new_label, self.shifts())
+        if shift.label == label:
+            raise UserError(f"shift {shift_id} is already labelled {label or 'with nothing'}")
+        return self._write("shift_labelled", {"shift": shift.id, "label": label}, f"labelled shift {shift.id} {label or '(no label)'}", self.clock())
+
+    def check_label(self, typed: str) -> LabelChoice:
+        return choose(typed, known_labels(self.shifts()))
 
     @_one_writer_at_a_time
-    def add(self, day: str, start: str, end: str, reason: str, note: str | None, label: str = "") -> Outcome:
+    def rename_label(self, old: str, new: str, new_label: bool = False) -> Outcome:
+        all_shifts = self.shifts()
+        known = known_labels(all_shifts)
+        current = choose(old, known)
+        if not current.label or not current.exists:
+            raise UserError(f"there is no label '{old.strip()}'")
+        others = [shift for shift in all_shifts if shift.label != current.label]
+        target = self._settled_label(new, new_label, others) if _key_differs(new, current.label) else tidy(new)
+        if not target:
+            raise UserError("give the new name for the label")
+        if target == current.label:
+            raise UserError(f"the label is already called {target}")
+        affected = [shift for shift in all_shifts if shift.label == current.label]
+        now = self.clock()
+        for shift in affected:
+            self.record.append("shift_labelled", {"shift": shift.id, "label": target, "reason": f"label renamed from {current.label}"}, now)
+        merged = target in known
+        message = (f"merged {current.label} into {target}" if merged else f"renamed label {current.label} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
+        self.history.commit(message)
+        return Outcome(message, self._publish())
+
+    @_one_writer_at_a_time
+    def add(self, day: str, start: str, end: str, reason: str, note: str | None, label: str = "", new_label: bool = False) -> Outcome:
         now = self.clock()
         begins = typed_input.moment(start, typed_input.day(day), now)
         ends = typed_input.end_after(begins, end, now)
         if ends > now:
             raise UserError("that shift has not ended yet; clock in instead")
+        label = self._settled_label(label, new_label, self.shifts())
         data = _with_note({"start": begins.isoformat(), "end": ends.isoformat(), "reason": typed_input.required(reason), **_with_label(label)}, note)
         return self._write("shift_added", data, f"added {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}, worked {hours(ends - begins)}", now)
 
@@ -228,6 +256,12 @@ class Timesheet:
         self.record.append("pc_off_break", data, now)
         return f"PC was off {went_off:%H:%M:%S}–{this_boot.on:%H:%M:%S}; not counted as work"
 
+    def _settled_label(self, typed: str | None, confirmed_new: bool, all_shifts: list[Shift]) -> str:
+        choice = choose(typed or "", known_labels(all_shifts))
+        if not choice.exists and choice.near_misses and not confirmed_new:
+            raise UnconfirmedLabel(choice.label, choice.near_misses)
+        return choice.label
+
     def _publish(self) -> str | None:
         return self.publish(self) if self.publish else None
 
@@ -245,6 +279,10 @@ class Timesheet:
 
 def _with_note(data: dict, note: str | None) -> dict:
     return {**data, "note": note.strip()} if note and note.strip() else data
+
+
+def _key_differs(typed: str, label: str) -> bool:
+    return tidy(typed).casefold() != label.casefold()
 
 
 def _with_label(label: str | None) -> dict:

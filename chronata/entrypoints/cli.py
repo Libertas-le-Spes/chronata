@@ -1,24 +1,25 @@
 import argparse
 import json
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from chronata.entrypoints.omarchy import bar
 from chronata.entrypoints.web.server import DEFAULT_PORT
+from chronata.presenters.readable_copy import label_folder
 from chronata.presenters.text_report import report_lines, shift_lines
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.record import TamperedRecord
 from chronata.timekeeping.shifts import completed, open_shift
 from chronata.timekeeping.working_day import worked_by_label
 from chronata.use_cases import typed_input
-from chronata.use_cases.outcome import Outcome, UserError
+from chronata.use_cases.outcome import Outcome, UnconfirmedLabel, UserError
 from chronata.use_cases.verification import verify
 from chronata.wiring import App, open_app, open_saved_copy
 
 
 def clock_in(args, app: App) -> Outcome:
-    return app.sheet.clock_in(args.at, args.note, args.label or "")
+    return app.sheet.clock_in(args.at, args.note, args.label or "", args.new_label)
 
 
 def clock_out(args, app: App) -> Outcome:
@@ -26,7 +27,7 @@ def clock_out(args, app: App) -> Outcome:
 
 
 def add(args, app: App) -> Outcome:
-    return app.sheet.add(args.date, args.start, args.end, args.reason, args.note, args.label or "")
+    return app.sheet.add(args.date, args.start, args.end, args.reason, args.note, args.label or "", args.new_label)
 
 
 def correct(args, app: App) -> Outcome:
@@ -34,7 +35,22 @@ def correct(args, app: App) -> Outcome:
 
 
 def label(args, app: App) -> Outcome:
-    return app.sheet.label(args.id, args.label)
+    return app.sheet.label(args.id, args.label, args.new_label)
+
+
+def list_labels(args, app: App) -> None:
+    now = app.sheet.clock()
+    finished = completed(app.sheet.shifts())
+    this_week = worked_by_label([s for s in finished if s.start.date() >= now.date() - timedelta(days=now.weekday())])
+    every = worked_by_label(finished)
+    if not every:
+        print("no labels yet; add one with: chronata in --label NAME")
+    for name, total in every.items():
+        print(f"{name or '(no label)':24} folder {label_folder(name):24} this week {hours(this_week.get(name, timedelta())):>6}   all time {hours(total):>7}")
+
+
+def rename_label(args, app: App) -> Outcome:
+    return app.sheet.rename_label(args.old, args.new, args.new_label)
 
 
 def strike(args, app: App) -> Outcome:
@@ -157,7 +173,8 @@ def _parser() -> argparse.ArgumentParser:
 
     command = commands.add_parser("in", help="clock in now, or carry on today's shift")
     command.add_argument("--at", help="when you actually started, if you forgot (e.g. 08:04)")
-    command.add_argument("--label", help="client or project, e.g. 'Acme website'")
+    command.add_argument("--label", help="client or project, e.g. 'Acme website'; each label gets its own folder")
+    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
     command.add_argument("--note")
     command.set_defaults(run=clock_in)
 
@@ -173,12 +190,23 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--reason", required=True, help="why it was not clocked at the time")
     command.add_argument("--note")
     command.add_argument("--label")
+    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
     command.set_defaults(run=add)
 
     command = commands.add_parser("label", help="set or change a shift's client or project")
     command.add_argument("id", type=int)
     command.add_argument("label", help="the label, or '' to remove it")
+    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
     command.set_defaults(run=label)
+
+    command = commands.add_parser("labels", help="every label with its folder and hours")
+    command.set_defaults(run=list_labels)
+
+    command = commands.add_parser("label-rename", help="rename a label on every shift; renaming onto an existing label merges them")
+    command.add_argument("old")
+    command.add_argument("new")
+    command.add_argument("--new-label", action="store_true", help="confirm a new name that looks like an existing label")
+    command.set_defaults(run=rename_label)
 
     command = commands.add_parser("correct", help="fix a shift's times; the original stays on record")
     command.add_argument("id", type=int)
@@ -268,6 +296,9 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         outcome = args.run(args, open_app())
+    except UnconfirmedLabel as error:
+        print(f"chronata: {error} Add --new-label to confirm.", file=sys.stderr)
+        return 1
     except (UserError, TamperedRecord, FileNotFoundError) as error:
         print(f"chronata: {error}", file=sys.stderr)
         return 1
