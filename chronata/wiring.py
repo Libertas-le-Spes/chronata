@@ -11,6 +11,7 @@ from chronata.adapters.history.optional_history import OptionalHistory
 from chronata.adapters.linux.desktop import LinuxDesktop
 from chronata.adapters.linux.power_journal import PowerJournal
 from chronata.adapters.places import place_book
+from chronata.adapters.places.git_folder import GitFolders
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
@@ -39,7 +40,8 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     folder = DataFolder(data or data_folder.default_location())
     power = power or PowerJournal()
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
-    places = PlaceBook(config or place_book.default_location(), GitRemotes(folder.directory))
+    config = config or place_book.default_location()
+    places = PlaceBook(config, GitRemotes(folder.directory), GitFolders(folder.directory.parent / "chronata-places"))
     history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
     sheet = Timesheet(LedgerFile(folder.ledger), history, WorkingDayFile(folder.working_day), power, write_lock(folder.lock), clock)
 

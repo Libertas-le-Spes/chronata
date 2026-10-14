@@ -10,24 +10,32 @@ from tests.fakes import Fixture
 class SavingEverywhere(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T17:40:00")
-        self.f.sheet.add("2026-10-13", "08:02:11", "17:31:40", "written later", "release prep")
+        self.f.sheet.add("2026-10-13", "08:02:11", "17:31:40", "written later", "release prep", "Northwind")
+        self.f.sheet.add("2026-10-14", "06:00", "07:00", "written later", None)
         self.folder = Path(tempfile.mkdtemp())
         self.vault = Path(tempfile.mkdtemp())
         (self.vault / ".obsidian").mkdir()
         self.f.app.saving.add_place(self.f.sheet, "folder", "Text file", str(self.folder))
         self.f.app.saving.add_place(self.f.sheet, "obsidian", "Vault", str(self.vault))
 
-    def test_every_place_and_the_log_folder_get_the_same_readable_copy(self):
+    def test_every_place_and_the_log_folder_get_a_folder_per_label(self):
         for where in (self.folder, self.vault / "Chronata", self.f.data):
-            self.assertIn("Tuesday 13 October 2026", (where / "Chronata time log.md").read_text())
-            self.assertIn("release prep", (where / "Days" / "2026-10-13.md").read_text())
-            self.assertIn("## Recent weeks", (where / "README.md").read_text())
+            self.assertIn("release prep", (where / "Northwind" / "Days" / "2026-10-13.md").read_text())
+            self.assertIn("Tuesday 13 October 2026", (where / "Northwind" / "Chronata time log.md").read_text())
+            self.assertTrue((where / "No label" / "Days" / "2026-10-14.md").exists())
+            self.assertIn("[Northwind]", (where / "README.md").read_text())
         self.assertTrue((self.folder / "sealed" / "ledger.jsonl").exists())
+
+    def test_relabelling_moves_the_note_and_removes_the_old_one(self):
+        unlabelled = next(s for s in self.f.sheet.shifts() if not s.label)
+        self.f.sheet.label(unlabelled.id, "Northwind")
+        self.assertTrue((self.folder / "Northwind" / "Days" / "2026-10-14.md").exists())
+        self.assertFalse((self.folder / "No label").exists())
 
     def test_a_saved_copy_checks_out_on_its_own(self):
         record, timestamper = open_saved_copy(self.vault)
         findings = verify(record, timestamper)
-        self.assertEqual((findings.entries, findings.problems), (1, []))
+        self.assertEqual((findings.entries, findings.problems), (2, []))
 
     def test_a_missing_place_is_reported_and_others_still_save(self):
         for place, _ in self.f.app.saving.statuses():

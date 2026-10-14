@@ -33,9 +33,9 @@ class Saving:
         warnings += self._save_everywhere(sheet, readable)
         return "; ".join(warnings) or None
 
-    def add_place(self, sheet, kind: str, name: str, target: str, username: str = "", password: str = "") -> Outcome:
+    def add_place(self, sheet, kind: str, name: str, target: str, username: str = "", password: str = "", folder: str = "") -> Outcome:
         try:
-            place = self.places.add(kind, name, target, username, password)
+            place = self.places.add(kind, name, target, username, password, folder)
         except SaveError as error:
             raise UserError(str(error))
         saved = sheet.save_now()

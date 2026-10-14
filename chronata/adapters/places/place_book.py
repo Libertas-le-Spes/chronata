@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from chronata.adapters.files.changed_files import write_changed
+from chronata.adapters.places.git_folder import GitFolders, checked_folder
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.webdav_upload import upload_changed
 from chronata.use_cases.ports import SaveError
@@ -15,6 +16,7 @@ KINDS = {
     "obsidian": "Obsidian vault",
     "folder": "Folder",
     "git": "Git repository",
+    "git-folder": "Folder in a git repository",
     "webdav": "Web server (WebDAV)",
 }
 
@@ -27,6 +29,7 @@ class SavedPlace:
     target: str
     username: str = ""
     password: str = ""
+    folder: str = ""
 
 
 def default_location() -> Path:
@@ -35,11 +38,12 @@ def default_location() -> Path:
 
 
 class PlaceBook:
-    def __init__(self, directory: Path, git_remotes: GitRemotes):
+    def __init__(self, directory: Path, git_remotes: GitRemotes, git_folders: GitFolders):
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / "places.json"
         self.saves_path = directory / "saves.json"
         self.git_remotes = git_remotes
+        self.git_folders = git_folders
         if not self.path.exists():
             self._adopt_existing_remote()
 
@@ -51,13 +55,16 @@ class PlaceBook:
             return []
         return [SavedPlace(**raw) for raw in json.loads(self.path.read_text(encoding="utf-8"))]
 
-    def add(self, kind: str, name: str, target: str, username: str = "", password: str = "") -> SavedPlace:
+    def add(self, kind: str, name: str, target: str, username: str = "", password: str = "", folder: str = "") -> SavedPlace:
         if kind not in KINDS:
             raise SaveError(f"'{kind}' is not a kind of place; choose one of {', '.join(KINDS)}")
         target = _checked_target(kind, target.strip())
-        place = SavedPlace(f"{kind}-{secrets.token_hex(3)}", kind, name.strip() or KINDS[kind], target, username.strip(), password)
+        folder = checked_folder(folder) if kind == "git-folder" else ""
+        place = SavedPlace(f"{kind}-{secrets.token_hex(3)}", kind, name.strip() or KINDS[kind], target, username.strip(), password, folder)
         if kind == "git":
             self.git_remotes.add(place.id, target)
+        if kind == "git-folder":
+            self.git_folders.prepare(place.id, target, folder)
         self._write([*self.places(), place])
         return place
 
@@ -67,6 +74,8 @@ class PlaceBook:
             raise SaveError(f"there is no place {place_id}")
         if place.kind == "git" and place.id != "origin":
             self.git_remotes.remove(place.id)
+        if place.kind == "git-folder":
+            self.git_folders.forget(place.id)
         self._write([p for p in self.places() if p.id != place_id])
         return place
 
@@ -76,6 +85,8 @@ class PlaceBook:
         match place.kind:
             case "git":
                 self.git_remotes.push(place.id)
+            case "git-folder":
+                self.git_folders.save(place.id, place.target, place.folder, bundle)
             case "obsidian":
                 write_changed(Path(place.target) / "Chronata", bundle)
             case "folder":

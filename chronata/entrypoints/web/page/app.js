@@ -161,6 +161,7 @@ const PLACE_HELP = {
   obsidian: ["Vault folder", "/home/you/Notes", true, "Goes into a Chronata folder inside the vault: an overview, the whole log in one note, a note per day, and the sealed log."],
   folder: ["Folder", "/home/you/Documents/Time", true, "Gets an overview, the whole log in one file, a file per day, and the sealed log. A Dropbox, OneDrive or Syncthing folder works too."],
   git: ["Repository address", "https://github.com/you/time-log.git", false, "Create an empty private repository first. Git hosts record when each save arrives."],
+  "git-folder": ["Repository address", "https://github.com/you/notes.git", false, "Saves into one folder of a repository you already use, such as your notes. Only that folder is ever changed, and a folder Chronata did not create is left alone."],
   webdav: ["Server address", "https://cloud.example.com/remote.php/dav/files/you/", false, "Nextcloud, ownCloud and most file servers speak WebDAV. The password is kept only on this computer."],
 };
 
@@ -194,6 +195,7 @@ function describeKind() {
   $("#choose-folder").hidden = !local;
   $("#place-hint").textContent = hint;
   document.querySelectorAll(".dav-only").forEach((node) => (node.hidden = $("#place-kind").value !== "webdav"));
+  document.querySelectorAll(".folder-only").forEach((node) => (node.hidden = $("#place-kind").value !== "git-folder"));
 }
 
 function renderTotals(state) {

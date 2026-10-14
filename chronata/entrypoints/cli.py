@@ -106,7 +106,7 @@ def list_places(args, app: App) -> None:
 
 
 def add_place(args, app: App) -> Outcome:
-    return app.saving.add_place(app.sheet, args.kind, args.name or "", args.where, args.username or "", args.password or "")
+    return app.saving.add_place(app.sheet, args.kind, args.name or "", args.where, args.username or "", args.password or "", args.folder or "")
 
 
 def remove_place(args, app: App) -> Outcome:
@@ -229,8 +229,9 @@ def _parser() -> argparse.ArgumentParser:
     command.set_defaults(run=list_places)
 
     command = commands.add_parser("place-add", help="save the log somewhere else too")
-    command.add_argument("kind", choices=["obsidian", "folder", "git", "webdav"])
+    command.add_argument("kind", choices=["obsidian", "folder", "git", "git-folder", "webdav"])
     command.add_argument("where", help="a folder path, a git URL or a web server address")
+    command.add_argument("--folder", help="for git-folder: the folder inside the repository, e.g. 'Work Logs'")
     command.add_argument("--name")
     command.add_argument("--username")
     command.add_argument("--password")

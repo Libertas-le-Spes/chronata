@@ -6,6 +6,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+from chronata.adapters.places.git_folder import GitFolders
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.places.webdav_upload import upload_changed
@@ -14,7 +15,7 @@ from chronata.use_cases.ports import SaveError
 
 class Folders(unittest.TestCase):
     def setUp(self):
-        self.book = PlaceBook(Path(tempfile.mkdtemp()), GitRemotes(Path(tempfile.mkdtemp())))
+        self.book = PlaceBook(Path(tempfile.mkdtemp()), GitRemotes(Path(tempfile.mkdtemp())), GitFolders(Path(tempfile.mkdtemp())))
 
     def test_a_folder_that_is_not_a_vault_is_refused_as_one(self):
         with self.assertRaises(SaveError):
@@ -60,6 +61,45 @@ class GitPlaces(unittest.TestCase):
         self.remotes.add("nowhere", str(Path(tempfile.mkdtemp()) / "missing.git"))
         with self.assertRaisesRegex(SaveError, "will try again on the next save"):
             self.remotes.push("nowhere")
+
+
+def git(*args: str, cwd: Path) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
+
+
+class FoldersInAGitRepository(unittest.TestCase):
+    def setUp(self):
+        self.remote = Path(tempfile.mkdtemp()) / "notes.git"
+        git("init", "-q", "--bare", "-b", "main", str(self.remote), cwd=Path("/"))
+        self.mine = Path(tempfile.mkdtemp())
+        git("clone", "-q", str(self.remote), ".", cwd=self.mine)
+        (self.mine / "Portfolio").mkdir()
+        (self.mine / "Portfolio" / "note.md").write_text("my own note\n")
+        git("add", "-A", cwd=self.mine)
+        git("commit", "-q", "-m", "my notes", cwd=self.mine)
+        git("push", "-q", "origin", "main", cwd=self.mine)
+        self.folders = GitFolders(Path(tempfile.mkdtemp()))
+
+    def test_only_the_chosen_folder_is_written_and_nothing_else_changes(self):
+        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"logs", "Northwind/Days/2026-10-14.md": b"day"})
+        changed = git("show", "--name-only", "--format=", "main", cwd=self.remote).splitlines()
+        self.assertTrue(changed and all(path.startswith("Work Logs/") for path in changed))
+        self.assertEqual(git("show", "main:Portfolio/note.md", cwd=self.remote), "my own note\n")
+
+    def test_work_pushed_from_elsewhere_in_between_is_kept(self):
+        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"first"})
+        git("pull", "-q", "--rebase", cwd=self.mine)
+        (self.mine / "Portfolio" / "later.md").write_text("written in Obsidian\n")
+        git("add", "-A", cwd=self.mine)
+        git("commit", "-q", "-m", "later", cwd=self.mine)
+        git("push", "-q", "origin", "main", cwd=self.mine)
+        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"second"})
+        self.assertEqual(git("show", "main:Portfolio/later.md", cwd=self.remote), "written in Obsidian\n")
+        self.assertEqual(git("show", "main:Work Logs/README.md", cwd=self.remote), "second")
+
+    def test_a_folder_chronata_did_not_make_is_left_alone(self):
+        with self.assertRaisesRegex(SaveError, "was not made by Chronata"):
+            self.folders.prepare("p2", str(self.remote), "Portfolio")
 
 
 class FakeWebDav(BaseHTTPRequestHandler):

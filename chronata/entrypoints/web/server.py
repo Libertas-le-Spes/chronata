@@ -55,7 +55,7 @@ def _actions(app) -> dict:
         ),
         "/api/save": lambda body: sheet.save_now(),
         "/api/places/add": lambda body: saving.add_place(sheet, body.get("kind", ""), body.get("name", ""), body.get("target", ""),
-                                                         body.get("username", ""), body.get("password", "")),
+                                                         body.get("username", ""), body.get("password", ""), body.get("folder", "")),
         "/api/places/remove": lambda body: saving.remove_place(body.get("id", "")),
         "/api/setup": lambda body: sheet.configure(body.get("lunch", ""), body.get("shift", "")),
     }
