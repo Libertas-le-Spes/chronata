@@ -6,14 +6,14 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
-from chronata.adapters.places.folder_copy import write_changed
+from chronata.adapters.files.changed_files import write_changed
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.webdav_upload import upload_changed
 from chronata.use_cases.ports import SaveError
 
 KINDS = {
     "obsidian": "Obsidian vault",
-    "folder": "Folder (text file)",
+    "folder": "Folder",
     "git": "Git repository",
     "webdav": "Web server (WebDAV)",
 }

@@ -14,7 +14,7 @@ from chronata.adapters.places import place_book
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
-from chronata.presenters.daily_notes import daily_notes, overview, text_log
+from chronata.presenters.readable_copy import readable_files
 from chronata.use_cases.ports import Clock, Desktop, History, PowerHistory, Timestamper
 from chronata.use_cases.saving import Saving
 from chronata.use_cases.timesheet import Timesheet
@@ -43,14 +43,10 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
     sheet = Timesheet(LedgerFile(folder.ledger), history, WorkingDayFile(folder.working_day), power, write_lock(folder.lock), clock)
 
-    def readable_copies(current: Timesheet, now: datetime) -> dict[str, dict[str, bytes]]:
-        days = daily_notes(current.shifts(), current.weeks(), current.pc_sessions(), now)
-        stamps, entries = timestamper.stamps(), current.entry_count()
-        notes = {f"Days/{day:%Y-%m-%d}.md": note.encode() for day, note in days.items()}
-        notes["Chronata.md"] = overview(stamps, entries).encode()
-        return {"obsidian": notes, "webdav": notes, "folder": {"Chronata time log.txt": text_log(days, stamps, entries).encode()}}
+    def readable_copy(current: Timesheet, now: datetime) -> dict[str, bytes]:
+        return readable_files(current.shifts(), current.weeks(), current.pc_sessions(), timestamper.stamps(), current.entry_count(), now)
 
-    saving = Saving(places, timestamper, history, folder.sealed_files, readable_copies)
+    saving = Saving(places, timestamper, history, folder.sealed_files, readable_copy, folder.keep_readable)
     sheet.publish = saving
     return App(sheet, saving, history, timestamper, desktop or LinuxDesktop(), power)
 

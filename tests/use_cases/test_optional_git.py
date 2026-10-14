@@ -36,6 +36,8 @@ class AddingAGitPlaceLater(unittest.TestCase):
         self.assertTrue(f.app.history.keeps_history())
         pushed = subprocess.run(["git", "-C", str(backup), "show", "main:ledger.jsonl"], capture_output=True, text=True).stdout
         self.assertEqual(len(pushed.splitlines()), 2)
+        readme = subprocess.run(["git", "-C", str(backup), "show", "main:README.md"], capture_output=True, text=True).stdout
+        self.assertIn("Wednesday 14 October 2026", readme)
 
 
 if __name__ == "__main__":

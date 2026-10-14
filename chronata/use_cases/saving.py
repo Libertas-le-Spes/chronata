@@ -5,17 +5,18 @@ from chronata.timekeeping.stamps import Stamp, latest
 from chronata.use_cases.outcome import Outcome, UserError
 from chronata.use_cases.ports import History, Place, Places, SaveError, Timestamper
 
-ReadableCopies = Callable[[object, datetime], dict[str, dict[str, bytes]]]
+ReadableCopy = Callable[[object, datetime], dict[str, bytes]]
 
 
 class Saving:
-    def __init__(self, places: Places, timestamper: Timestamper, history: History,
-                 sealed_files: Callable[[], dict[str, bytes]], readable_copies: ReadableCopies):
+    def __init__(self, places: Places, timestamper: Timestamper, history: History, sealed_files: Callable[[], dict[str, bytes]],
+                 readable_copy: ReadableCopy, keep_locally: Callable[[dict[str, bytes]], None]):
         self.places = places
         self.timestamper = timestamper
         self.history = history
         self.sealed_files = sealed_files
-        self.readable_copies = readable_copies
+        self.readable_copy = readable_copy
+        self.keep_locally = keep_locally
 
     def __call__(self, sheet) -> str | None:
         warnings = []
@@ -26,8 +27,10 @@ class Saving:
                 self.history.commit(f"timestamped entry {head[0]} by {', '.join(s.authority_name for s in made)}")
             if failures:
                 warnings.append(f"timestamp not taken ({'; '.join(failures)}); will try again on the next save")
-        self.history.commit("brought the history up to date before saving")
-        warnings += self._save_everywhere(sheet)
+        readable = self.readable_copy(sheet, sheet.clock())
+        self.keep_locally(readable)
+        self.history.commit("updated the readable copy")
+        warnings += self._save_everywhere(sheet, readable)
         return "; ".join(warnings) or None
 
     def add_place(self, sheet, kind: str, name: str, target: str, username: str = "", password: str = "") -> Outcome:
@@ -51,17 +54,16 @@ class Saving:
     def stamped(self) -> tuple[int | None, list[Stamp]]:
         return latest(self.timestamper.stamps())
 
-    def _save_everywhere(self, sheet) -> list[str]:
+    def _save_everywhere(self, sheet, readable: dict[str, bytes]) -> list[str]:
         targets = self.places.places()
         if not targets:
             return ["only saved on this computer; add a place to keep a copy somewhere else"]
         now = sheet.clock()
-        sealed = self.sealed_files()
-        readable = self.readable_copies(sheet, now)
+        bundle = {**self.sealed_files(), **readable}
         warnings = []
         for place in targets:
             try:
-                self.places.deliver(place, {**sealed, **readable.get(place.kind, {})})
+                self.places.deliver(place, bundle)
                 self.places.remember(place.id, now, None)
             except SaveError as error:
                 self.places.remember(place.id, now, str(error))

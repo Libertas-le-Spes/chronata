@@ -17,10 +17,12 @@ class SavingEverywhere(unittest.TestCase):
         self.f.app.saving.add_place(self.f.sheet, "folder", "Text file", str(self.folder))
         self.f.app.saving.add_place(self.f.sheet, "obsidian", "Vault", str(self.vault))
 
-    def test_each_place_gets_the_sealed_log_and_its_own_readable_copy(self):
+    def test_every_place_and_the_log_folder_get_the_same_readable_copy(self):
+        for where in (self.folder, self.vault / "Chronata", self.f.data):
+            self.assertIn("Tuesday 13 October 2026", (where / "Chronata time log.md").read_text())
+            self.assertIn("release prep", (where / "Days" / "2026-10-13.md").read_text())
+            self.assertIn("## Recent weeks", (where / "README.md").read_text())
         self.assertTrue((self.folder / "sealed" / "ledger.jsonl").exists())
-        self.assertIn("Tuesday 13 October 2026", (self.folder / "Chronata time log.txt").read_text())
-        self.assertIn("release prep", (self.vault / "Chronata" / "Days" / "2026-10-13.md").read_text())
 
     def test_a_saved_copy_checks_out_on_its_own(self):
         record, timestamper = open_saved_copy(self.vault)

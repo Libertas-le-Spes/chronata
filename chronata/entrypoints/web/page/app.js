@@ -158,8 +158,8 @@ function renderBadges(state) {
 }
 
 const PLACE_HELP = {
-  obsidian: ["Vault folder", "/home/you/Notes", true, "Notes go into a Chronata folder inside the vault: one note per day and an overview, plus the sealed log."],
-  folder: ["Folder", "/home/you/Documents/Time", true, "Writes “Chronata time log.txt” and the sealed log into this folder. A Dropbox, OneDrive or Syncthing folder works too."],
+  obsidian: ["Vault folder", "/home/you/Notes", true, "Goes into a Chronata folder inside the vault: an overview, the whole log in one note, a note per day, and the sealed log."],
+  folder: ["Folder", "/home/you/Documents/Time", true, "Gets an overview, the whole log in one file, a file per day, and the sealed log. A Dropbox, OneDrive or Syncthing folder works too."],
   git: ["Repository address", "https://github.com/you/time-log.git", false, "Create an empty private repository first. Git hosts record when each save arrives."],
   webdav: ["Server address", "https://cloud.example.com/remote.php/dav/files/you/", false, "Nextcloud, ownCloud and most file servers speak WebDAV. The password is kept only on this computer."],
 };
