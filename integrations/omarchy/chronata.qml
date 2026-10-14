@@ -44,6 +44,10 @@ Item {
     palette = colors
   }
 
+  function quoted(value) {
+    return "'" + String(value).replace(/'/g, "'\\''") + "'"
+  }
+
   function refresh() {
     if (!poll.running) poll.running = true
   }
@@ -107,7 +111,7 @@ Item {
     cursorShape: Qt.PointingHandCursor
     onClicked: function(mouse) {
       if (!root.bar) return
-      root.bar.run(root.bar.shellQuote(root.command) + (mouse.button === Qt.RightButton ? " ui" : " toggle"))
+      root.bar.run(root.quoted(root.command) + (mouse.button === Qt.RightButton ? " ui" : " toggle"))
       soon.restart()
     }
     onEntered: if (root.bar && root.tooltip) root.bar.showTooltip(root, root.tooltip)
