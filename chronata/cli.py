@@ -8,6 +8,7 @@ from pathlib import Path
 from chronata import bar, places, setup, verification
 from chronata.places import PlaceBook, config_dir
 from chronata.publisher import Publisher
+from chronata.web.server import DEFAULT_PORT
 from chronata.ledger import Ledger, TamperedLedger
 from chronata.report import hours, report_lines, shift_lines
 from chronata.settings import data_dir
@@ -245,7 +246,7 @@ def _parser() -> argparse.ArgumentParser:
     command.set_defaults(run=remove_place)
 
     command = commands.add_parser("ui", help="open the log in your browser")
-    command.add_argument("--port", type=int, default=47630)
+    command.add_argument("--port", type=int, default=DEFAULT_PORT)
     command.add_argument("--no-browser", action="store_true")
     command.set_defaults(run=ui)
 
@@ -262,7 +263,7 @@ def _parser() -> argparse.ArgumentParser:
     command.set_defaults(run=bar_toggle)
 
     command = commands.add_parser("service", help="run in the background: the page, PC on/off records and reminders")
-    command.add_argument("--port", type=int, default=47630)
+    command.add_argument("--port", type=int, default=DEFAULT_PORT)
     command.set_defaults(run=service)
     return parser
 

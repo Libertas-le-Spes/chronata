@@ -155,8 +155,7 @@ class Timesheet:
         if earlier_today and start > earlier_today.end:
             gap = Break(earlier_today.end, start)
             data = _with_note({"shift": earlier_today.id, "at": start.isoformat(), "boot": self.boot_id()}, note)
-            counted = "counted as work" if gap.counted else "not counted"
-            return self._write("clock_resumed", data, f"back on today's shift at {start:%H:%M:%S}; the {hours(gap.end - gap.start)} gap is {counted}", now)
+            return self._write("clock_resumed", data, f"back on today's shift at {start:%H:%M:%S} after a {hours(gap.end - gap.start)} break", now)
         data = _with_note({"at": start.isoformat(), "boot": self.boot_id(), **_with_label(label)}, note)
         return self._write("clock_in", data, f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {label.strip()}" if label.strip() else ""), now)
 

@@ -63,6 +63,24 @@
   </nav>
 
   <section id="tab-shifts" class="tab">
+    <div class="card chart-card">
+      <div class="chart-head">
+        <button type="button" id="week-back" class="link" aria-label="Previous week">‹</button>
+        <h2 id="chart-title"></h2>
+        <button type="button" id="week-next" class="link" aria-label="Next week">›</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i class="swatch normal"></i>Normal hours</span>
+        <span><i class="swatch overtime"></i>Overtime</span>
+        <span><i class="target-key"></i>Full day</span>
+      </div>
+      <div id="chart" class="chart"></div>
+      <div id="chart-tip" class="chart-tip" hidden></div>
+      <details class="small">
+        <summary class="muted">Show as a table</summary>
+        <table id="chart-table" class="chart-table"></table>
+      </details>
+    </div>
     <div id="by-label"></div>
     <div id="shifts"></div>
   </section>
@@ -145,6 +163,18 @@
     <div class="wide actions">
       <button type="button" data-close>Cancel</button>
       <button class="primary" type="submit">Save correction</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="out-dialog">
+  <form method="dialog" id="out-form" class="grid-form">
+    <h2 class="wide">Clock out now?</h2>
+    <p id="out-question" class="wide"></p>
+    <label class="wide">Why, if you'd like it on record <input name="note" type="text" autocomplete="off" placeholder="e.g. doctor's appointment, back at 15:00"></label>
+    <div class="wide actions">
+      <button type="button" data-close>No, keep working</button>
+      <button class="primary" type="submit">Yes, clock out</button>
     </div>
   </form>
 </dialog>

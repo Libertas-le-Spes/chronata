@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import replace
-from datetime import time
+from datetime import time, timedelta
 from pathlib import Path
 
 from chronata.rules import Rules
@@ -35,7 +35,11 @@ def load_rules(directory: Path) -> Rules:
         0.0,
         configured,
     )
-    return replace(rules, weekly_hours=float(raw.get("weekly_hours") or rules.daily_hours * len(workdays)))
+    return replace(
+        rules,
+        weekly_hours=float(raw.get("weekly_hours") or rules.daily_hours * len(workdays)),
+        early_leave_grace=timedelta(minutes=int(raw.get("early_leave_minutes", 7))),
+    )
 
 
 def save_rules(directory: Path, shift_start: time, shift_end: time, lunch_start: time, lunch_minutes: int) -> None:

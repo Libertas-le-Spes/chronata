@@ -5,7 +5,7 @@ from chronata.desktop import notify, open_page
 from chronata.shifts import completed, open_shift
 from chronata.timesheet import Timesheet, UserError
 
-WORKDAY_HOURS = range(7, 18)
+REMINDER_HOURS = range(7, 18)
 BETWEEN_REMINDERS = timedelta(hours=1)
 REMINDERS_PER_DAY = 2
 LONG_SHIFT = timedelta(hours=12)
@@ -47,7 +47,7 @@ class Nudges:
                 self.long_shift_warned.add(current.id)
                 notify("Still working?", f"Clocked in since {current.start:%H:%M}. Click to open the log.", lambda: open_page(self.page_url))
             return
-        if not self._looks_like_a_workday(now):
+        if now.hour not in REMINDER_HOURS:
             return
         if any(shift.start.date() == now.date() for shift in completed(all_shifts)):
             return
@@ -55,16 +55,16 @@ class Nudges:
         if len(sent) >= REMINDERS_PER_DAY or (sent and now - sent[-1] < BETWEEN_REMINDERS):
             return
         sent.append(now)
-        notify("Not clocked in", "If you've started work, click to clock in now.", self._clock_in, click_label="Clock in")
+        if now.weekday() in self.sheet.rules.workdays:
+            notify("Not clocked in", "If you've started work, click to clock in now.", self._clock_in, click_label="Clock in")
+        else:
+            notify(f"It's {now:%A}. Working today?", "Your PC is on. If you're working, click to clock in now.", self._clock_in, click_label="Clock in")
 
     def run_forever(self) -> None:
         self.on_login()
         while True:
             self.tick()
             time.sleep(60)
-
-    def _looks_like_a_workday(self, now: datetime) -> bool:
-        return now.weekday() in self.sheet.rules.workdays and now.hour in WORKDAY_HOURS
 
     def _clock_in(self) -> None:
         try:

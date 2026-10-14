@@ -1,7 +1,8 @@
-from chronata.desktop import notify
+from chronata.desktop import notify, open_page
 from chronata.report import hours
 from chronata.shifts import labels, open_shift
 from chronata.timesheet import Timesheet, UserError
+from chronata.web.server import DEFAULT_PORT, page_url
 
 CLOCK_ICON = ""
 WARNING_ICON = ""
@@ -38,8 +39,11 @@ def toggle(sheet: Timesheet) -> None:
     if sheet.interrupted():
         notify("Last shift is still open", "The PC turned off while you were clocked in. Right-click the timer to open the log and close it.")
         return
+    all_shifts = sheet.shifts()
+    if open_shift(all_shifts) and sheet.rules.before_end_of_workday(sheet.clock()):
+        open_page(page_url(DEFAULT_PORT) + "#confirm-out")
+        return
     try:
-        all_shifts = sheet.shifts()
         recent = labels(all_shifts)
         outcome = sheet.clock_out(None, None) if open_shift(all_shifts) else sheet.clock_in(None, None, recent[0] if recent else "")
     except UserError as error:

@@ -39,7 +39,7 @@ def shift_lines(all_shifts: list[Shift], sessions: list[PcSession], rules: Rules
 
 def punctuality(day: Day) -> str | None:
     if day.late <= timedelta():
-        return None
+        return f"{hours(day.short)} short of a full day" if day.short > timedelta() else None
     if day.made_up:
         return f"arrived {hours(day.late)} late, made up (left {day.last_out:%H:%M})"
     return f"arrived {hours(day.late)} late, {hours(day.short)} short of a full day"

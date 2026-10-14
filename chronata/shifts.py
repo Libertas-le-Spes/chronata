@@ -3,17 +3,10 @@ from datetime import datetime, timedelta
 
 from chronata.ledger import Entry
 
-MISTAKE_GAP = timedelta(minutes=15)
-
-
 @dataclass(frozen=True)
 class Break:
     start: datetime
     end: datetime
-
-    @property
-    def counted(self) -> bool:
-        return self.end - self.start <= MISTAKE_GAP
 
 
 @dataclass
@@ -36,9 +29,8 @@ class Shift:
         finish = self.end or until
         pieces, cursor = [], self.start
         for gap in self.breaks:
-            if not gap.counted:
-                pieces.append((cursor, gap.start))
-                cursor = gap.end
+            pieces.append((cursor, gap.start))
+            cursor = gap.end
         pieces.append((cursor, finish))
         return [(begins, ends) for begins, ends in pieces if ends > begins]
 
@@ -60,10 +52,7 @@ def shifts(entries: list[Entry]) -> list[Shift]:
                 resumed = datetime.fromisoformat(data["at"])
                 gap = Break(shift.end, resumed)
                 shift.breaks.append(gap)
-                shift.changes.append(
-                    f"clocked out {gap.start:%H:%M:%S}, back {gap.end:%H:%M:%S}: "
-                    + ("gap counted as work, as a mistaken clock-out" if gap.counted else "kept as one shift, break not counted")
-                )
+                shift.changes.append(f"break {gap.start:%H:%M:%S}–{gap.end:%H:%M:%S}, not counted as work")
                 shift.end = None
             case "shift_added":
                 end = datetime.fromisoformat(data["end"])

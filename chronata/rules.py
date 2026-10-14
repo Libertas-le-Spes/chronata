@@ -16,11 +16,15 @@ class Rules:
     workdays: frozenset[int]
     weekly_hours: float
     configured: bool
+    early_leave_grace: timedelta = timedelta(minutes=7)
 
     @property
     def daily_hours(self) -> float:
         shift = datetime.combine(date.min, self.shift_end) - datetime.combine(date.min, self.shift_start)
         return (shift - timedelta(minutes=self.lunch_minutes)) / timedelta(hours=1)
+
+    def before_end_of_workday(self, moment: datetime) -> bool:
+        return moment.weekday() in self.workdays and moment.time() < self.shift_end
 
     def lunch_overlap(self, start: datetime, end: datetime) -> timedelta:
         lunch_begins = datetime.combine(start.date(), self.lunch_start, start.tzinfo)
@@ -99,5 +103,7 @@ def _days(worked_days: list[tuple[date, list[Shift]]], rules: Rules) -> tuple[Da
         due = datetime.combine(day, rules.shift_start, first_in.tzinfo)
         late = max(first_in - due, NONE) if workday else NONE
         short = max(daily_limit - worked, NONE) if workday else NONE
+        if late == NONE and short <= rules.early_leave_grace:
+            short = NONE
         days.append(Day(day, worked, worked - ordinary, first_in, last_out, late, short))
     return tuple(days)

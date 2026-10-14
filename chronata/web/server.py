@@ -12,6 +12,7 @@ from chronata.timesheet import Outcome, Timesheet, UserError
 from chronata.web.state import state
 
 PAGES = Path(__file__).parent / "page"
+DEFAULT_PORT = 47630
 STATIC = {"/app.js": "text/javascript", "/style.css": "text/css"}
 
 

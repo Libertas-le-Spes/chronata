@@ -1,8 +1,9 @@
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 from chronata import places, setup, timestamps
 from chronata.pc_sessions import PcSession, support
-from chronata.rules import Rules, worked_by_label
+from chronata.rules import Rules, weeks, worked_by_label
 from chronata.report import LATE_ENOUGH_TO_FLAG
 from chronata.settings import DAY_NAMES
 from chronata.shifts import Shift, completed, labels, open_shift
@@ -31,6 +32,8 @@ def state(sheet: Timesheet) -> dict:
             "pcWentOff": interrupted.pc_went_off.isoformat() if interrupted.pc_went_off else None,
         } if interrupted else None,
         "pcOnSince": this_boot.on.isoformat() if this_boot else None,
+        "beforeEndOfWorkday": rules.before_end_of_workday(now),
+        "shiftEnd": f"{rules.shift_end:%H:%M}",
         "weeks": [
             {
                 "start": week.start.isoformat(),
@@ -43,9 +46,10 @@ def state(sheet: Timesheet) -> dict:
         ],
         "shifts": [_shift(shift, sessions, rules, now) for shift in reversed(all_shifts)],
         "labels": labels(all_shifts),
+        "chart": _chart(all_shifts, rules, now, running=None if interrupted else current),
         "days": {
             day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
-            for week in all_weeks for day in week.days if day.late > timedelta()
+            for week in all_weeks for day in week.days if day.late > timedelta() or day.short > timedelta()
         },
         "byLabel": {
             "week": _by_label([s for s in completed(all_shifts) if s.start.date() >= now.date() - timedelta(days=now.weekday())], rules),
@@ -109,6 +113,34 @@ def _shift(shift: Shift, sessions: list[PcSession], rules: Rules, now: datetime)
         "lateBy": minutes(shift.entered_late_by) if shift.entered_late_by > LATE_ENOUGH_TO_FLAG else None,
         "notes": shift.notes,
         "changes": shift.changes,
+    }
+
+
+def _chart(all_shifts: list[Shift], rules: Rules, now: datetime, running: Shift | None) -> dict:
+    counted = completed(all_shifts) + ([replace(running, end=now)] if running else [])
+    recent = {week.start: week for week in weeks(counted, rules)[-8:]}
+    this_monday = now.date() - timedelta(days=now.weekday())
+    recent.setdefault(this_monday, None)
+    return {
+        "targetMinutes": round(rules.daily_hours * 60),
+        "weeks": [
+            {"start": start.isoformat(), "days": [_chart_day(start + timedelta(days=i), week, now, running) for i in range(7)]}
+            for start, week in sorted(recent.items())
+        ],
+    }
+
+
+def _chart_day(day, week, now: datetime, running: Shift | None) -> dict:
+    found = next((d for d in week.days if d.date == day), None) if week else None
+    return {
+        "date": day.isoformat(),
+        "normal": minutes(found.worked - found.overtime) if found else 0,
+        "overtime": minutes(found.overtime) if found else 0,
+        "late": minutes(found.late) if found else 0,
+        "short": minutes(found.short) if found else 0,
+        "madeUp": bool(found and found.made_up),
+        "soFar": bool(running) and day == now.date(),
+        "future": day > now.date(),
     }
 
 

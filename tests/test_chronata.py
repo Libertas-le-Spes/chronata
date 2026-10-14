@@ -253,18 +253,49 @@ class SameDayShifts(unittest.TestCase):
     def at_time(self, text: str) -> None:
         self.now = at(f"2026-10-14T{text}")
 
-    def test_a_mistaken_clock_out_is_one_shift_with_the_gap_counted(self):
+    def test_a_break_in_the_day_is_one_shift_and_not_counted(self):
         self.at_time("10:00:00")
         self.sheet.clock_out(None, None)
         self.at_time("10:04:00")
         self.sheet.clock_in(None, None)
         self.at_time("17:03:00")
         self.sheet.clock_out(None, None)
-        day = self.sheet.weeks()[0].days[0]
         self.assertEqual(len(self.sheet.shifts()), 1)
-        self.assertEqual(day.worked, timedelta(hours=8))
+        self.assertEqual(self.sheet.weeks()[0].days[0].worked, timedelta(hours=7, minutes=56))
 
-    def test_a_long_gap_stays_one_shift_but_is_not_counted(self):
+    def test_leaving_up_to_seven_minutes_early_after_arriving_on_time_is_a_full_day(self):
+        self.at_time("17:00:00")
+        self.sheet.clock_out(None, None)
+        self.now = at("2026-10-15T07:59:00")
+        self.sheet.clock_in(None, None)
+        self.now = at("2026-10-15T16:53:00")
+        self.sheet.clock_out(None, None)
+        day = self.sheet.weeks()[0].days[-1]
+        self.assertEqual((day.late, day.short), (timedelta(), timedelta()))
+        self.assertEqual(day.worked, timedelta(hours=7, minutes=54))
+
+    def test_leaving_ten_minutes_early_is_short(self):
+        self.at_time("17:00:00")
+        self.sheet.clock_out(None, None)
+        self.now = at("2026-10-15T08:00:00")
+        self.sheet.clock_in(None, None)
+        self.now = at("2026-10-15T16:50:00")
+        self.sheet.clock_out(None, None)
+        self.assertEqual(self.sheet.weeks()[0].days[-1].short, timedelta(minutes=10))
+
+    def test_leaving_early_after_arriving_late_is_not_forgiven(self):
+        self.at_time("16:57:00")
+        self.sheet.clock_out(None, None)
+        day = self.sheet.weeks()[0].days[0]
+        self.assertEqual((day.short, day.made_up), (timedelta(minutes=6), False))
+
+    def test_only_a_clock_out_before_the_end_of_a_workday_needs_asking(self):
+        rules = self.sheet.rules
+        self.assertTrue(rules.before_end_of_workday(at("2026-10-14T14:20:00")))
+        self.assertFalse(rules.before_end_of_workday(at("2026-10-14T17:00:00")))
+        self.assertFalse(rules.before_end_of_workday(at("2026-10-17T14:20:00")))
+
+    def test_an_evening_return_stays_one_shift_without_counting_the_break(self):
         self.at_time("17:00:00")
         self.sheet.clock_out(None, None)
         self.at_time("20:00:00")
