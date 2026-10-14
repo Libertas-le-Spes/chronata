@@ -1,0 +1,46 @@
+from chronata.desktop import notify
+from chronata.report import hours
+from chronata.shifts import open_shift
+from chronata.timesheet import Timesheet, UserError
+
+CLOCK_ICON = ""
+WARNING_ICON = ""
+
+
+def status(sheet: Timesheet) -> dict:
+    now = sheet.clock()
+    interrupted = sheet.interrupted()
+    if interrupted:
+        return {
+            "text": WARNING_ICON,
+            "tooltip": f"Still clocked in from {interrupted.shift.start:%a %H:%M}, before the PC last turned off.\nRight-click to open the log and close that shift.",
+            "class": "active",
+            "state": "interrupted",
+        }
+    current = open_shift(sheet.shifts())
+    if current:
+        return {
+            "text": f"{CLOCK_ICON}\n{hours(sheet.rules.worked(current.start, now))}",
+            "tooltip": f"Working since {current.start:%H:%M:%S}\nClick to clock out · right-click to open the log",
+            "class": "active",
+            "state": "in",
+            "elapsed": hours(sheet.rules.worked(current.start, now)),
+        }
+    return {
+        "text": CLOCK_ICON,
+        "tooltip": "Not clocked in\nClick to clock in · right-click to open the log",
+        "class": "",
+        "state": "out",
+    }
+
+
+def toggle(sheet: Timesheet) -> None:
+    if sheet.interrupted():
+        notify("Last shift is still open", "The PC turned off while you were clocked in. Right-click the timer to open the log and close it.")
+        return
+    try:
+        outcome = sheet.clock_out(None, None) if open_shift(sheet.shifts()) else sheet.clock_in(None, None)
+    except UserError as error:
+        notify("Could not log that", str(error))
+        return
+    notify(outcome.message.capitalize(), outcome.warning or "")

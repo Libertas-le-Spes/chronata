@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="token" content="{{token}}">
+<title>Chronata</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <h1>Chronata</h1>
+  <div class="badges">
+    <button type="button" id="integrity" class="badge"></button>
+    <span id="saving" class="badge"></span>
+    <button type="button" id="save-button" class="primary small-button">Save</button>
+  </div>
+</header>
+
+<main>
+  <section id="setup" class="card setup" hidden>
+    <h2>Your working day</h2>
+    <p class="muted">Lunch is taken off automatically: time inside the lunch window doesn't count as work. If you clock out for lunch instead, nothing is taken off twice.</p>
+    <form id="setup-form" class="grid-form">
+      <label class="wide"><span id="lunch-question"></span> <input name="lunch" type="text" autocomplete="off"></label>
+      <label class="wide"><span id="shift-question"></span> <input name="shift" type="text" autocomplete="off"></label>
+      <div class="wide actions">
+        <button type="button" id="setup-cancel">Cancel</button>
+        <button class="primary" type="submit">Save</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="clock card" aria-live="polite">
+    <p id="clock-state" class="clock-state">Loading…</p>
+    <p id="timer" class="timer">–:––:––</p>
+    <p id="this-week" class="muted"></p>
+    <form id="clock-form" class="clock-form">
+      <input name="note" type="text" autocomplete="off" placeholder="Note: what kept you, who asked, where the proof is">
+      <details>
+        <summary>Use a different time</summary>
+        <label>It actually happened at <input name="at" type="time" step="1"></label>
+        <p class="muted small">The log will show this was written later than it happened.</p>
+      </details>
+      <button id="clock-button" class="primary" type="submit">Clock in</button>
+    </form>
+  </section>
+
+  <section class="totals">
+    <div class="tile"><span class="label">Overtime worked</span><span id="t-owed" class="value">–</span></div>
+    <div class="tile"><span class="label">Compensated</span><span id="t-compensated" class="value">–</span></div>
+    <div class="tile danger"><span class="label">Uncompensated</span><span id="t-shortfall" class="value">–</span></div>
+    <div class="tile"><span class="label">No payslip recorded yet</span><span id="t-unmatched" class="value">–</span></div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="shifts" aria-selected="true">Shifts</button>
+    <button type="button" role="tab" data-tab="pay" aria-selected="false">Payslips</button>
+    <button type="button" role="tab" data-tab="add" aria-selected="false">Add a missed shift</button>
+    <button type="button" role="tab" data-tab="places" aria-selected="false">Saving</button>
+  </nav>
+
+  <section id="tab-shifts" class="tab">
+    <div id="shifts"></div>
+  </section>
+
+  <section id="tab-pay" class="tab" hidden>
+    <div class="card">
+      <h2>Record a payslip</h2>
+      <p class="muted">Enter what the payslip actually paid for overtime, even if that is 0. A 0 is the evidence that matters most.</p>
+      <form id="paid-form" class="grid-form">
+        <label>Pay period from <input name="from" type="date" required></label>
+        <label>to <input name="to" type="date" required></label>
+        <label>Overtime hours paid <input name="hours" type="number" min="0" step="0.01" required value="0"></label>
+        <label>Given as
+          <select name="timeOff">
+            <option value="">Pay</option>
+            <option value="1">Time off</option>
+          </select>
+        </label>
+        <label class="wide">Reference <input name="reference" type="text" placeholder="e.g. payslip October 2026"></label>
+        <button class="primary wide" type="submit">Record payslip</button>
+      </form>
+    </div>
+    <div id="unmatched"></div>
+    <div id="periods"></div>
+  </section>
+
+  <section id="tab-add" class="tab" hidden>
+    <div class="card">
+      <h2>Add a shift you didn't clock</h2>
+      <p class="muted">It will be marked as written after the fact, with your reason. That's normal. What would look bad is hiding it.</p>
+      <form id="add-form" class="grid-form">
+        <label>Date <input name="date" type="date" required></label>
+        <label>Started <input name="start" type="time" step="1" required></label>
+        <label>Finished <input name="end" type="time" step="1" required></label>
+        <label class="wide">Why it wasn't clocked at the time <input name="reason" type="text" required></label>
+        <label class="wide">Note <input name="note" type="text" placeholder="What kept you, who asked, where the proof is"></label>
+        <button class="primary wide" type="submit">Add shift</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="tab-places" class="tab" hidden>
+    <div class="card">
+      <h2>Independent timestamps</h2>
+      <p id="stamp-text" class="muted"></p>
+    </div>
+    <div id="places"></div>
+    <div class="card">
+      <h2>Save somewhere else too</h2>
+      <p class="muted">Every place gets the same sealed log and timestamps, so a copy anywhere can be checked on its own. Saving happens after every entry and whenever you press Save.</p>
+      <form id="place-form" class="grid-form">
+        <label>Kind of place <select name="kind" id="place-kind"></select></label>
+        <label>Name <input name="name" type="text" autocomplete="off" placeholder="e.g. My vault"></label>
+        <label class="wide"><span id="target-label">Folder</span>
+          <span class="with-button">
+            <input name="target" type="text" autocomplete="off" required>
+            <button type="button" id="choose-folder">Choose folder…</button>
+          </span>
+        </label>
+        <label class="dav-only">Username <input name="username" type="text" autocomplete="username"></label>
+        <label class="dav-only">Password <input name="password" type="password" autocomplete="current-password"></label>
+        <p id="place-hint" class="muted small wide"></p>
+        <button class="primary wide" type="submit">Add and save now</button>
+      </form>
+    </div>
+  </section>
+
+  <p class="muted small rules"><span id="rules"></span> <button type="button" id="change-hours" class="link">Change</button></p>
+</main>
+
+<dialog id="correct-dialog">
+  <form method="dialog" id="correct-form" class="grid-form">
+    <h2 class="wide">Correct shift</h2>
+    <p class="muted small wide">The original times stay on record next to the new ones.</p>
+    <input type="hidden" name="id">
+    <label>Started <input name="start" type="datetime-local" step="1" required></label>
+    <label>Finished <input name="end" type="datetime-local" step="1" required></label>
+    <label class="wide">Reason <input name="reason" type="text" required></label>
+    <div class="wide actions">
+      <button type="button" data-close>Cancel</button>
+      <button class="primary" type="submit">Save correction</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="strike-dialog">
+  <form method="dialog" id="strike-form" class="grid-form">
+    <h2 class="wide">Strike out shift</h2>
+    <p class="muted small wide">It stays on record, crossed out, and no longer counts.</p>
+    <input type="hidden" name="id">
+    <label class="wide">Reason <input name="reason" type="text" required></label>
+    <div class="wide actions">
+      <button type="button" data-close>Cancel</button>
+      <button class="danger-button" type="submit">Strike out</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
