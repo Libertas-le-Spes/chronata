@@ -6,7 +6,7 @@ from pathlib import Path
 from chronata.timekeeping.pc_sessions import Boot
 
 
-class PowerJournal:
+class SystemdJournal:
     def current_boot_id(self) -> str:
         return Path("/proc/sys/kernel/random/boot_id").read_text().strip().replace("-", "")
 

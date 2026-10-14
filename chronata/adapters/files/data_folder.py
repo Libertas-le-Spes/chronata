@@ -1,6 +1,3 @@
-import hashlib
-import os
-import tempfile
 from pathlib import Path
 
 from chronata.adapters.files.changed_files import write_changed
@@ -10,10 +7,6 @@ WORKING_DAY = "rules.json"
 TIMESTAMPS = "timestamps"
 
 
-def default_location() -> Path:
-    return Path(os.environ.get("CHRONATA_HOME", Path.home() / ".local" / "share" / "chronata"))
-
-
 class DataFolder:
     def __init__(self, directory: Path):
         directory.mkdir(parents=True, exist_ok=True)
@@ -21,8 +14,6 @@ class DataFolder:
         self.ledger = directory / LEDGER
         self.working_day = directory / WORKING_DAY
         self.timestamps = directory / TIMESTAMPS
-        guarded = hashlib.sha256(str(directory.resolve()).encode()).hexdigest()[:16]
-        self.lock = Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()) / f"chronata-{guarded}.lock"
 
     def keep_readable(self, files: dict[str, bytes]) -> None:
         write_changed(self.directory, files)

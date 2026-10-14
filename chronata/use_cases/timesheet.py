@@ -85,7 +85,8 @@ class Timesheet:
                 self.record.append("pc_session", {"boot": boot.id, "on": boot.on.isoformat(), "off": None}, now)
                 written += 1
             elif not boot.current and (known is None or known.off is None):
-                self.record.append("pc_session", {"boot": boot.id, "on": boot.on.isoformat(), "off": boot.last_seen.isoformat()}, now)
+                data = {"boot": boot.id, "on": boot.on.isoformat(), "off": boot.last_seen.isoformat()}
+                self.record.append("pc_session", {**data, "exact": True} if boot.off_is_exact else data, now)
                 written += 1
         break_message = self._pc_off_break(now)
         if not written and not break_message:

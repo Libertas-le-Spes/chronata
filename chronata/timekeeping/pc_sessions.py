@@ -12,6 +12,7 @@ class Boot:
     on: datetime
     last_seen: datetime
     current: bool
+    off_is_exact: bool = False
 
 
 @dataclass(frozen=True)

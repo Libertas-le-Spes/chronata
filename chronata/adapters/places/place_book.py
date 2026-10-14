@@ -1,5 +1,4 @@
 import json
-import os
 import re
 import secrets
 from dataclasses import asdict, dataclass
@@ -30,11 +29,6 @@ class SavedPlace:
     username: str = ""
     password: str = ""
     folder: str = ""
-
-
-def default_location() -> Path:
-    base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
-    return Path(os.environ.get("CHRONATA_CONFIG", Path(base) / "chronata"))
 
 
 class PlaceBook:
