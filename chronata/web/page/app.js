@@ -211,8 +211,11 @@ function renderTotals(state) {
   $("#t-shortfall").parentElement.classList.toggle("has-value", state.totals.shortfall > 0);
 }
 
-function shiftCard(shift) {
+function shiftCard(shift, day) {
   const chips = [];
+  if (shift.label) chips.push(el("span", { class: "chip label" }, shift.label));
+  if (day) chips.push(el("span", { class: `chip ${day.madeUp ? "live" : "warn"}` },
+    day.madeUp ? `Late ${hours(day.late)} · made up, left ${clockTime(day.lastOut).slice(0, 5)}` : `Late ${hours(day.late)} · ${hours(day.short)} short`));
   if (!shift.end) chips.push(el("span", { class: "chip live" }, "Open"));
   if (shift.voided) chips.push(el("span", { class: "chip" }, "Struck out"));
   if (shift.lateBy != null) chips.push(el("span", { class: "chip warn" }, `Entered ${lateLabel(shift.lateBy)} after the fact`));
@@ -221,9 +224,14 @@ function shiftCard(shift) {
   const corrections = shift.changes.filter((change) => change.includes(" changed ")).length;
   if (corrections) chips.push(el("span", { class: "chip" }, corrections === 1 ? "Corrected" : `Corrected ${corrections}×`));
 
-  const tools = shift.voided || !shift.end ? null : el("span", { class: "tools" },
-    el("button", { type: "button", class: "link", onclick: () => openCorrect(shift) }, "Correct"),
-    el("button", { type: "button", class: "link", onclick: () => openStrike(shift) }, "Strike out"),
+  const labelButton = el("button", { type: "button", class: "link", onclick: () => {
+    const label = prompt("Client or project for this shift (leave empty to remove)", shift.label);
+    if (label !== null) act("/api/label", { id: shift.id, label });
+  } }, "Label");
+  const tools = shift.voided ? null : el("span", { class: "tools" },
+    labelButton,
+    shift.end ? el("button", { type: "button", class: "link", onclick: () => openCorrect(shift) }, "Correct") : null,
+    shift.end ? el("button", { type: "button", class: "link", onclick: () => openStrike(shift) }, "Strike out") : null,
   );
 
   const pcLines = shift.pc.sessions.map((s) => el("li", {}, `PC on ${dayLabel(s.on)} ${clockTime(s.on).slice(0, 5)} – ${s.off ? `${dayLabel(s.off)} ${clockTime(s.off).slice(0, 5)}` : "still on"}${s.off ? (s.exact ? ", at shutdown" : ", last activity") : ""}`));
@@ -255,6 +263,11 @@ function renderShifts(state) {
     return;
   }
   const weeks = new Map(state.weeks.map((week) => [week.start, week]));
+  const firstOfDay = new Map();
+  for (const [date, day] of Object.entries(state.days)) {
+    const earliest = state.shifts.filter((s) => s.start.slice(0, 10) === date && !s.voided).sort((a, b) => a.start.localeCompare(b.start))[0];
+    if (earliest) firstOfDay.set(earliest.id, day);
+  }
   const groups = new Map();
   for (const shift of state.shifts) {
     const key = weekStart(shift.start);
@@ -268,9 +281,21 @@ function renderShifts(state) {
         el("h3", {}, `Week of ${longDate(start)}`),
         week ? el("span", { class: "sum" }, el("strong", {}, hours(week.worked)), " worked · ", el("strong", {}, hours(week.overtime)), week.running ? " overtime so far" : " overtime") : null,
       ),
-      el("div", { class: "shift-list" }, shifts.map(shiftCard)),
+      el("div", { class: "shift-list" }, shifts.map((shift) => shiftCard(shift, firstOfDay.get(shift.id)))),
     );
   }));
+}
+
+function renderLabels(state) {
+  $("#known-labels").replaceChildren(...state.labels.map((label) => el("option", { value: label })));
+  const labelInput = $("#clock-form").elements.label;
+  labelInput.hidden = Boolean(current) && !interrupted;
+  if (!current && document.activeElement !== labelInput && !labelInput.value && state.labels.length) labelInput.value = state.labels[0];
+  const week = state.byLabel.week.filter((row) => row.label);
+  $("#by-label").replaceChildren(...(week.length ? [el("div", { class: "card" },
+    el("h3", {}, "This week by label"),
+    el("div", { class: "by-label" }, state.byLabel.week.map((row) => el("span", {}, `${row.label || "No label"} `, el("strong", {}, hours(row.worked))))),
+  )] : []));
 }
 
 function renderPay(state) {
@@ -329,6 +354,7 @@ async function refresh() {
     renderTotals(state);
     renderShifts(state);
     renderPay(state);
+    renderLabels(state);
     renderPlaces(state);
     renderRules(state);
   } catch (error) {
@@ -361,9 +387,9 @@ function wire() {
   $("#clock-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.target;
-    const { note, at } = fields(form);
+    const { note, at, label } = fields(form);
     const when = at || (interrupted && interrupted.pcWentOff) || null;
-    if (await act(current ? "/api/out" : "/api/in", { note, at: when }, form)) {
+    if (await act(current ? "/api/out" : "/api/in", { note, at: when, label }, form)) {
       form.reset();
       form.querySelector("details").open = false;
     }

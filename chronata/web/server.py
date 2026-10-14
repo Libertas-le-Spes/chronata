@@ -17,9 +17,10 @@ STATIC = {"/app.js": "text/javascript", "/style.css": "text/css"}
 
 def actions(sheet: Timesheet) -> dict:
     return {
-        "/api/in": lambda body: sheet.clock_in(body.get("at"), body.get("note")),
+        "/api/in": lambda body: sheet.clock_in(body.get("at"), body.get("note"), body.get("label", "")),
         "/api/out": lambda body: sheet.clock_out(body.get("at"), body.get("note")),
-        "/api/add": lambda body: sheet.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note")),
+        "/api/add": lambda body: sheet.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note"), body.get("label", "")),
+        "/api/label": lambda body: sheet.label(int(body["id"]), body.get("label", "")),
         "/api/correct": lambda body: sheet.correct(int(body["id"]), body.get("start"), body.get("end"), body.get("reason")),
         "/api/strike": lambda body: sheet.strike(int(body["id"]), body.get("reason")),
         "/api/paid": lambda body: sheet.record_payment(

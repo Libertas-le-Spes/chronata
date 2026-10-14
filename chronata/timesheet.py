@@ -14,7 +14,7 @@ from chronata.pc_sessions import PcSession, pc_sessions, session_at
 from chronata.report import hours
 from chronata.rules import Rules, Week, weeks
 from chronata.settings import load_rules, save_rules
-from chronata.shifts import Shift, completed, open_shift, shifts
+from chronata.shifts import Break, Shift, completed, open_shift, resumable, shifts
 
 LEDGER_FILE = "ledger.jsonl"
 
@@ -87,9 +87,9 @@ class Timesheet:
         current = open_shift(self.shifts())
         sessions = self.pc_sessions()
         this_boot = next((s for s in sessions if s.boot == self.boot_id()), None)
-        if current is None or this_boot is None or current.start >= this_boot.on:
+        if current is None or this_boot is None or current.since >= this_boot.on:
             return None
-        started_in = session_at(sessions, current.start)
+        started_in = session_at(sessions, current.since)
         return Interrupted(current, started_in.off if started_in else None)
 
     @_one_writer_at_a_time
@@ -144,14 +144,29 @@ class Timesheet:
         return verification.check(self.ledger, self.directory).problems + self.trail.rewrites(LEDGER_FILE)
 
     @_one_writer_at_a_time
-    def clock_in(self, at: str | None, note: str | None) -> Outcome:
+    def clock_in(self, at: str | None, note: str | None, label: str = "") -> Outcome:
         now = self.clock()
-        current = open_shift(self.shifts())
+        all_shifts = self.shifts()
+        current = open_shift(all_shifts)
         if current:
             raise UserError(f"already clocked in since {current.start:%Y-%m-%d %H:%M:%S}")
         start = _moment(at, now.date(), now) if at else now
-        data = _with_note({"at": start.isoformat(), "boot": self.boot_id()}, note)
-        return self._write("clock_in", data, f"in {start:%Y-%m-%d %H:%M:%S}", now)
+        earlier_today = resumable(all_shifts, start)
+        if earlier_today and start > earlier_today.end:
+            gap = Break(earlier_today.end, start)
+            data = _with_note({"shift": earlier_today.id, "at": start.isoformat(), "boot": self.boot_id()}, note)
+            counted = "counted as work" if gap.counted else "not counted"
+            return self._write("clock_resumed", data, f"back on today's shift at {start:%H:%M:%S}; the {hours(gap.end - gap.start)} gap is {counted}", now)
+        data = _with_note({"at": start.isoformat(), "boot": self.boot_id(), **_with_label(label)}, note)
+        return self._write("clock_in", data, f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {label.strip()}" if label.strip() else ""), now)
+
+    @_one_writer_at_a_time
+    def label(self, shift_id: int, label: str) -> Outcome:
+        shift = self._shift(shift_id)
+        if shift.label == label.strip():
+            raise UserError(f"shift {shift_id} is already labelled {label.strip() or 'with nothing'}")
+        return self._write("shift_labelled", {"shift": shift.id, "label": label.strip()},
+                           f"labelled shift {shift.id} {label.strip() or '(no label)'}", self.clock())
 
     @_one_writer_at_a_time
     def clock_out(self, at: str | None, note: str | None) -> Outcome:
@@ -165,12 +180,12 @@ class Timesheet:
         return self._write(
             "clock_out",
             _with_note({"shift": current.id, "at": end.isoformat(), "boot": self.boot_id()}, note),
-            f"out {end:%Y-%m-%d %H:%M:%S}, worked {hours(self.rules.worked(current.start, end))}",
+            f"out {end:%Y-%m-%d %H:%M:%S}, worked {hours(self.rules.worked(current.segments(end)))}",
             now,
         )
 
     @_one_writer_at_a_time
-    def add(self, day: str, start: str, end: str, reason: str, note: str | None) -> Outcome:
+    def add(self, day: str, start: str, end: str, reason: str, note: str | None, label: str = "") -> Outcome:
         now = self.clock()
         begins = _moment(start, _day(day), now)
         ends = _end(begins, end, now)
@@ -178,8 +193,8 @@ class Timesheet:
             raise UserError("that shift has not ended yet; clock in instead")
         return self._write(
             "shift_added",
-            _with_note({"start": begins.isoformat(), "end": ends.isoformat(), "reason": _required(reason)}, note),
-            f"added {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}, worked {hours(self.rules.worked(begins, ends))}",
+            _with_note({"start": begins.isoformat(), "end": ends.isoformat(), "reason": _required(reason), **_with_label(label)}, note),
+            f"added {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}, worked {hours(self.rules.worked([(begins, ends)]))}",
             now,
         )
 
@@ -244,6 +259,10 @@ class Timesheet:
 
 def _with_note(data: dict, note: str | None) -> dict:
     return {**data, "note": note.strip()} if note and note.strip() else data
+
+
+def _with_label(label: str | None) -> dict:
+    return {"label": label.strip()} if label and label.strip() else {}
 
 
 def _required(reason: str | None) -> str:

@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 
 from chronata.compensation import Reconciliation
 from chronata.pc_sessions import PcSession, support
-from chronata.rules import Rules, Week
+from chronata.rules import Day, Rules, Week
 from chronata.shifts import Shift
 
 LATE_ENOUGH_TO_FLAG = timedelta(minutes=15)
@@ -24,10 +24,12 @@ def shift_lines(all_shifts: list[Shift], sessions: list[PcSession], rules: Rules
         if shift.entered_late_by > LATE_ENOUGH_TO_FLAG:
             flags.append(f"entered {_ago(shift.entered_late_by)} after the fact")
         end = f"{shift.end:%H:%M:%S}" if shift.end else "--:--:--"
-        worked = hours(rules.worked(shift.start, shift.end)) if shift.end else ""
-        lunch = rules.lunch_overlap(shift.start, shift.end or now)
+        worked = hours(rules.worked(shift.segments(now))) if shift.end else ""
+        lunch = rules.lunch_taken(shift.segments(now))
         if lunch:
             flags.append(f"lunch -{hours(lunch)}")
+        if shift.label:
+            flags.insert(0, shift.label)
         lines.append(f"{shift.id:>4}  {shift.start:%Y-%m-%d}  {shift.start:%H:%M:%S}  {end}  {worked:>6}  {', '.join(flags)}")
         lines.append(f"{'':>6}{pc_support(shift, sessions, now)}")
         lines.extend(f"{'':>6}note: {note}" for note in shift.notes)
@@ -35,11 +37,24 @@ def shift_lines(all_shifts: list[Shift], sessions: list[PcSession], rules: Rules
     return lines
 
 
-def report_lines(all_weeks: list[Week], reconciliation: Reconciliation, today: date) -> list[str]:
+def punctuality(day: Day) -> str | None:
+    if day.late <= timedelta():
+        return None
+    if day.made_up:
+        return f"arrived {hours(day.late)} late, made up (left {day.last_out:%H:%M})"
+    return f"arrived {hours(day.late)} late, {hours(day.short)} short of a full day"
+
+
+def report_lines(all_weeks: list[Week], reconciliation: Reconciliation, today: date, by_label: dict[str, timedelta]) -> list[str]:
     lines = ["Weeks worked", f"  {'week of':10}  {'worked':>7}  {'overtime':>8}"]
     for week in all_weeks:
         running = "  (week still running)" if week.end >= today else ""
         lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime):>8}{running}")
+        lines += [f"    {day.date:%a %d %b}: {note}" for day in week.days if (note := punctuality(day))]
+
+    if any(by_label):
+        lines += ["", "By label"]
+        lines += [f"  {label or '(no label)':24} {hours(worked):>8}" for label, worked in by_label.items()]
 
     lines += ["", "Pay periods you recorded from payslips"]
     if not reconciliation.periods:

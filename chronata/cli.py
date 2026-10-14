@@ -11,12 +11,13 @@ from chronata.publisher import Publisher
 from chronata.ledger import Ledger, TamperedLedger
 from chronata.report import hours, report_lines, shift_lines
 from chronata.settings import data_dir
-from chronata.shifts import open_shift
+from chronata.rules import worked_by_label
+from chronata.shifts import completed, open_shift
 from chronata.timesheet import Outcome, Timesheet, UserError
 
 
 def clock_in(args, sheet: Timesheet) -> Outcome:
-    return sheet.clock_in(args.at, args.note)
+    return sheet.clock_in(args.at, args.note, args.label or "")
 
 
 def clock_out(args, sheet: Timesheet) -> Outcome:
@@ -24,11 +25,15 @@ def clock_out(args, sheet: Timesheet) -> Outcome:
 
 
 def add(args, sheet: Timesheet) -> Outcome:
-    return sheet.add(args.date, args.start, args.end, args.reason, args.note)
+    return sheet.add(args.date, args.start, args.end, args.reason, args.note, args.label or "")
 
 
 def correct(args, sheet: Timesheet) -> Outcome:
     return sheet.correct(args.id, args.start, args.end, args.reason)
+
+
+def label(args, sheet: Timesheet) -> Outcome:
+    return sheet.label(args.id, args.label)
 
 
 def strike(args, sheet: Timesheet) -> Outcome:
@@ -55,7 +60,8 @@ def list_shifts(args, sheet: Timesheet) -> None:
 
 def report(args, sheet: Timesheet) -> None:
     selected = [week for week in sheet.weeks() if _within(week.start, args)]
-    print("\n".join(report_lines(selected, sheet.reconciliation(selected), sheet.clock().date())))
+    chosen = [s for s in completed(sheet.shifts()) if _within(s.start.date(), args)]
+    print("\n".join(report_lines(selected, sheet.reconciliation(selected), sheet.clock().date(), worked_by_label(chosen, sheet.rules))))
 
 
 def verify(args, sheet: Timesheet) -> None:
@@ -159,8 +165,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="chronata", description="A sealed, append-only record of the time you work.")
     commands = parser.add_subparsers(required=True, metavar="command")
 
-    command = commands.add_parser("in", help="clock in now")
+    command = commands.add_parser("in", help="clock in now, or carry on today's shift")
     command.add_argument("--at", help="when you actually started, if you forgot (e.g. 08:04)")
+    command.add_argument("--label", help="client or project, e.g. 'Acme website'")
     command.add_argument("--note")
     command.set_defaults(run=clock_in)
 
@@ -175,7 +182,13 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("end")
     command.add_argument("--reason", required=True, help="why it was not clocked at the time")
     command.add_argument("--note")
+    command.add_argument("--label")
     command.set_defaults(run=add)
+
+    command = commands.add_parser("label", help="set or change a shift's client or project")
+    command.add_argument("id", type=int)
+    command.add_argument("label", help="the label, or '' to remove it")
+    command.set_defaults(run=label)
 
     command = commands.add_parser("correct", help="fix a shift's times; the original stays on record")
     command.add_argument("id", type=int)

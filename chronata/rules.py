@@ -27,8 +27,11 @@ class Rules:
         lunch_ends = lunch_begins + timedelta(minutes=self.lunch_minutes)
         return max(min(end, lunch_ends) - max(start, lunch_begins), NONE)
 
-    def worked(self, start: datetime, end: datetime) -> timedelta:
-        return end - start - self.lunch_overlap(start, end)
+    def lunch_taken(self, segments: list[tuple[datetime, datetime]]) -> timedelta:
+        return sum((self.lunch_overlap(begins, ends) for begins, ends in segments), NONE)
+
+    def worked(self, segments: list[tuple[datetime, datetime]]) -> timedelta:
+        return sum((ends - begins for begins, ends in segments), NONE) - self.lunch_taken(segments)
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,14 @@ class Day:
     date: date
     worked: timedelta
     overtime: timedelta
+    first_in: datetime
+    last_out: datetime
+    late: timedelta
+    short: timedelta
+
+    @property
+    def made_up(self) -> bool:
+        return self.late > NONE and self.short == NONE
 
 
 @dataclass(frozen=True)
@@ -56,23 +67,37 @@ class Week:
         return sum((day.overtime for day in self.days), NONE)
 
 
-def weeks(completed_shifts: list[Shift], rules: Rules) -> list[Week]:
-    per_day: dict[date, timedelta] = defaultdict(timedelta)
+def worked_by_label(completed_shifts: list[Shift], rules: Rules) -> dict[str, timedelta]:
+    totals: dict[str, timedelta] = defaultdict(timedelta)
     for shift in completed_shifts:
-        per_day[shift.start.date()] += rules.worked(shift.start, shift.end)
-    per_week: dict[date, list[tuple[date, timedelta]]] = defaultdict(list)
-    for day, worked in sorted(per_day.items()):
-        per_week[day - timedelta(days=day.weekday())].append((day, worked))
+        totals[shift.label] += rules.worked(shift.segments(shift.end))
+    return dict(sorted(totals.items(), key=lambda item: item[1], reverse=True))
+
+
+def weeks(completed_shifts: list[Shift], rules: Rules) -> list[Week]:
+    per_day: dict[date, list[Shift]] = defaultdict(list)
+    for shift in completed_shifts:
+        per_day[shift.start.date()].append(shift)
+    per_week: dict[date, list[tuple[date, list[Shift]]]] = defaultdict(list)
+    for day, day_shifts in sorted(per_day.items()):
+        per_week[day - timedelta(days=day.weekday())].append((day, day_shifts))
     return [Week(start, _days(worked_days, rules)) for start, worked_days in sorted(per_week.items())]
 
 
-def _days(worked_days: list[tuple[date, timedelta]], rules: Rules) -> tuple[Day, ...]:
+def _days(worked_days: list[tuple[date, list[Shift]]], rules: Rules) -> tuple[Day, ...]:
     daily_limit = timedelta(hours=rules.daily_hours)
     weekly_room = timedelta(hours=rules.weekly_hours)
     days = []
-    for day, worked in worked_days:
-        ordinary = min(worked, daily_limit) if day.weekday() in rules.workdays else NONE
+    for day, day_shifts in worked_days:
+        worked = sum((rules.worked(shift.segments(shift.end)) for shift in day_shifts), NONE)
+        workday = day.weekday() in rules.workdays
+        ordinary = min(worked, daily_limit) if workday else NONE
         ordinary = min(ordinary, weekly_room)
         weekly_room -= ordinary
-        days.append(Day(day, worked, worked - ordinary))
+        first_in = min(shift.start for shift in day_shifts)
+        last_out = max(shift.end for shift in day_shifts)
+        due = datetime.combine(day, rules.shift_start, first_in.tzinfo)
+        late = max(first_in - due, NONE) if workday else NONE
+        short = max(daily_limit - worked, NONE) if workday else NONE
+        days.append(Day(day, worked, worked - ordinary, first_in, last_out, late, short))
     return tuple(days)

@@ -1,6 +1,6 @@
 from chronata.desktop import notify
 from chronata.report import hours
-from chronata.shifts import open_shift
+from chronata.shifts import labels, open_shift
 from chronata.timesheet import Timesheet, UserError
 
 CLOCK_ICON = ""
@@ -20,11 +20,11 @@ def status(sheet: Timesheet) -> dict:
     current = open_shift(sheet.shifts())
     if current:
         return {
-            "text": f"{CLOCK_ICON}\n{hours(sheet.rules.worked(current.start, now))}",
+            "text": f"{CLOCK_ICON}\n{hours(sheet.rules.worked(current.segments(now)))}",
             "tooltip": f"Working since {current.start:%H:%M:%S}\nClick to clock out · right-click to open the log",
             "class": "active",
             "state": "in",
-            "elapsed": hours(sheet.rules.worked(current.start, now)),
+            "elapsed": hours(sheet.rules.worked(current.segments(now))),
         }
     return {
         "text": CLOCK_ICON,
@@ -39,7 +39,9 @@ def toggle(sheet: Timesheet) -> None:
         notify("Last shift is still open", "The PC turned off while you were clocked in. Right-click the timer to open the log and close it.")
         return
     try:
-        outcome = sheet.clock_out(None, None) if open_shift(sheet.shifts()) else sheet.clock_in(None, None)
+        all_shifts = sheet.shifts()
+        recent = labels(all_shifts)
+        outcome = sheet.clock_out(None, None) if open_shift(all_shifts) else sheet.clock_in(None, None, recent[0] if recent else "")
     except UserError as error:
         notify("Could not log that", str(error))
         return

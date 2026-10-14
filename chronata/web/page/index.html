@@ -37,6 +37,7 @@
     <p id="timer" class="timer">–:––:––</p>
     <p id="this-week" class="muted"></p>
     <form id="clock-form" class="clock-form">
+      <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="Label: client or project (optional)">
       <input name="note" type="text" autocomplete="off" placeholder="Note: what kept you, who asked, where the proof is">
       <details>
         <summary>Use a different time</summary>
@@ -62,6 +63,7 @@
   </nav>
 
   <section id="tab-shifts" class="tab">
+    <div id="by-label"></div>
     <div id="shifts"></div>
   </section>
 
@@ -96,6 +98,7 @@
         <label>Started <input name="start" type="time" step="1" required></label>
         <label>Finished <input name="end" type="time" step="1" required></label>
         <label class="wide">Why it wasn't clocked at the time <input name="reason" type="text" required></label>
+        <label class="wide">Label <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="Client or project (optional)"></label>
         <label class="wide">Note <input name="note" type="text" placeholder="What kept you, who asked, where the proof is"></label>
         <button class="primary wide" type="submit">Add shift</button>
       </form>
@@ -159,6 +162,7 @@
   </form>
 </dialog>
 
+<datalist id="known-labels"></datalist>
 <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

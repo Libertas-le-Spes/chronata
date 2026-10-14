@@ -257,6 +257,9 @@ button:disabled { opacity: 0.6; cursor: progress; }
 
 .chip.live { background: var(--ok-bg); color: var(--live); }
 .chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.label { background: var(--accent); color: var(--accent-text); font-weight: 600; }
+.by-label { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
+.by-label strong { font-size: 1.05rem; }
 
 .trail { margin: 6px 0 0; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
 .trail li { padding-left: 12px; border-left: 2px solid var(--line); margin-top: 2px; overflow-wrap: anywhere; }

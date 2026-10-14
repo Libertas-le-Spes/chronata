@@ -12,8 +12,8 @@ from chronata import setup
 from chronata.timesheet import Timesheet, UserError
 from chronata.compensation import reconcile
 from chronata.ledger import Entry, Ledger, TamperedLedger
-from chronata.rules import Rules, weeks
-from chronata.shifts import Shift
+from chronata.rules import Rules, weeks, worked_by_label
+from chronata.shifts import Shift, completed
 
 SAST = timezone(timedelta(hours=2))
 def rules(lunch_minutes: int = 0, workdays: range = range(5), weekly_hours: float = 40) -> Rules:
@@ -238,6 +238,62 @@ class RecordingPcSessions(unittest.TestCase):
         self.assertEqual((self.sheet.rules.daily_hours, self.sheet.rules.configured), (8.0, True))
         with self.assertRaises(UserError):
             self.sheet.configure("12:00", "")
+
+
+class SameDayShifts(unittest.TestCase):
+    def setUp(self):
+        self.now = at("2026-10-14T08:03:00")
+        directory = Path(tempfile.mkdtemp())
+        self.sheet = Timesheet(directory, clock=lambda: self.now, boots=lambda: [], boot_id=lambda: "today")
+        for key, value in (("user.email", "test@example.com"), ("user.name", "test")):
+            subprocess.run(["git", "-C", str(directory), "config", key, value], check=True)
+        self.sheet.configure("12:00 for 60 min", "08:00 to 17:00")
+        self.sheet.clock_in(None, None, "Acme")
+
+    def at_time(self, text: str) -> None:
+        self.now = at(f"2026-10-14T{text}")
+
+    def test_a_mistaken_clock_out_is_one_shift_with_the_gap_counted(self):
+        self.at_time("10:00:00")
+        self.sheet.clock_out(None, None)
+        self.at_time("10:04:00")
+        self.sheet.clock_in(None, None)
+        self.at_time("17:03:00")
+        self.sheet.clock_out(None, None)
+        day = self.sheet.weeks()[0].days[0]
+        self.assertEqual(len(self.sheet.shifts()), 1)
+        self.assertEqual(day.worked, timedelta(hours=8))
+
+    def test_a_long_gap_stays_one_shift_but_is_not_counted(self):
+        self.at_time("17:00:00")
+        self.sheet.clock_out(None, None)
+        self.at_time("20:00:00")
+        self.sheet.clock_in(None, None)
+        self.at_time("21:00:00")
+        self.sheet.clock_out(None, None)
+        self.assertEqual(len(self.sheet.shifts()), 1)
+        self.assertEqual(self.sheet.weeks()[0].days[0].worked, timedelta(hours=8, minutes=57))
+
+    def test_coming_in_late_and_staying_late_by_as_much_is_made_up(self):
+        self.at_time("17:03:00")
+        self.sheet.clock_out(None, None)
+        day = self.sheet.weeks()[0].days[0]
+        self.assertEqual((day.late, day.short, day.made_up), (timedelta(minutes=3), timedelta(), True))
+
+    def test_leaving_on_time_after_coming_late_is_short(self):
+        self.at_time("17:00:00")
+        self.sheet.clock_out(None, None)
+        day = self.sheet.weeks()[0].days[0]
+        self.assertEqual((day.short, day.made_up), (timedelta(minutes=3), False))
+
+    def test_labels_can_be_changed_and_are_totalled(self):
+        self.at_time("12:00:00")
+        self.sheet.clock_out(None, None)
+        self.sheet.label(self.sheet.shifts()[0].id, "Globex")
+        shift = self.sheet.shifts()[0]
+        self.assertEqual(shift.label, "Globex")
+        self.assertIn("label changed from Acme to Globex", shift.changes[-1])
+        self.assertEqual(worked_by_label(completed(self.sheet.shifts()), self.sheet.rules), {"Globex": timedelta(hours=3, minutes=57)})
 
 
 if __name__ == "__main__":

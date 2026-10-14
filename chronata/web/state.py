@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 
 from chronata import places, setup, timestamps
 from chronata.pc_sessions import PcSession, support
-from chronata.rules import Rules
+from chronata.rules import Rules, worked_by_label
 from chronata.report import LATE_ENOUGH_TO_FLAG
 from chronata.settings import DAY_NAMES
-from chronata.shifts import Shift, open_shift
+from chronata.shifts import Shift, completed, labels, open_shift
 from chronata.timesheet import Timesheet
 
 
@@ -42,6 +42,15 @@ def state(sheet: Timesheet) -> dict:
             for week in reversed(all_weeks)
         ],
         "shifts": [_shift(shift, sessions, rules, now) for shift in reversed(all_shifts)],
+        "labels": labels(all_shifts),
+        "days": {
+            day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
+            for week in all_weeks for day in week.days if day.late > timedelta()
+        },
+        "byLabel": {
+            "week": _by_label([s for s in completed(all_shifts) if s.start.date() >= now.date() - timedelta(days=now.weekday())], rules),
+            "all": _by_label(completed(all_shifts), rules),
+        },
         "periods": [
             {
                 "start": period.start.isoformat(),
@@ -91,15 +100,20 @@ def _shift(shift: Shift, sessions: list[PcSession], rules: Rules, now: datetime)
             ],
         },
         "id": shift.id,
+        "label": shift.label,
         "start": shift.start.isoformat(),
         "end": shift.end.isoformat() if shift.end else None,
-        "worked": minutes(rules.worked(shift.start, shift.end)) if shift.end else None,
-        "lunch": minutes(rules.lunch_overlap(shift.start, shift.end or now)),
+        "worked": minutes(rules.worked(shift.segments(now))) if shift.end else None,
+        "lunch": minutes(rules.lunch_taken(shift.segments(now))),
         "voided": shift.voided,
         "lateBy": minutes(shift.entered_late_by) if shift.entered_late_by > LATE_ENOUGH_TO_FLAG else None,
         "notes": shift.notes,
         "changes": shift.changes,
     }
+
+
+def _by_label(chosen: list[Shift], rules: Rules) -> list[dict]:
+    return [{"label": label, "worked": minutes(worked)} for label, worked in worked_by_label(chosen, rules).items()]
 
 
 def _saving(sheet: Timesheet) -> dict:
