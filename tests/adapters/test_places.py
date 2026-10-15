@@ -6,18 +6,18 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
+from chronata.adapters.places.folder_place import FolderPlace, ObsidianVault
 from chronata.adapters.places.git_folder import GitFolders
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
-from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.places.webdav_upload import upload_changed
-from chronata.use_cases.ports import SaveError
+from chronata.adapters.places.place_kind import SavedPlace
+from chronata.use_cases.ports import PlaceKindDescription, SaveError
 
 
 class Folders(unittest.TestCase):
     def setUp(self):
-        settings = Path(tempfile.mkdtemp())
-        self.book = PlaceBook(settings, GitRemotes(Path(tempfile.mkdtemp())), GitFolders(Path(tempfile.mkdtemp())), SaveRecord(settings / "saves.json"))
+        self.book = PlaceBook(Path(tempfile.mkdtemp()), [ObsidianVault(), FolderPlace()])
 
     def test_a_folder_that_is_not_a_vault_is_refused_as_one(self):
         with self.assertRaises(SaveError):
@@ -155,6 +155,41 @@ class WebServers(unittest.TestCase):
     def test_a_wrong_password_says_so(self):
         with self.assertRaisesRegex(SaveError, "refused the username or password"):
             upload_changed(self.address, "kabelo", "wrong", {"a.txt": b"x"}, {})
+
+
+
+class Notebook:
+    id = "notebook"
+    description = PlaceKindDescription("Notebook", "Page", "front", False, False, False, "Writes on paper.")
+
+    def __init__(self):
+        self.pages: dict[str, dict[str, bytes]] = {}
+
+    def accept(self, place: SavedPlace) -> SavedPlace:
+        return place
+
+    def added(self, place: SavedPlace) -> None:
+        self.pages[place.target] = {}
+
+    def removed(self, place: SavedPlace) -> None:
+        del self.pages[place.target]
+
+    def deliver(self, place: SavedPlace, bundle: dict[str, bytes]) -> None:
+        self.pages[place.target] = bundle
+
+    def already_there(self) -> list[SavedPlace]:
+        return []
+
+
+class ANewKindOfPlace(unittest.TestCase):
+    def test_needs_only_its_own_class(self):
+        notebook = Notebook()
+        book = PlaceBook(Path(tempfile.mkdtemp()), [notebook])
+        place = book.add("notebook", "", "front")
+        book.deliver(place, {"a.txt": b"hello"})
+        self.assertEqual((place.name, book.kinds()["notebook"].label, notebook.pages), ("Notebook", "Notebook", {"front": {"a.txt": b"hello"}}))
+        book.remove(place.id)
+        self.assertEqual((book.places(), notebook.pages), ([], {}))
 
 
 if __name__ == "__main__":

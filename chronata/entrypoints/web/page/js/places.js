@@ -3,13 +3,7 @@ import { api } from "./api.js";
 import { clockTime, dayLabel, longDate } from "./dates.js";
 import { $, el, fields } from "./dom.js";
 
-const PLACE_HELP = {
-  obsidian: ["Vault folder", "/home/you/Notes", true, "Goes into a Chronata folder inside the vault: an overview, the whole log in one note, a note per day, and the sealed log."],
-  folder: ["Folder", "/home/you/Documents/Time", true, "Gets an overview, the whole log in one file, a file per day, and the sealed log. A Dropbox, OneDrive or Syncthing folder works too."],
-  git: ["Repository address", "https://github.com/you/time-log.git", false, "Create an empty private repository first. Git hosts record when each save arrives."],
-  "git-folder": ["Repository address", "https://github.com/you/notes.git", false, "Saves into one folder of a repository you already use, such as your notes. Only that folder is ever changed, and a folder Chronata did not create is left alone."],
-  webdav: ["Server address", "https://cloud.example.com/remote.php/dav/files/you/", false, "Nextcloud, ownCloud and most file servers speak WebDAV. The password is kept only on this computer."],
-};
+let kinds = {};
 
 function renderBadge(places) {
   const saving = $("#saving");
@@ -43,21 +37,23 @@ function placeCard(place) {
 }
 
 function describeKind() {
-  const [label, placeholder, local, hint] = PLACE_HELP[$("#place-kind").value];
-  $("#target-label").textContent = label;
-  $("#place-form").elements.target.placeholder = placeholder;
-  $("#choose-folder").hidden = !local;
-  $("#place-hint").textContent = hint;
-  document.querySelectorAll(".dav-only").forEach((node) => (node.hidden = $("#place-kind").value !== "webdav"));
-  document.querySelectorAll(".folder-only").forEach((node) => (node.hidden = $("#place-kind").value !== "git-folder"));
+  const kind = kinds[$("#place-kind").value];
+  if (!kind) return;
+  $("#target-label").textContent = kind.asksFor;
+  $("#place-form").elements.target.placeholder = kind.example;
+  $("#choose-folder").hidden = !kind.onThisComputer;
+  $("#place-hint").textContent = kind.explanation;
+  document.querySelectorAll(".needs-login").forEach((node) => (node.hidden = !kind.needsLogin));
+  document.querySelectorAll(".needs-folder").forEach((node) => (node.hidden = !kind.needsFolder));
 }
 
 export function render(state) {
-  const { places, kinds, stamped } = state.saving;
+  const { places, stamped } = state.saving;
+  kinds = state.saving.kinds;
   renderBadge(places);
   const select = $("#place-kind");
   if (!select.options.length) {
-    select.append(...Object.entries(kinds).map(([kind, label]) => el("option", { value: kind }, label)));
+    select.append(...Object.entries(kinds).map(([kind, described]) => el("option", { value: kind }, described.label)));
     describeKind();
   }
   $("#stamp-text").textContent = stamped.upTo

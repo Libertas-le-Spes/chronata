@@ -9,10 +9,14 @@ from chronata.adapters.files.label_hours_file import LabelHoursFile
 from chronata.adapters.files.ledger_file import LedgerFile
 from chronata.adapters.files.write_lock import write_lock
 from chronata.adapters.history.optional_history import OptionalHistory
+from chronata.adapters.places.folder_place import FolderPlace, ObsidianVault
 from chronata.adapters.places.git_folder import GitFolders
+from chronata.adapters.places.git_folder_place import GitRepositoryFolder
+from chronata.adapters.places.git_place import GitRepository
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.places.save_record import SaveRecord
+from chronata.adapters.places.webdav_place import WebDavServer
 from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
 from chronata.presenters.readable_copy import readable_files
 from chronata.use_cases.ports import Clock, Desktop, History, PowerHistory, Timestamper
@@ -53,7 +57,9 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
     settings = config or locations.settings_folder()
     save_record = SaveRecord(settings / "saves.json")
-    places = PlaceBook(settings, GitRemotes(folder.directory), GitFolders(locations.repository_copies_folder(folder.directory)), save_record)
+    kinds = [ObsidianVault(), FolderPlace(), GitRepository(GitRemotes(folder.directory)),
+             GitRepositoryFolder(GitFolders(locations.repository_copies_folder(folder.directory))), WebDavServer(save_record)]
+    places = PlaceBook(settings, kinds)
     history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
     log = Log(LedgerFile(folder.ledger), history, LabelHoursFile(folder.rules), write_lock(locations.lock_file(folder.directory)), clock)
 

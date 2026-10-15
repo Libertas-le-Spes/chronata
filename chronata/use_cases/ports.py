@@ -1,4 +1,5 @@
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Protocol
 
@@ -52,9 +53,20 @@ class Place(Protocol):
     target: str
 
 
+@dataclass(frozen=True)
+class PlaceKindDescription:
+    label: str
+    asks_for: str
+    example: str
+    on_this_computer: bool
+    needs_folder: bool
+    needs_login: bool
+    explanation: str
+
+
 class Places(Protocol):
     def places(self) -> list[Place]: ...
-    def kinds(self) -> dict[str, str]: ...
+    def kinds(self) -> dict[str, PlaceKindDescription]: ...
     def add(self, kind: str, name: str, target: str, username: str, password: str, folder: str) -> Place: ...
     def remove(self, place_id: str) -> Place: ...
     def deliver(self, place: Place, bundle: dict[str, bytes]) -> None: ...

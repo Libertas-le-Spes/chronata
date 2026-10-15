@@ -13,7 +13,8 @@ def list_places(args, app: App) -> None:
     kinds = app.saving.places.kinds()
     for place, last in statuses:
         state = f"failed: {last['error']}" if last.get("error") else (f"saved {last['saved'][:19]}" if last.get("saved") else "not saved yet")
-        print(f"{place.id:16} {kinds[place.kind]:22} {place.name:14} {place.target}  [{state}]")
+        print(f"{place.id:16} {kinds[place.kind].label:22} {place.name:14} {place.target}  [{state}]")
+    print("\nkinds of place you can add: " + ", ".join(f"{kind} ({described.label})" for kind, described in kinds.items()))
 
 
 def add_place(args, app: App) -> Outcome:
@@ -32,7 +33,7 @@ def register(commands) -> None:
     command.set_defaults(run=list_places)
 
     command = commands.add_parser("place-add", help="save the log somewhere else too")
-    command.add_argument("kind", choices=["obsidian", "folder", "git", "git-folder", "webdav"])
+    command.add_argument("kind", help="the kind of place; chronata places lists them")
     command.add_argument("where", help="a folder path, a git URL or a web server address")
     command.add_argument("--folder", help="for git-folder: the folder inside the repository, e.g. 'Work Logs'")
     command.add_argument("--name")
