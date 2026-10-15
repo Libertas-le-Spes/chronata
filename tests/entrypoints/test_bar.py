@@ -51,7 +51,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
 
     def test_the_tooltip_names_the_label_you_are_working_on(self):
         self.click("Northwind")
-        self.assertTrue(bar.status(self.f.sheet)["tooltip"].startswith("Working on Northwind since 08:05"))
+        self.assertTrue(bar.status(self.f.sheet)["tooltip"].startswith("Working on Northwind, 0:00 today since 08:05"))
 
 
 
@@ -84,6 +84,18 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
         self.click("Northwind", "Since 07:50")
         day = (self.f.data / "Northwind" / "Days" / "2026-10-14.md").read_text()
         self.assertIn("| 07:50:00 | PC on · not yet independently timestamped |", day)
+
+    def test_the_bar_counts_the_whole_day_from_when_the_pc_came_on(self):
+        self.pc_on("2026-10-14T07:50:00")
+        self.click("Northwind", "Since 07:50")
+        self.f.at("2026-10-14T09:00:00")
+        self.f.sheet.clock_out(None, None)
+        self.f.at("2026-10-14T09:30:00")
+        self.f.sheet.clock_in(None, None, "Northwind")
+        self.f.at("2026-10-14T10:00:00")
+        shown = bar.status(self.f.sheet)
+        self.assertEqual(shown["elapsed"], "1:40")
+        self.assertIn("1:40 today since 07:50:00", shown["tooltip"])
 
     def test_or_from_now(self):
         self.pc_on("2026-10-14T07:50:00")

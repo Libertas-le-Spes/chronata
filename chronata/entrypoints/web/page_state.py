@@ -6,7 +6,7 @@ from chronata.presenters.text_report import LATE_ENOUGH_TO_FLAG
 from chronata.timekeeping.durations import minutes
 from chronata.timekeeping.pc_sessions import PcSession, support
 from chronata.timekeeping.labels import hours_by_label, known_labels
-from chronata.timekeeping.shifts import Shift, completed, open_shift
+from chronata.timekeeping.shifts import Shift, completed, day_so_far, open_shift
 from chronata.timekeeping.stamps import Stamp
 from chronata.timekeeping.start_proof import start_proof
 from chronata.timekeeping.working_day import WEEKDAY_NAMES, Week, WorkingDay, weeks
@@ -21,6 +21,7 @@ def page_state(app) -> dict:
     all_weeks = sheet.weeks()
     reconciliation = sheet.reconciliation(all_weeks)
     current = open_shift(all_shifts)
+    today = day_so_far(all_shifts, now)
     sessions = sheet.pc_sessions()
     this_boot = sheet.this_boot()
     interrupted = sheet.interrupted()
@@ -28,8 +29,8 @@ def page_state(app) -> dict:
     stamps = app.timestamper.stamps()
     return {
         "now": now.isoformat(),
-        "open": {"id": current.id, "label": current.label, "start": current.start.isoformat(),
-                 "workedSeconds": round(current.worked(now).total_seconds())} if current else None,
+        "open": {"id": current.id, "label": current.label, "start": current.start.isoformat(), "dayStart": today[0].isoformat(),
+                 "workedSeconds": round(today[1].total_seconds())} if current else None,
         "interrupted": {
             "start": interrupted.shift.start.isoformat(),
             "pcWentOff": interrupted.pc_went_off.isoformat() if interrupted.pc_went_off else None,

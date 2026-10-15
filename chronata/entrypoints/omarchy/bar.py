@@ -1,7 +1,7 @@
 from chronata.entrypoints.web.server import DEFAULT_PORT, page_url
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.labels import known_labels
-from chronata.timekeeping.shifts import open_shift
+from chronata.timekeeping.shifts import day_so_far, open_shift
 from chronata.use_cases.outcome import OffDefaultLabel, UnconfirmedLabel, UserError
 from chronata.use_cases.timesheet import Timesheet
 
@@ -17,13 +17,15 @@ def status(sheet: Timesheet) -> dict:
             "tooltip": f"Still clocked in from {interrupted.shift.start:%a %H:%M}, before the PC last turned off.\nRight-click to open Chronata and close that shift.",
             "state": "interrupted",
         }
-    current = open_shift(sheet.shifts())
+    all_shifts = sheet.shifts()
+    current = open_shift(all_shifts)
     if current:
-        worked = hours(current.worked(sheet.clock()))
+        started, so_far = day_so_far(all_shifts, sheet.clock())
+        worked = hours(so_far)
         on_label = f" on {current.label}" if current.label else ""
         return {
             "text": f"{CLOCK_ICON}\n{worked}",
-            "tooltip": f"Working{on_label} since {current.start:%H:%M:%S}\nClick to clock out · right-click to open Chronata",
+            "tooltip": f"Working{on_label}, {worked} today since {started:%H:%M:%S}\nClick to clock out · right-click to open Chronata",
             "state": "in",
             "elapsed": worked,
         }

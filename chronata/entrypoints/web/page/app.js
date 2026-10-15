@@ -177,7 +177,7 @@ function renderClock(state) {
     $("#clock-button").textContent = off ? `Clock out at ${dayLabel(off)}, ${clockTime(off).slice(0, 5)}` : "Clock out now";
   } else {
     const onLabel = current && current.label ? ` on ${current.label}` : "";
-    $("#clock-state").textContent = current ? `Clocked in${onLabel} since ${dayLabel(current.start)}, ${clockTime(current.start)}` : "Not clocked in";
+    $("#clock-state").textContent = current ? `Clocked in${onLabel} · working since ${dayLabel(current.dayStart)}, ${clockTime(current.dayStart)}` : "Not clocked in";
     $("#clock-button").textContent = current ? "Clock out" : "Clock in";
   }
   const week = state.weeks.find((w) => w.running);
