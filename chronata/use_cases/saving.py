@@ -3,15 +3,16 @@ from typing import Callable
 
 from chronata.timekeeping.stamps import Stamp, latest
 from chronata.use_cases.outcome import Outcome, UserError
-from chronata.use_cases.ports import History, Place, Places, SaveError, Timestamper
+from chronata.use_cases.ports import History, Place, Places, SaveError, SaveRecord, Timestamper
 
 ReadableCopy = Callable[[object, datetime], dict[str, bytes]]
 
 
 class Saving:
-    def __init__(self, places: Places, timestamper: Timestamper, history: History, sealed_files: Callable[[], dict[str, bytes]],
+    def __init__(self, places: Places, save_record: SaveRecord, timestamper: Timestamper, history: History, sealed_files: Callable[[], dict[str, bytes]],
                  readable_copy: ReadableCopy, keep_locally: Callable[[dict[str, bytes]], None]):
         self.places = places
+        self.save_record = save_record
         self.timestamper = timestamper
         self.history = history
         self.sealed_files = sealed_files
@@ -49,7 +50,7 @@ class Saving:
         return Outcome(f"removed {place.name}; copies already saved there are left as they are", None)
 
     def statuses(self) -> list[tuple[Place, dict]]:
-        return [(place, self.places.last_save(place.id)) for place in self.places.places()]
+        return [(place, self.save_record.last(place.id)) for place in self.places.places()]
 
     def stamped(self) -> tuple[int | None, list[Stamp]]:
         return latest(self.timestamper.stamps())
@@ -64,8 +65,8 @@ class Saving:
         for place in targets:
             try:
                 self.places.deliver(place, bundle)
-                self.places.remember(place.id, now, None)
+                self.save_record.remember(place.id, now, None)
             except SaveError as error:
-                self.places.remember(place.id, now, str(error))
+                self.save_record.remember(place.id, now, str(error))
                 warnings.append(f"not saved to {place.name}: {error}")
         return warnings

@@ -2,12 +2,12 @@ import json
 import re
 import secrets
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 
 from chronata.adapters.files.changed_files import write_changed
 from chronata.adapters.places.git_folder import GitFolders, checked_folder
 from chronata.adapters.places.git_push import GitRemotes
+from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.places.webdav_upload import upload_changed
 from chronata.use_cases.ports import SaveError
 
@@ -32,10 +32,10 @@ class SavedPlace:
 
 
 class PlaceBook:
-    def __init__(self, directory: Path, git_remotes: GitRemotes, git_folders: GitFolders):
+    def __init__(self, directory: Path, git_remotes: GitRemotes, git_folders: GitFolders, save_record: SaveRecord):
         directory.mkdir(parents=True, exist_ok=True)
         self.path = directory / "places.json"
-        self.saves_path = directory / "saves.json"
+        self.save_record = save_record
         self.git_remotes = git_remotes
         self.git_folders = git_folders
         if not self.path.exists():
@@ -86,24 +86,10 @@ class PlaceBook:
             case "folder":
                 write_changed(Path(place.target), bundle)
             case "webdav":
-                sent = upload_changed(place.target, place.username, place.password, bundle, self.last_save(place.id).get("uploaded", {}))
-                self._update(place.id, uploaded=sent)
+                sent = upload_changed(place.target, place.username, place.password, bundle, self.save_record.last(place.id).get("uploaded", {}))
+                self.save_record.note(place.id, uploaded=sent)
             case _:
                 raise SaveError(f"unknown kind of place: {place.kind}")
-
-    def last_save(self, place_id: str) -> dict:
-        return self._saves().get(place_id, {})
-
-    def remember(self, place_id: str, when: datetime, error: str | None) -> None:
-        self._update(place_id, attempted=when.isoformat(), error=error, **({} if error else {"saved": when.isoformat()}))
-
-    def _update(self, place_id: str, **fields) -> None:
-        saves = self._saves()
-        saves[place_id] = {**saves.get(place_id, {}), **fields}
-        self.saves_path.write_text(json.dumps(saves, indent=2) + "\n", encoding="utf-8")
-
-    def _saves(self) -> dict:
-        return json.loads(self.saves_path.read_text(encoding="utf-8")) if self.saves_path.exists() else {}
 
     def _adopt_existing_remote(self) -> None:
         remote = self.git_remotes.address()

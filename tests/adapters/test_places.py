@@ -9,13 +9,15 @@ from pathlib import Path
 from chronata.adapters.places.git_folder import GitFolders
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
+from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.places.webdav_upload import upload_changed
 from chronata.use_cases.ports import SaveError
 
 
 class Folders(unittest.TestCase):
     def setUp(self):
-        self.book = PlaceBook(Path(tempfile.mkdtemp()), GitRemotes(Path(tempfile.mkdtemp())), GitFolders(Path(tempfile.mkdtemp())))
+        settings = Path(tempfile.mkdtemp())
+        self.book = PlaceBook(settings, GitRemotes(Path(tempfile.mkdtemp())), GitFolders(Path(tempfile.mkdtemp())), SaveRecord(settings / "saves.json"))
 
     def test_a_folder_that_is_not_a_vault_is_refused_as_one(self):
         with self.assertRaises(SaveError):
