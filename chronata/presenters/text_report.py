@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from chronata.presenters.explanation import piece_lines
 from chronata.timekeeping.day_entries import DayEntry
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.compensation import Reconciliation, all_labels
+from chronata.timekeeping.compensation import Period, Reconciliation, all_labels
 from chronata.timekeeping.pc_sessions import PcSession
 from chronata.timekeeping.stamps import Stamp
 from chronata.timekeeping.overtime import Day, Week
@@ -23,12 +23,17 @@ def entry_lines(entries: list[DayEntry], sessions: list[PcSession], stamps: list
 
 
 def punctuality(day: Day) -> str | None:
-    gap = f"{hours(day.short)} behind so far" if day.running else f"{hours(day.short)} short of a full day"
     if day.late <= timedelta():
-        return gap if day.short > timedelta() else None
-    if day.made_up:
-        return f"arrived {hours(day.late)} late, made up so far" if day.running else f"arrived {hours(day.late)} late, made up (left {day.last_out:%H:%M})"
-    return f"arrived {hours(day.late)} late, {gap}"
+        return _behind(day) if day.short > timedelta() else None
+    return f"arrived {hours(day.late)} late, {_made_up(day) if day.made_up else _behind(day)}"
+
+
+def _behind(day: Day) -> str:
+    return f"{hours(day.short)} behind so far" if day.running else f"{hours(day.short)} short of a full day"
+
+
+def _made_up(day: Day) -> str:
+    return "made up so far" if day.running else f"made up (left {day.last_out:%H:%M})"
 
 
 def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str, Reconciliation], today: date) -> list[str]:
@@ -53,17 +58,22 @@ def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str,
 def _compensation_lines(label: str, reconciliation: Reconciliation) -> list[str]:
     if not reconciliation.periods and not reconciliation.unmatched:
         return []
-    lines = ["  Compensation recorded"]
-    if not reconciliation.periods:
-        lines.append(f"    none yet; add it with: chronata compensation FROM TO HOURS{f' --label {label!r}' if label else ''}")
-    for period in reconciliation.periods:
-        lines.append(
-            f"    {period.start} to {period.end}: overtime worked {hours(period.owed)}, "
-            f"paid {hours(period.paid)}, time off {hours(period.time_off)}, "
-            f"UNCOMPENSATED {hours(period.shortfall)}"
-            + (f"  [{'; '.join(period.references)}]" if period.references else "")
-        )
-    if reconciliation.unmatched:
-        lines.append("  Overtime on days no compensation covers yet")
-        lines += [f"    {day.date:%Y-%m-%d %a}: {hours(day.overtime)}" for day in reconciliation.unmatched]
-    return lines
+    return ["  Compensation recorded", *_recorded(label, reconciliation.periods), *_not_covered(reconciliation.unmatched)]
+
+
+def _recorded(label: str, periods: list[Period]) -> list[str]:
+    if not periods:
+        return [f"    none yet; add it with: chronata compensation FROM TO HOURS{f' --label {label!r}' if label else ''}"]
+    return [_period_line(period) for period in periods]
+
+
+def _period_line(period: Period) -> str:
+    references = f"  [{'; '.join(period.references)}]" if period.references else ""
+    return (f"    {period.start} to {period.end}: overtime worked {hours(period.owed)}, paid {hours(period.paid)}, "
+            f"time off {hours(period.time_off)}, UNCOMPENSATED {hours(period.shortfall)}{references}")
+
+
+def _not_covered(unmatched: list[Day]) -> list[str]:
+    if not unmatched:
+        return []
+    return ["  Overtime on days no compensation covers yet", *(f"    {day.date:%Y-%m-%d %a}: {hours(day.overtime)}" for day in unmatched)]

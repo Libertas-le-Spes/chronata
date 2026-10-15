@@ -80,24 +80,45 @@ def _day_notes(folder: str, shifts: list[Shift], summaries: dict[tuple[date, str
 
 
 def _day(folder: str, day: date, entries: list[DayEntry], summary: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> str:
+    lines = [f"# {day:%A %d %B %Y}", "", _worked_line(folder, entries, summary, now), ""]
+    lines += ["| In | Out | Worked | PC on | Status |", "|---|---|---|---|---|"]
+    lines += [_row(entry, sessions, now) for entry in entries]
+    lines += ["", "## Full explanation", ""] + _explanation(entries, sessions, stamps, now)
+    return "\n".join(lines) + "\n"
+
+
+def _worked_line(folder: str, entries: list[DayEntry], summary: Day | None, now: datetime) -> str:
     worked = sum((entry.worked(now) for entry in entries), timedelta())
     running = " so far" if any(entry.end is None for entry in entries) else ""
-    note = punctuality(summary) if summary else None
-    overtime = f", overtime {hours(summary.overtime)}" if summary and summary.overtime else ""
-    lines = [f"# {day:%A %d %B %Y}", "", f"{folder}: worked {hours(worked)}{running}{overtime}" + (f", {note}" if note else ""), ""]
-    lines += ["| In | Out | Worked | PC on | Status |", "|---|---|---|---|---|"]
-    for entry in entries:
-        share = pc_share(entry, sessions, now)
-        status = "struck out" if entry.voided else ("still open" if entry.end is None else "")
-        end = f"{entry.end:%H:%M:%S}" if entry.end else "–"
-        worked_here = hours(entry.worked(now)) + ("" if entry.end else " so far")
-        lines.append(f"| {entry.start:%H:%M:%S} | {end} | {worked_here} | {'no record' if share is None else f'{share:.0%}'} | {status} |")
-    lines += ["", "## Full explanation", ""]
-    for entry in entries:
-        for piece in entry.pieces:
-            heading, *details = piece_lines(piece, sessions, stamps, now)
-            lines += [f"- {heading}", *(f"  - {detail}" for detail in details)]
-    return "\n".join(lines) + "\n"
+    return f"{folder}: worked {hours(worked)}{running}" + "".join(_summary_notes(summary))
+
+
+def _summary_notes(summary: Day | None) -> list[str]:
+    if summary is None:
+        return []
+    note = punctuality(summary)
+    return [f", overtime {hours(summary.overtime)}"] * bool(summary.overtime) + [f", {note}"] * bool(note)
+
+
+def _row(entry: DayEntry, sessions: list[PcSession], now: datetime) -> str:
+    share = pc_share(entry, sessions, now)
+    end = f"{entry.end:%H:%M:%S}" if entry.end else "–"
+    worked = hours(entry.worked(now)) + ("" if entry.end else " so far")
+    return f"| {entry.start:%H:%M:%S} | {end} | {worked} | {'no record' if share is None else f'{share:.0%}'} | {_status(entry)} |"
+
+
+def _status(entry: DayEntry) -> str:
+    if entry.voided:
+        return "struck out"
+    return "still open" if entry.end is None else ""
+
+
+def _explanation(entries: list[DayEntry], sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> list[str]:
+    lines = []
+    for piece in (piece for entry in entries for piece in entry.pieces):
+        heading, *details = piece_lines(piece, sessions, stamps, now)
+        lines += [f"- {heading}", *(f"  - {detail}" for detail in details)]
+    return lines
 
 
 def _seal(stamps: list[Stamp], entries: int) -> str:
