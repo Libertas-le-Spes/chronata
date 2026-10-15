@@ -45,6 +45,13 @@ class NotClockedIn(unittest.TestCase):
             reminders.tick()
         self.assertEqual([summary for summary, _ in f.desktop.notices], ["Not clocked in", "Not clocked in"])
 
+    def test_clocking_in_from_the_reminder_uses_the_default_label(self):
+        f = Fixture("2026-10-14T08:40:00")
+        f.sheet.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        Reminders(f.sheet, f.desktop, "http://page/").tick()
+        f.desktop.click("Not clocked in")
+        self.assertEqual(f.sheet.shifts()[0].label, "Northwind")
+
 
 class PcOffPrompt(unittest.TestCase):
     def test_logging_in_after_the_pc_was_off_mid_shift_asks_why(self):

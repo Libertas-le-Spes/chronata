@@ -86,12 +86,12 @@ async function act(path, body, form) {
     await refresh();
     return true;
   } catch (error) {
-    if (error.status === 409 && error.payload.nearMisses) {
+    if (error.status === 409 && (error.payload.nearMisses || error.payload.offDefault)) {
       buttons.forEach((button) => (button.disabled = false));
-      const choice = await askAboutNewLabel(error.payload);
-      if (!choice) return false;
       const field = "label" in body ? "label" : "to";
-      return act(path, choice.use ? { ...body, [field]: choice.use } : { ...body, newLabel: true }, form);
+      const change = error.payload.offDefault ? await askAboutOffDefault(error.payload) : await askAboutNewLabel(error.payload, field);
+      if (!change) return false;
+      return act(path, { ...body, ...change }, form);
     }
     toast(error.message, "bad");
     return false;
@@ -100,15 +100,40 @@ async function act(path, body, form) {
   }
 }
 
-function askAboutNewLabel({ label, nearMisses }) {
+function askAboutNewLabel({ label, nearMisses }, field) {
+  return askChoice("New label?", `“${label}” would start a new label, with its own folder. Did you mean ${nearMisses.map((m) => `“${m}”`).join(" or ")}?`, [
+    [`Create “${label}”`, { newLabel: true }],
+    ...nearMisses.map((miss) => [`Use “${miss}”`, { [field]: miss }, "primary"]),
+  ]);
+}
+
+function askAboutOffDefault({ label, defaultLabel }) {
+  const chosen = label ? `Clock in on “${label}”` : "Clock in with no label";
+  return askChoice("Not your default?", `Today is a workday, and “${defaultLabel}” is your default. ${chosen} instead?`, [
+    [chosen, { offDefault: true }],
+    [`Use “${defaultLabel}”`, { label: defaultLabel }, "primary"],
+  ]);
+}
+
+function askWhenStarted(pcOn) {
+  if (!pcOn) return Promise.resolve({});
+  const since = clockTime(pcOn).slice(0, 5);
+  const ago = hours(Math.round((Date.now() + clockSkew - Date.parse(pcOn)) / 60000));
+  return askChoice("Since when?", `Have you been working since the PC came on at ${since} (${ago} ago), or are you starting now?`, [
+    [`Since ${since}`, { at: pcOn, note: "started when the PC came on" }],
+    ["From now", {}, "primary"],
+  ]);
+}
+
+function askChoice(title, text, choices) {
   return new Promise((resolve) => {
-    const dialog = $("#label-choice");
-    $("#label-choice-text").textContent = `“${label}” would start a new label, with its own folder. Did you mean ${nearMisses.map((m) => `“${m}”`).join(" or ")}?`;
+    const dialog = $("#choice-dialog");
+    $("#choice-title").textContent = title;
+    $("#choice-text").textContent = text;
     const choose = (answer) => () => { dialog.close(); resolve(answer); };
-    $("#label-choice-buttons").replaceChildren(
+    $("#choice-buttons").replaceChildren(
       el("button", { type: "button", onclick: choose(null) }, "Cancel"),
-      el("button", { type: "button", onclick: choose({ create: true }) }, `Create “${label}”`),
-      ...nearMisses.map((miss) => el("button", { type: "button", class: "primary", onclick: choose({ use: miss }) }, `Use “${miss}”`)),
+      ...choices.map(([caption, change, style]) => el("button", { type: "button", class: style, onclick: choose(change) }, caption)),
     );
     dialog.showModal();
   });
@@ -120,7 +145,7 @@ function watchLabel(input) {
   const describe = async () => {
     const typed = input.value;
     if (!typed.trim()) {
-      hint.textContent = "No label: goes into the “No label” folder";
+      hint.textContent = hint.dataset.whenEmpty || "No label: goes into the “No label” folder";
       return;
     }
     const { label, exists, folder, nearMisses } = await api(`/api/label-check?text=${encodeURIComponent(typed)}`);
@@ -151,7 +176,8 @@ function renderClock(state) {
       : `Still clocked in from ${dayLabel(interrupted.start)}, ${clockTime(interrupted.start)}, before the PC last turned off.`;
     $("#clock-button").textContent = off ? `Clock out at ${dayLabel(off)}, ${clockTime(off).slice(0, 5)}` : "Clock out now";
   } else {
-    $("#clock-state").textContent = current ? `Clocked in since ${dayLabel(current.start)}, ${clockTime(current.start)}` : "Not clocked in";
+    const onLabel = current && current.label ? ` on ${current.label}` : "";
+    $("#clock-state").textContent = current ? `Clocked in${onLabel} since ${dayLabel(current.start)}, ${clockTime(current.start)}` : "Not clocked in";
     $("#clock-button").textContent = current ? "Clock out" : "Clock in";
   }
   const week = state.weeks.find((w) => w.running);
@@ -458,7 +484,8 @@ function renderLabels(state) {
   $("#known-labels").replaceChildren(...state.labels.map((label) => el("option", { value: label })));
   const labelInput = $("#clock-form").elements.label;
   labelInput.hidden = Boolean(current) && !interrupted;
-  if (!current && document.activeElement !== labelInput && !labelInput.value && state.labels.length) labelInput.value = state.labels[0];
+  $("#clock-form .label-hint").hidden = labelInput.hidden;
+  if (!current && document.activeElement !== labelInput && !labelInput.value) labelInput.value = state.suggestedLabel;
   labelHints.forEach((describe) => describe().catch(() => {}));
   const rows = state.labelSummary.filter((row) => row.label);
   $("#by-label").replaceChildren(...(rows.length ? [el("div", { class: "card" },
@@ -466,9 +493,15 @@ function renderLabels(state) {
     el("table", { class: "label-table" },
       el("tr", {}, el("th", {}, "Label"), el("th", {}, "Folder"), el("th", { class: "number" }, "This week"), el("th", { class: "number" }, "All time"), el("th", {}, "")),
       ...rows.map((row) => el("tr", {},
-        el("td", {}, row.label, row.openNow ? el("span", { class: "chip live" }, " open") : null), el("td", { class: "muted" }, `${row.folder}/`),
+        el("td", {}, row.label, row.label === state.defaultLabel ? el("span", { class: "chip label" }, "default") : null,
+          row.openNow ? el("span", { class: "chip live" }, " open") : null),
+        el("td", { class: "muted" }, `${row.folder}/`),
         el("td", { class: "number" }, hours(row.week)), el("td", { class: "number" }, hours(row.all)),
-        el("td", {}, el("button", { type: "button", class: "link", onclick: () => renameLabel(row.label, state.labels) }, "Rename")),
+        el("td", { class: "row-actions" },
+          el("button", { type: "button", class: "link", onclick: () => renameLabel(row.label, state.labels) }, "Rename"),
+          row.label === state.defaultLabel
+            ? el("button", { type: "button", class: "link", onclick: () => act("/api/default-label", { label: "" }) }, "No default")
+            : el("button", { type: "button", class: "link", onclick: () => act("/api/default-label", { label: row.label }) }, "Make default")),
       )),
     ),
   )] : []));
@@ -520,9 +553,11 @@ function renderSetup(setup, open) {
   const form = $("#setup-form");
   $("#lunch-question").textContent = setup.lunchQuestion;
   $("#shift-question").textContent = setup.shiftQuestion;
+  $("#default-label-question").textContent = setup.defaultLabelQuestion;
   if ($("#setup").hidden) {
     form.elements.lunch.value = setup.lunch;
     form.elements.shift.value = setup.shift;
+    form.elements.label.value = setup.defaultLabel;
   }
   $("#setup-cancel").hidden = setup.needed;
   if (open) $("#setup").hidden = false;
@@ -582,8 +617,11 @@ function wire() {
     const form = event.target;
     const { note, at, label } = fields(form);
     if (current && earlyOut && !at) return askBeforeClockingOut(note);
-    const when = at || (interrupted && interrupted.pcWentOff) || null;
-    if (await act(current ? "/api/out" : "/api/in", { note, at: when, label }, form)) {
+    const start = current || at ? {} : await askWhenStarted(lastState.unclockedSince);
+    if (!start) return;
+    const when = at || start.at || (interrupted && interrupted.pcWentOff) || null;
+    const noted = [note, start.note].filter(Boolean).join("; ");
+    if (await act(current ? "/api/out" : "/api/in", { note: noted, at: when, label }, form)) {
       form.reset();
       form.querySelector("details").open = false;
     }

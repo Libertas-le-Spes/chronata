@@ -4,6 +4,7 @@ import webbrowser
 from typing import Callable
 
 APP_NAME = "Chronata"
+CANCEL = "Cancel"
 
 
 class LinuxDesktop:
@@ -24,9 +25,22 @@ class LinuxDesktop:
         webbrowser.open(url)
 
     def choose_folder(self) -> str | None:
-        try:
-            chosen = subprocess.run(["zenity", "--file-selection", "--directory", "--title=Where should Chronata save?"],
-                                    capture_output=True, text=True, check=False, timeout=600)
-        except (OSError, subprocess.TimeoutExpired):
-            return None
-        return chosen.stdout.strip() or None
+        chosen = _zenity("--file-selection", "--directory", "--title=Where should Chronata save?")
+        return chosen.stdout.strip() or None if chosen else None
+
+    def ask(self, question: str, suggested: str) -> str | None:
+        answered = _zenity("--entry", f"--title={APP_NAME}", f"--text={question}", f"--entry-text={suggested}")
+        return answered.stdout.strip() if answered and answered.returncode == 0 else None
+
+    def choose(self, question: str, options: list[str]) -> str | None:
+        buttons = [f"--extra-button={option}" for option in [*options, CANCEL]]
+        answered = _zenity("--question", "--switch", "--no-markup", f"--title={APP_NAME}", f"--text={question}", *buttons)
+        picked = answered.stdout.strip() if answered else ""
+        return picked if picked and picked != CANCEL else None
+
+
+def _zenity(*arguments: str) -> subprocess.CompletedProcess | None:
+    try:
+        return subprocess.run(["zenity", *arguments], capture_output=True, text=True, check=False, timeout=600)
+    except (OSError, subprocess.TimeoutExpired):
+        return None

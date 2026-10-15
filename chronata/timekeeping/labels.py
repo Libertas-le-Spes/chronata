@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from difflib import get_close_matches
 
-from chronata.timekeeping.shifts import Shift
+from chronata.timekeeping.shifts import Shift, resumable
 
 
 @dataclass(frozen=True)
@@ -39,6 +39,14 @@ def hours_by_label(all_shifts: list[Shift], now: datetime) -> list[LabelHours]:
 def known_labels(all_shifts: list[Shift]) -> list[str]:
     recent = sorted((s for s in all_shifts if s.label and not s.voided), key=lambda s: s.start, reverse=True)
     return list(dict.fromkeys(s.label for s in recent))
+
+
+def suggested(all_shifts: list[Shift], now: datetime, default_label: str) -> str:
+    earlier_today = resumable(all_shifts, now)
+    if earlier_today:
+        return earlier_today.label
+    recent = known_labels(all_shifts)
+    return default_label or (recent[0] if recent else "")
 
 
 def tidy(typed: str) -> str:

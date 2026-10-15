@@ -14,13 +14,13 @@ from chronata.timekeeping.record import TamperedRecord
 from chronata.timekeeping.shifts import completed, open_shift
 from chronata.timekeeping.working_day import worked_by_label
 from chronata.use_cases import typed_input
-from chronata.use_cases.outcome import Outcome, UnconfirmedLabel, UserError
+from chronata.use_cases.outcome import OffDefaultLabel, Outcome, UnconfirmedLabel, UserError
 from chronata.use_cases.verification import verify
 from chronata.wiring import App, open_app, open_saved_copy
 
 
 def clock_in(args, app: App) -> Outcome:
-    return app.sheet.clock_in(args.at, args.note, args.label or "", args.new_label)
+    return app.sheet.clock_in(args.at, args.note, args.label, args.new_label, args.off_default)
 
 
 def clock_out(args, app: App) -> Outcome:
@@ -43,9 +43,19 @@ def list_labels(args, app: App) -> None:
     summary = hours_by_label(app.sheet.shifts(), app.sheet.clock())
     if not summary:
         print("no labels yet; add one with: chronata in --label NAME")
+    default = app.sheet.working_day.default_label
     for row in summary:
         running = "  (shift still open)" if row.open_now else ""
-        print(f"{row.label or '(no label)':24} folder {label_folder(row.label):24} this week {hours(row.this_week):>6}   all time {hours(row.all_time):>7}{running}")
+        marked = f"{row.label} (default)" if row.label and row.label == default else row.label or "(no label)"
+        print(f"{marked:24} folder {label_folder(row.label):24} this week {hours(row.this_week):>6}   all time {hours(row.all_time):>7}{running}")
+
+
+def default_label(args, app: App) -> Outcome | None:
+    if args.label is not None:
+        return app.sheet.set_default_label(args.label, args.new_label)
+    default = app.sheet.working_day.default_label
+    print(default or "no default label; set one with: chronata default-label NAME")
+    return None
 
 
 def rename_label(args, app: App) -> Outcome:
@@ -135,7 +145,8 @@ def configure(args, app: App) -> Outcome:
     print("Press Enter to keep what is in brackets.")
     lunch_answer = input(f"{typed_input.LUNCH_QUESTION} [{lunch_now}] ").strip() or lunch_now
     shift_answer = input(f"{typed_input.SHIFT_QUESTION} [{shift_now}] ").strip() or shift_now
-    return app.sheet.configure(lunch_answer, shift_answer)
+    label_answer = input(f"{typed_input.DEFAULT_LABEL_QUESTION} [{day.default_label or 'none'}] ").strip() or None
+    return app.sheet.configure(lunch_answer, shift_answer, label_answer)
 
 
 def shutting_down(args, app: App) -> Outcome | None:
@@ -174,6 +185,7 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--at", help="when you actually started, if you forgot (e.g. 08:04)")
     command.add_argument("--label", help="client or project, e.g. 'Acme website'; each label gets its own folder")
     command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    command.add_argument("--off-default", action="store_true", help="confirm clocking in on a workday on a label other than the default")
     command.add_argument("--note")
     command.set_defaults(run=clock_in)
 
@@ -206,6 +218,11 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("new")
     command.add_argument("--new-label", action="store_true", help="confirm a new name that looks like an existing label")
     command.set_defaults(run=rename_label)
+
+    command = commands.add_parser("default-label", help="show or set your main client or project; on workdays clocking in on another asks first")
+    command.add_argument("label", nargs="?", help="the label, or '' to have no default")
+    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    command.set_defaults(run=default_label)
 
     command = commands.add_parser("correct", help="fix a shift's times; the original stays on record")
     command.add_argument("id", type=int)
@@ -273,7 +290,7 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--no-browser", action="store_true")
     command.set_defaults(run=ui)
 
-    command = commands.add_parser("setup", help="set your shift and lunch")
+    command = commands.add_parser("setup", help="set your shift, lunch and main client or project")
     command.set_defaults(run=configure)
 
     command = commands.add_parser("shutting-down", help="record the exact moment the PC shuts down (run by the service)")
@@ -297,6 +314,9 @@ def main(argv: list[str] | None = None) -> int:
         outcome = args.run(args, open_app())
     except UnconfirmedLabel as error:
         print(f"chronata: {error} Add --new-label to confirm.", file=sys.stderr)
+        return 1
+    except OffDefaultLabel as error:
+        print(f"chronata: {error} Add --off-default to confirm.", file=sys.stderr)
         return 1
     except (UserError, TamperedRecord, FileNotFoundError) as error:
         print(f"chronata: {error}", file=sys.stderr)

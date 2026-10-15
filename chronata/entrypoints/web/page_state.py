@@ -22,14 +22,17 @@ def page_state(app) -> dict:
     sessions = sheet.pc_sessions()
     this_boot = sheet.this_boot()
     interrupted = sheet.interrupted()
+    unclocked = sheet.unclocked_since()
     return {
         "now": now.isoformat(),
-        "open": {"id": current.id, "start": current.start.isoformat(), "workedSeconds": round(current.worked(now).total_seconds())} if current else None,
+        "open": {"id": current.id, "label": current.label, "start": current.start.isoformat(),
+                 "workedSeconds": round(current.worked(now).total_seconds())} if current else None,
         "interrupted": {
             "start": interrupted.shift.start.isoformat(),
             "pcWentOff": interrupted.pc_went_off.isoformat() if interrupted.pc_went_off else None,
         } if interrupted else None,
         "pcOnSince": this_boot.on.isoformat() if this_boot else None,
+        "unclockedSince": unclocked.isoformat() if unclocked else None,
         "beforeEndOfWorkday": working_day.before_end_of_workday(now),
         "shiftEnd": f"{working_day.shift_end:%H:%M}",
         "weeks": [
@@ -43,6 +46,8 @@ def page_state(app) -> dict:
             for shift in all_shifts for gap in shift.breaks if gap.cause == "PC off" and not gap.reason
         ],
         "labels": known_labels(all_shifts),
+        "defaultLabel": working_day.default_label,
+        "suggestedLabel": sheet.suggested_label(),
         "chart": _chart(all_shifts, working_day, now, running=None if interrupted else current),
         "days": {
             day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
@@ -70,6 +75,8 @@ def page_state(app) -> dict:
             "shift": f"{working_day.shift_start:%H:%M} to {working_day.shift_end:%H:%M}",
             "lunchQuestion": typed_input.LUNCH_QUESTION,
             "shiftQuestion": typed_input.SHIFT_QUESTION,
+            "defaultLabel": working_day.default_label,
+            "defaultLabelQuestion": typed_input.DEFAULT_LABEL_QUESTION,
         },
         "workingDay": {
             "dailyHours": working_day.daily_hours,

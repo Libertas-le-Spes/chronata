@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from chronata.entrypoints.web.page_state import page_state
 from chronata.timekeeping.record import TamperedRecord
 from chronata.presenters.readable_copy import label_folder
-from chronata.use_cases.outcome import UnconfirmedLabel, UserError
+from chronata.use_cases.outcome import OffDefaultLabel, UnconfirmedLabel, UserError
 from chronata.use_cases.verification import verify
 
 PAGES = Path(__file__).parent / "page"
@@ -45,11 +45,12 @@ def serve_in_background(app, port: int) -> bool:
 def _actions(app) -> dict:
     sheet, saving = app.sheet, app.saving
     return {
-        "/api/in": lambda body: sheet.clock_in(body.get("at"), body.get("note"), body.get("label", ""), bool(body.get("newLabel"))),
+        "/api/in": lambda body: sheet.clock_in(body.get("at"), body.get("note"), body.get("label"), bool(body.get("newLabel")), bool(body.get("offDefault"))),
         "/api/out": lambda body: sheet.clock_out(body.get("at"), body.get("note")),
         "/api/add": lambda body: sheet.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note"),
                                            body.get("label", ""), bool(body.get("newLabel"))),
         "/api/label": lambda body: sheet.label(int(body["id"]), body.get("label", ""), bool(body.get("newLabel"))),
+        "/api/default-label": lambda body: sheet.set_default_label(body.get("label", ""), bool(body.get("newLabel"))),
         "/api/labels/rename": lambda body: sheet.rename_label(body.get("from", ""), body.get("to", ""), bool(body.get("newLabel"))),
         "/api/correct": lambda body: sheet.correct(int(body["id"]), body.get("start"), body.get("end"), body.get("reason")),
         "/api/strike": lambda body: sheet.strike(int(body["id"]), body.get("reason")),
@@ -61,7 +62,7 @@ def _actions(app) -> dict:
         "/api/places/add": lambda body: saving.add_place(sheet, body.get("kind", ""), body.get("name", ""), body.get("target", ""),
                                                          body.get("username", ""), body.get("password", ""), body.get("folder", "")),
         "/api/places/remove": lambda body: saving.remove_place(body.get("id", "")),
-        "/api/setup": lambda body: sheet.configure(body.get("lunch", ""), body.get("shift", "")),
+        "/api/setup": lambda body: sheet.configure(body.get("lunch", ""), body.get("shift", ""), body.get("label"), bool(body.get("newLabel"))),
     }
 
 
@@ -111,6 +112,8 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
                 outcome = action(body)
             except UnconfirmedLabel as error:
                 return self._json(409, {"error": str(error), "label": error.label, "nearMisses": list(error.near_misses)})
+            except OffDefaultLabel as error:
+                return self._json(409, {"error": str(error), "label": error.label, "defaultLabel": error.default_label, "offDefault": True})
             except (UserError, TamperedRecord) as error:
                 return self._json(400, {"error": str(error)})
             except (KeyError, ValueError):

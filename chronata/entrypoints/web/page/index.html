@@ -25,6 +25,8 @@
     <form id="setup-form" class="grid-form">
       <label class="wide"><span id="lunch-question"></span> <input name="lunch" type="text" autocomplete="off"></label>
       <label class="wide"><span id="shift-question"></span> <input name="shift" type="text" autocomplete="off"></label>
+      <label class="wide"><span id="default-label-question"></span> <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="e.g. your employer; leave empty for none"></label>
+      <p class="label-hint muted small wide" data-when-empty="No default: clocking in on any label goes ahead without asking"></p>
       <div class="wide actions">
         <button type="button" id="setup-cancel">Cancel</button>
         <button class="primary" type="submit">Save</button>
@@ -184,11 +186,11 @@
   </form>
 </dialog>
 
-<dialog id="label-choice">
+<dialog id="choice-dialog">
   <form method="dialog" class="grid-form">
-    <h2 class="wide">New label?</h2>
-    <p id="label-choice-text" class="wide"></p>
-    <div id="label-choice-buttons" class="wide actions"></div>
+    <h2 id="choice-title" class="wide"></h2>
+    <p id="choice-text" class="wide"></p>
+    <div id="choice-buttons" class="wide actions"></div>
   </form>
 </dialog>
 
