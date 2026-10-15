@@ -7,3 +7,7 @@ A timesheet is only worth something if the person reading it can trust it was wr
 Because the proof travels with the log, it can be saved anywhere: an Obsidian vault, a plain folder, a git host or a WebDAV server. Each copy checks out on its own with `chronata verify --folder <copy>`.
 
 Mistakes are corrected or struck out, never deleted, because a visible correction is more credible than a clean record. The PC's on and off times are sealed alongside your shifts as corroboration, but never counted as work, because a PC being on is not work.
+
+## Install
+
+On Linux, run `./install.sh` from a clone. It needs Python 3.10 or newer and installs nothing else: it links the `chronata` command, adds Chronata to the applications menu and starts it in the background at every login. Then run `chronata setup`.
