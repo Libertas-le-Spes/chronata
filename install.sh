@@ -23,7 +23,7 @@ require_python() {
 
 link_command() {
     mkdir -p "$bin_dir"
-    ln -sfn "$here/bin/chronata" "$command_path"
+    ln -sfn "$here/backend/bin/chronata" "$command_path"
     say "command:  $command_path"
     case ":$PATH:" in
         *":$bin_dir:"*) ;;
