@@ -3,7 +3,7 @@ from datetime import date
 from chronata.presenters.text_report import report_lines, shift_lines
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.shifts import completed, open_shift
-from chronata.timekeeping.working_day import worked_by_label
+from chronata.timekeeping.labels import worked_by_label
 from chronata.wiring import App
 
 

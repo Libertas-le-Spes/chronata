@@ -1,7 +1,8 @@
 from time import sleep
 from datetime import date, datetime, timedelta
 
-from chronata.timekeeping.shifts import completed, open_shift, unexplained_pc_breaks
+from chronata.timekeeping.shifts import completed, open_shift
+from chronata.timekeeping.today import unexplained_pc_breaks
 from chronata.use_cases.outcome import UserError
 from chronata.use_cases.ports import Desktop
 from chronata.use_cases.clocking import Clocking

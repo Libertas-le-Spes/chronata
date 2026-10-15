@@ -2,7 +2,8 @@ import unittest
 from datetime import time, timedelta
 
 from chronata.timekeeping.shifts import Shift
-from chronata.timekeeping.working_day import WorkingDay, check_fits, weeks, worked_by_label
+from chronata.timekeeping.working_day import WorkingDay, check_fits, weeks
+from chronata.timekeeping.labels import worked_by_label
 from tests.fakes import at
 
 

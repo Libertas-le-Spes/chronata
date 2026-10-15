@@ -4,7 +4,8 @@ from typing import Callable
 
 from chronata.timekeeping.pay import Reconciliation, reconcile
 from chronata.timekeeping.pc_sessions import PcSession, pc_sessions
-from chronata.timekeeping.shifts import Shift, completed, shifts
+from chronata.timekeeping.replay import shifts
+from chronata.timekeeping.shifts import Shift, completed
 from chronata.timekeeping.working_day import Week, WorkingDay, weeks
 from chronata.use_cases.outcome import Outcome, UserError
 from chronata.use_cases.ports import Clock, History, RecordStore, WorkingDayStore, WriteLock

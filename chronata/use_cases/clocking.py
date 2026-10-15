@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.shifts import open_shift, resumable, unclocked_since
+from chronata.timekeeping.shifts import open_shift
+from chronata.timekeeping.today import resumable, unclocked_since
 from chronata.use_cases import typed_input
 from chronata.use_cases.labelling import Labelling
 from chronata.use_cases.log import Log, one_writer_at_a_time, with_label, with_note

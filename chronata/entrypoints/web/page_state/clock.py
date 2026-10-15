@@ -1,4 +1,4 @@
-from chronata.timekeeping.shifts import day_so_far
+from chronata.timekeeping.today import day_so_far
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
 
 

@@ -79,13 +79,6 @@ def check_fits(shift_start: time, shift_end: time, lunch_start: time, lunch_minu
         raise ValueError("lunch has to start during the shift")
 
 
-def worked_by_label(finished_shifts: list[Shift]) -> dict[str, timedelta]:
-    totals: dict[str, timedelta] = defaultdict(timedelta)
-    for shift in finished_shifts:
-        totals[shift.label] += shift.worked(shift.end)
-    return dict(sorted(totals.items(), key=lambda item: item[1], reverse=True))
-
-
 def weeks(finished_shifts: list[Shift], working_day: WorkingDay) -> list[Week]:
     per_day: dict[date, list[Shift]] = defaultdict(list)
     for shift in finished_shifts:

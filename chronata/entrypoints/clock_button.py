@@ -1,7 +1,8 @@
 from chronata.entrypoints.web.server import DEFAULT_PORT, page_url
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.labels import known_labels
-from chronata.timekeeping.shifts import day_so_far, open_shift
+from chronata.timekeeping.shifts import open_shift
+from chronata.timekeeping.today import day_so_far
 from chronata.use_cases.outcome import OffDefaultLabel, UnconfirmedLabel, UserError
 
 CLOCK_ICON = ""
