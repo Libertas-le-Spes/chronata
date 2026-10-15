@@ -18,27 +18,27 @@ class Saving:
         self.readable_copy = readable_copy
         self.keep_locally = keep_locally
 
-    def __call__(self, sheet) -> str | None:
+    def __call__(self, log) -> str | None:
         warnings = []
-        head = sheet.record.head()
+        head = log.record.head()
         if head:
             made, failures = self.timestamper.stamp(*head)
             if made:
                 self.history.commit(f"timestamped entry {head[0]} by {', '.join(s.authority_name for s in made)}")
             if failures:
                 warnings.append(f"timestamp not taken ({'; '.join(failures)}); will try again on the next save")
-        readable = self.readable_copy(sheet, sheet.clock())
+        readable = self.readable_copy(log, log.clock())
         self.keep_locally(readable)
         self.history.commit("updated the readable copy")
-        warnings += self._save_everywhere(sheet, readable)
+        warnings += self._save_everywhere(log, readable)
         return "; ".join(warnings) or None
 
-    def add_place(self, sheet, kind: str, name: str, target: str, username: str = "", password: str = "", folder: str = "") -> Outcome:
+    def add_place(self, log, kind: str, name: str, target: str, username: str = "", password: str = "", folder: str = "") -> Outcome:
         try:
             place = self.places.add(kind, name, target, username, password, folder)
         except SaveError as error:
             raise UserError(str(error))
-        saved = sheet.save_now()
+        saved = log.save_now()
         return Outcome(f"added {place.name} and {saved.message}", saved.warning)
 
     def remove_place(self, place_id: str) -> Outcome:
@@ -54,11 +54,11 @@ class Saving:
     def stamped(self) -> tuple[int | None, list[Stamp]]:
         return latest(self.timestamper.stamps())
 
-    def _save_everywhere(self, sheet, readable: dict[str, bytes]) -> list[str]:
+    def _save_everywhere(self, log, readable: dict[str, bytes]) -> list[str]:
         targets = self.places.places()
         if not targets:
             return ["only saved on this computer; add a place to keep a copy somewhere else"]
-        now = sheet.clock()
+        now = log.clock()
         bundle = {**self.sealed_files(), **readable}
         warnings = []
         for place in targets:

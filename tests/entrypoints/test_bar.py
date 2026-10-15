@@ -8,7 +8,7 @@ from tests.fakes import Fixture, at
 class ClickingTheBarWhenClockedOut(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
-        self.f.sheet.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
         self.desktop = self.f.desktop
 
     def click(self, *answers) -> None:
@@ -16,7 +16,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
         bar.toggle(self.f.app)
 
     def labels(self) -> list[str]:
-        return [shift.label for shift in self.f.sheet.shifts()]
+        return [shift.label for shift in self.f.app.log.shifts()]
 
     def test_it_suggests_the_default_and_enter_clocks_in_on_it(self):
         self.click("Northwind")
@@ -45,26 +45,26 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
     def test_cancelling_the_confirmation_leaves_you_clocked_out(self):
         self.click("Acme", None)
         self.assertEqual(self.labels(), [])
-        self.assertEqual(bar.status(self.f.sheet)["state"], "out")
+        self.assertEqual(bar.status(self.f.app)["state"], "out")
 
     def test_a_typo_is_matched_to_the_existing_label(self):
         self.click("Northwind")
         self.f.at("2026-10-14T10:00:00")
-        self.f.sheet.clock_out(None, None)
+        self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-15T08:00:00")
         self.click("Northwnid", "Northwind")
         self.assertEqual(self.labels(), ["Northwind", "Northwind"])
 
     def test_the_tooltip_names_the_label_you_are_working_on(self):
         self.click("Northwind")
-        self.assertTrue(bar.status(self.f.sheet)["tooltip"].startswith("Working on Northwind, 0:00 today since 08:05"))
+        self.assertTrue(bar.status(self.f.app)["tooltip"].startswith("Working on Northwind, 0:00 today since 08:05"))
 
 
 
 class StartingFromWhenThePcCameOn(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
-        self.f.sheet.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
 
     def pc_on(self, since: str) -> None:
         self.f.power.boot_list = [Boot("today", at(since), self.f.now, True)]
@@ -81,12 +81,12 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
     def test_you_can_start_from_when_the_pc_came_on(self):
         self.pc_on("2026-10-14T07:50:00")
         self.click("Northwind", "Since 07:50")
-        shift = self.f.sheet.shifts()[0]
+        shift = self.f.app.log.shifts()[0]
         self.assertEqual((shift.start, shift.notes), (at("2026-10-14T07:50:00"), ["started when the PC came on"]))
 
     def test_a_shift_from_when_the_pc_came_on_is_shown_with_that_proof_first(self):
         self.pc_on("2026-10-14T07:50:00")
-        self.f.sheet.record_pc_sessions()
+        self.f.app.pc.record_sessions()
         self.click("Northwind", "Since 07:50")
         day = (self.f.data / "Northwind" / "Days" / "2026-10-14.md").read_text()
         self.assertIn("| 07:50:00 | PC on · not yet independently timestamped |", day)
@@ -95,38 +95,38 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
         self.pc_on("2026-10-14T07:50:00")
         self.click("Northwind", "Since 07:50")
         self.f.at("2026-10-14T09:00:00")
-        self.f.sheet.clock_out(None, None)
+        self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-14T09:30:00")
-        self.f.sheet.clock_in(None, None, "Northwind")
+        self.f.app.clocking.clock_in(None, None, "Northwind")
         self.f.at("2026-10-14T10:00:00")
-        shown = bar.status(self.f.sheet)
+        shown = bar.status(self.f.app)
         self.assertEqual(shown["elapsed"], "1:40")
         self.assertIn("1:40 today since 07:50:00", shown["tooltip"])
 
     def test_or_from_now(self):
         self.pc_on("2026-10-14T07:50:00")
         self.click("Northwind", "From now")
-        self.assertEqual(self.f.sheet.shifts()[0].start, at("2026-10-14T08:05:00"))
+        self.assertEqual(self.f.app.log.shifts()[0].start, at("2026-10-14T08:05:00"))
 
     def test_another_label_gets_both_questions(self):
         self.pc_on("2026-10-14T07:50:00")
         self.click("Acme", "Since 07:50", "Clock in on Acme")
-        shift = self.f.sheet.shifts()[0]
+        shift = self.f.app.log.shifts()[0]
         self.assertEqual((shift.label, shift.start), ("Acme", at("2026-10-14T07:50:00")))
 
     def test_a_pc_on_for_only_a_few_minutes_is_not_asked_about(self):
         self.pc_on("2026-10-14T08:02:00")
         self.click("Northwind")
-        self.assertEqual(self.f.sheet.shifts()[0].start, at("2026-10-14T08:05:00"))
+        self.assertEqual(self.f.app.log.shifts()[0].start, at("2026-10-14T08:05:00"))
 
     def test_time_already_clocked_since_the_pc_came_on_is_not_offered_again(self):
         self.pc_on("2026-10-14T07:50:00")
         self.click("Northwind", "From now")
         self.f.at("2026-10-14T10:00:00")
-        self.f.sheet.clock_out(None, None)
+        self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-14T11:00:00")
         self.click("Acme", "Clock in on Acme")
-        self.assertEqual(self.f.sheet.shifts()[-1].start, at("2026-10-14T11:00:00"))
+        self.assertEqual(self.f.app.log.shifts()[-1].start, at("2026-10-14T11:00:00"))
 
 
 if __name__ == "__main__":

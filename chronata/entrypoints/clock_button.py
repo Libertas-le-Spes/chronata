@@ -3,24 +3,23 @@ from chronata.timekeeping.durations import hours
 from chronata.timekeeping.labels import known_labels
 from chronata.timekeeping.shifts import day_so_far, open_shift
 from chronata.use_cases.outcome import OffDefaultLabel, UnconfirmedLabel, UserError
-from chronata.use_cases.timesheet import Timesheet
 
 CLOCK_ICON = ""
 WARNING_ICON = ""
 
 
-def status(sheet: Timesheet) -> dict:
-    interrupted = sheet.interrupted()
+def status(app) -> dict:
+    interrupted = app.pc.interrupted()
     if interrupted:
         return {
             "text": WARNING_ICON,
             "tooltip": f"Still clocked in from {interrupted.shift.start:%a %H:%M}, before the PC last turned off.\nRight-click to open Chronata and close that shift.",
             "state": "interrupted",
         }
-    all_shifts = sheet.shifts()
+    all_shifts = app.log.shifts()
     current = open_shift(all_shifts)
     if current:
-        started, so_far = day_so_far(all_shifts, sheet.clock())
+        started, so_far = day_so_far(all_shifts, app.log.clock())
         worked = hours(so_far)
         on_label = f" on {current.label}" if current.label else ""
         return {
@@ -33,19 +32,17 @@ def status(sheet: Timesheet) -> dict:
 
 
 def toggle(app) -> None:
-    sheet = app.sheet
-    if sheet.interrupted():
+    if app.pc.interrupted():
         app.desktop.notify("Last shift is still open", "The PC turned off while you were clocked in. Right-click the timer to open Chronata and close it.")
         return
-    all_shifts = sheet.shifts()
-    if open_shift(all_shifts) is None:
+    if open_shift(app.log.shifts()) is None:
         _ask_and_clock_in(app)
         return
-    if sheet.working_day.before_end_of_workday(sheet.clock()):
+    if app.log.working_day.before_end_of_workday(app.log.clock()):
         app.desktop.open_page(page_url(DEFAULT_PORT) + "#confirm-out")
         return
     try:
-        outcome = sheet.clock_out(None, None)
+        outcome = app.clocking.clock_out(None, None)
     except UserError as error:
         app.desktop.notify("Could not clock out", str(error))
         return
@@ -56,17 +53,16 @@ def _ask_and_clock_in(app) -> None:
     if not app.desktop.can_ask():
         app.desktop.open_page(page_url(DEFAULT_PORT) + "#clock-in")
         return
-    sheet = app.sheet
-    now = sheet.clock()
-    pc_on = sheet.pc_on_since()
-    known = known_labels(sheet.shifts())
+    now = app.log.clock()
+    pc_on = app.pc.on_since()
+    known = known_labels(app.log.shifts())
     lines = ["Clock in on which client or project?",
              f"Your labels: {', '.join(known)}" if known else "",
              f"The PC has been on since {pc_on:%H:%M} ({hours(now - pc_on)})." if pc_on else ""]
-    typed = app.desktop.ask("\n".join(line for line in lines if line), sheet.suggested_label())
+    typed = app.desktop.ask("\n".join(line for line in lines if line), app.labels.suggested())
     if typed is None:
         return
-    since = sheet.unclocked_since()
+    since = app.clocking.unclocked_since()
     if since is None:
         _clock_in_on(app, typed)
         return
@@ -81,7 +77,7 @@ def _ask_and_clock_in(app) -> None:
 
 def _clock_in_on(app, label: str, at: str | None = None, note: str | None = None, new_label: bool = False, off_default: bool = False) -> None:
     try:
-        outcome = app.sheet.clock_in(at, note, label, new_label, off_default)
+        outcome = app.clocking.clock_in(at, note, label, new_label, off_default)
     except UnconfirmedLabel as error:
         create = f"Create “{error.label}”"
         question = f"“{error.label}” would start a new label, with its own folder. Did you mean {' or '.join(error.near_misses)}?"

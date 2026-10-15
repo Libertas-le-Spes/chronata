@@ -14,18 +14,18 @@ from chronata.use_cases import typed_input
 
 
 def page_state(app) -> dict:
-    sheet = app.sheet
-    now = sheet.clock()
-    working_day = sheet.working_day
-    all_shifts = sheet.shifts()
-    all_weeks = sheet.weeks()
-    reconciliation = sheet.reconciliation(all_weeks)
+    log = app.log
+    now = log.clock()
+    working_day = log.working_day
+    all_shifts = log.shifts()
+    all_weeks = log.weeks()
+    reconciliation = log.reconciliation(all_weeks)
     current = open_shift(all_shifts)
     today = day_so_far(all_shifts, now)
-    sessions = sheet.pc_sessions()
-    this_boot = sheet.this_boot()
-    interrupted = sheet.interrupted()
-    unclocked = sheet.unclocked_since()
+    sessions = log.pc_sessions()
+    this_boot = app.pc.this_boot()
+    interrupted = app.pc.interrupted()
+    unclocked = app.clocking.unclocked_since()
     stamps = app.timestamper.stamps()
     return {
         "now": now.isoformat(),
@@ -51,7 +51,7 @@ def page_state(app) -> dict:
         ],
         "labels": known_labels(all_shifts),
         "defaultLabel": working_day.default_label,
-        "suggestedLabel": sheet.suggested_label(),
+        "suggestedLabel": app.labels.suggested(),
         "chart": _chart(all_shifts, working_day, now, running=None if interrupted else current),
         "days": {
             day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
@@ -71,7 +71,7 @@ def page_state(app) -> dict:
             "shortfall": minutes(reconciliation.shortfall),
             "unmatched": minutes(reconciliation.unmatched_overtime),
         },
-        "integrity": {"entries": sheet.entry_count(), "problems": sheet.problems()},
+        "integrity": {"entries": log.entry_count(), "problems": log.problems()},
         "saving": _saving(app),
         "setup": {
             "needed": not working_day.configured,

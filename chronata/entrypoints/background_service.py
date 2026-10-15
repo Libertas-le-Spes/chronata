@@ -9,7 +9,7 @@ from chronata.use_cases.reminders import Reminders
 def run(app, port: int, with_tray: bool = True) -> None:
     if not serve_in_background(app, port):
         print(f"port {port} is taken; the page is served by whatever holds it", file=sys.stderr)
-    reminders = Reminders(app.sheet, app.desktop, page_url(port))
+    reminders = Reminders(app.log, app.clocking, app.pc, app.desktop, page_url(port))
     tray = _tray(app, page_url(port)) if with_tray else None
     if tray is None:
         reminders.run_forever()

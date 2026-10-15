@@ -4,7 +4,9 @@ from datetime import date, datetime, timedelta
 from chronata.timekeeping.shifts import completed, open_shift, unexplained_pc_breaks
 from chronata.use_cases.outcome import UserError
 from chronata.use_cases.ports import Desktop
-from chronata.use_cases.timesheet import Timesheet
+from chronata.use_cases.clocking import Clocking
+from chronata.use_cases.log import Log
+from chronata.use_cases.pc_records import PcRecords
 
 REMINDER_HOURS = range(7, 18)
 BETWEEN_REMINDERS = timedelta(hours=1)
@@ -13,8 +15,10 @@ LONG_SHIFT = timedelta(hours=12)
 
 
 class Reminders:
-    def __init__(self, sheet: Timesheet, desktop: Desktop, page_url: str):
-        self.sheet = sheet
+    def __init__(self, log: Log, clocking: Clocking, pc: PcRecords, desktop: Desktop, page_url: str):
+        self.log = log
+        self.clocking = clocking
+        self.pc = pc
         self.desktop = desktop
         self.page_url = page_url
         self.clock_in_reminders: dict[date, list[datetime]] = {}
@@ -23,15 +27,15 @@ class Reminders:
         self.long_shift_warned: set[int] = set()
 
     def on_login(self) -> None:
-        self.sheet.record_pc_sessions()
-        if not self.sheet.working_day.configured:
+        self.pc.record_sessions()
+        if not self.log.working_day.configured:
             self.desktop.notify("Set your working day", "Two questions: when lunch is, and your shift hours. Click to answer.",
                                 self._open("setup"), click_label="Set up")
-        for _, gap in unexplained_pc_breaks(self.sheet.shifts(), self.sheet.clock().date()):
+        for _, gap in unexplained_pc_breaks(self.log.shifts(), self.log.clock().date()):
             self.desktop.notify(f"Your PC was off {gap.start:%H:%M}–{gap.end:%H:%M}",
                                 "That time isn't counted as work. Click to say why, for the record.",
                                 self._open("explain-break"), click_label="Say why")
-        interrupted = self.sheet.interrupted()
+        interrupted = self.pc.interrupted()
         if interrupted is None:
             return
         if interrupted.pc_went_off is None:
@@ -47,10 +51,10 @@ class Reminders:
         )
 
     def tick(self) -> None:
-        now = self.sheet.clock()
-        all_shifts = self.sheet.shifts()
+        now = self.log.clock()
+        all_shifts = self.log.shifts()
         current = open_shift(all_shifts)
-        lunch_starts, lunch_ends = self.sheet.working_day.lunch_on(now.date(), now.tzinfo)
+        lunch_starts, lunch_ends = self.log.working_day.lunch_on(now.date(), now.tzinfo)
         if current:
             if lunch_starts <= now < lunch_ends and now.date() not in self.lunch_asked:
                 self.lunch_asked.add(now.date())
@@ -72,7 +76,7 @@ class Reminders:
         if len(sent) >= REMINDERS_PER_DAY or (sent and now - sent[-1] < BETWEEN_REMINDERS):
             return
         sent.append(now)
-        if now.weekday() in self.sheet.working_day.workdays:
+        if now.weekday() in self.log.working_day.workdays:
             self.desktop.notify("Not clocked in", "If you've started work, click to clock in now.",
                                 lambda: self._clock_in("clocked in from the reminder"), click_label="Clock in")
         else:
@@ -90,14 +94,14 @@ class Reminders:
 
     def _clock_in(self, note: str) -> None:
         try:
-            outcome = self.sheet.clock_in(None, note)
+            outcome = self.clocking.clock_in(None, note)
             self.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
         except UserError as error:
             self.desktop.notify("Could not clock in", str(error))
 
     def _clock_out(self, at: str | None, note: str) -> None:
         try:
-            outcome = self.sheet.clock_out(at, note)
+            outcome = self.clocking.clock_out(at, note)
             self.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
         except UserError as error:
             self.desktop.notify("Could not clock out", str(error))

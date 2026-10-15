@@ -44,10 +44,10 @@ class TrayIcon:
         self._refresh()
 
     def _toggle_wording(self) -> str:
-        return "Clock out" if clock_button.status(self.app.sheet)["state"] == "in" else "Clock in"
+        return "Clock out" if clock_button.status(self.app)["state"] == "in" else "Clock in"
 
     def _refresh(self) -> None:
-        status = clock_button.status(self.app.sheet)
+        status = clock_button.status(self.app)
         self.icon.icon = picture(status["state"])
         self.icon.title = status["tooltip"].replace("\n", " · ")[:120]
 

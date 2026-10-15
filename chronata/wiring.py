@@ -16,12 +16,24 @@ from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
 from chronata.presenters.readable_copy import readable_files
 from chronata.use_cases.ports import Clock, Desktop, History, PowerHistory, Timestamper
 from chronata.use_cases.saving import Saving
-from chronata.use_cases.timesheet import Timesheet
+from chronata.use_cases.clocking import Clocking
+from chronata.use_cases.corrections import Corrections
+from chronata.use_cases.labelling import Labelling
+from chronata.use_cases.log import Log
+from chronata.use_cases.payments import Payments
+from chronata.use_cases.pc_records import PcRecords
+from chronata.use_cases.working_day_setup import WorkingDaySetup
 
 
 @dataclass(frozen=True)
 class App:
-    sheet: Timesheet
+    log: Log
+    clocking: Clocking
+    labels: Labelling
+    corrections: Corrections
+    pc: PcRecords
+    payments: Payments
+    setup: WorkingDaySetup
     saving: Saving
     history: History
     timestamper: Timestamper
@@ -40,14 +52,17 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
     places = PlaceBook(config or locations.settings_folder(), GitRemotes(folder.directory), GitFolders(locations.repository_copies_folder(folder.directory)))
     history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
-    sheet = Timesheet(LedgerFile(folder.ledger), history, WorkingDayFile(folder.working_day), power, write_lock(locations.lock_file(folder.directory)), clock)
+    log = Log(LedgerFile(folder.ledger), history, WorkingDayFile(folder.working_day), write_lock(locations.lock_file(folder.directory)), clock)
 
-    def readable_copy(current: Timesheet, now: datetime) -> dict[str, bytes]:
+    def readable_copy(current: Log, now: datetime) -> dict[str, bytes]:
         return readable_files(current.shifts(), current.weeks(), current.pc_sessions(), timestamper.stamps(), current.entry_count(), now)
 
     saving = Saving(places, timestamper, history, folder.sealed_files, readable_copy, folder.keep_readable)
-    sheet.publish = saving
-    return App(sheet, saving, history, timestamper, desktop or this_machine.desktop(), power)
+    log.publish = saving
+    labels = Labelling(log)
+    pc = PcRecords(log, power)
+    return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), pc, Payments(log), WorkingDaySetup(log, labels),
+               saving, history, timestamper, desktop or this_machine.desktop(), power)
 
 
 def open_saved_copy(folder: Path) -> tuple[LedgerFile, Rfc3161Timestamper]:

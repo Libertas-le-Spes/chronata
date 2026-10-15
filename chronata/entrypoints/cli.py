@@ -20,30 +20,30 @@ from chronata.wiring import App, open_app, open_saved_copy
 
 
 def clock_in(args, app: App) -> Outcome:
-    return app.sheet.clock_in(args.at, args.note, args.label, args.new_label, args.off_default)
+    return app.clocking.clock_in(args.at, args.note, args.label, args.new_label, args.off_default)
 
 
 def clock_out(args, app: App) -> Outcome:
-    return app.sheet.clock_out(args.at, args.note)
+    return app.clocking.clock_out(args.at, args.note)
 
 
 def add(args, app: App) -> Outcome:
-    return app.sheet.add(args.date, args.start, args.end, args.reason, args.note, args.label or "", args.new_label)
+    return app.corrections.add(args.date, args.start, args.end, args.reason, args.note, args.label or "", args.new_label)
 
 
 def correct(args, app: App) -> Outcome:
-    return app.sheet.correct(args.id, args.start, args.end, args.reason)
+    return app.corrections.correct(args.id, args.start, args.end, args.reason)
 
 
 def label(args, app: App) -> Outcome:
-    return app.sheet.label(args.id, args.label, args.new_label)
+    return app.labels.label_shift(args.id, args.label, args.new_label)
 
 
 def list_labels(args, app: App) -> None:
-    summary = hours_by_label(app.sheet.shifts(), app.sheet.clock())
+    summary = hours_by_label(app.log.shifts(), app.log.clock())
     if not summary:
         print("no labels yet; add one with: chronata in --label NAME")
-    default = app.sheet.working_day.default_label
+    default = app.log.working_day.default_label
     for row in summary:
         running = "  (shift still open)" if row.open_now else ""
         marked = f"{row.label} (default)" if row.label and row.label == default else row.label or "(no label)"
@@ -52,46 +52,46 @@ def list_labels(args, app: App) -> None:
 
 def default_label(args, app: App) -> Outcome | None:
     if args.label is not None:
-        return app.sheet.set_default_label(args.label, args.new_label)
-    default = app.sheet.working_day.default_label
+        return app.labels.set_default(args.label, args.new_label)
+    default = app.log.working_day.default_label
     print(default or "no default label; set one with: chronata default-label NAME")
     return None
 
 
 def rename_label(args, app: App) -> Outcome:
-    return app.sheet.rename_label(args.old, args.new, args.new_label)
+    return app.labels.rename(args.old, args.new, args.new_label)
 
 
 def strike(args, app: App) -> Outcome:
-    return app.sheet.strike(args.id, args.reason)
+    return app.corrections.strike(args.id, args.reason)
 
 
 def paid(args, app: App) -> Outcome:
-    return app.sheet.record_payment(args.from_date, args.to_date, args.hours, args.time_off, args.ref)
+    return app.payments.record(args.from_date, args.to_date, args.hours, args.time_off, args.ref)
 
 
 def explain(args, app: App) -> Outcome:
-    return app.sheet.explain_break(args.id, args.start, args.reason)
+    return app.corrections.explain_break(args.id, args.start, args.reason)
 
 
 def status(args, app: App) -> None:
-    now = app.sheet.clock()
-    current = open_shift(app.sheet.shifts())
+    now = app.log.clock()
+    current = open_shift(app.log.shifts())
     print(f"clocked in since {current.start:%Y-%m-%d %H:%M:%S}, {hours(current.worked(now))} so far" if current else "not clocked in")
-    this_week = [week for week in app.sheet.weeks() if week.start <= now.date() <= week.end]
+    this_week = [week for week in app.log.weeks() if week.start <= now.date() <= week.end]
     if this_week:
         print(f"this week: worked {hours(this_week[0].worked)}, overtime {hours(this_week[0].overtime)}")
 
 
 def list_shifts(args, app: App) -> None:
-    selected = [s for s in app.sheet.shifts() if _within(s.start.date(), args)]
-    print("\n".join(shift_lines(selected, app.sheet.pc_sessions(), app.timestamper.stamps(), app.sheet.clock())))
+    selected = [s for s in app.log.shifts() if _within(s.start.date(), args)]
+    print("\n".join(shift_lines(selected, app.log.pc_sessions(), app.timestamper.stamps(), app.log.clock())))
 
 
 def report(args, app: App) -> None:
-    selected = [week for week in app.sheet.weeks() if _within(week.start, args)]
-    chosen = [s for s in completed(app.sheet.shifts()) if _within(s.start.date(), args)]
-    print("\n".join(report_lines(selected, app.sheet.reconciliation(selected), app.sheet.clock().date(), worked_by_label(chosen))))
+    selected = [week for week in app.log.weeks() if _within(week.start, args)]
+    chosen = [s for s in completed(app.log.shifts()) if _within(s.start.date(), args)]
+    print("\n".join(report_lines(selected, app.log.reconciliation(selected), app.log.clock().date(), worked_by_label(chosen))))
 
 
 def check(args, app: App) -> None:
@@ -99,7 +99,7 @@ def check(args, app: App) -> None:
         record, timestamper = open_saved_copy(Path(args.folder).expanduser())
         findings = verify(record, timestamper)
     else:
-        findings = verify(app.sheet.record, app.timestamper, app.history)
+        findings = verify(app.log.record, app.timestamper, app.history)
     if findings.problems:
         print("\n".join(findings.problems), file=sys.stderr)
         raise UserError("the log has been altered; see above")
@@ -117,7 +117,7 @@ def check(args, app: App) -> None:
 
 
 def save(args, app: App) -> Outcome:
-    return app.sheet.save_now()
+    return app.log.save_now()
 
 
 def list_places(args, app: App) -> None:
@@ -131,7 +131,7 @@ def list_places(args, app: App) -> None:
 
 
 def add_place(args, app: App) -> Outcome:
-    return app.saving.add_place(app.sheet, args.kind, args.name or "", args.where, args.username or "", args.password or "", args.folder or "")
+    return app.saving.add_place(app.log, args.kind, args.name or "", args.where, args.username or "", args.password or "", args.folder or "")
 
 
 def remove_place(args, app: App) -> Outcome:
@@ -139,18 +139,18 @@ def remove_place(args, app: App) -> Outcome:
 
 
 def configure(args, app: App) -> Outcome:
-    day = app.sheet.working_day
+    day = app.log.working_day
     lunch_now = f"{day.lunch_start:%H:%M} for {day.lunch_minutes} min"
     shift_now = f"{day.shift_start:%H:%M} to {day.shift_end:%H:%M}"
     print("Press Enter to keep what is in brackets.")
     lunch_answer = input(f"{typed_input.LUNCH_QUESTION} [{lunch_now}] ").strip() or lunch_now
     shift_answer = input(f"{typed_input.SHIFT_QUESTION} [{shift_now}] ").strip() or shift_now
     label_answer = input(f"{typed_input.DEFAULT_LABEL_QUESTION} [{day.default_label or 'none'}] ").strip() or None
-    return app.sheet.configure(lunch_answer, shift_answer, label_answer)
+    return app.setup.configure(lunch_answer, shift_answer, label_answer)
 
 
 def shutting_down(args, app: App) -> Outcome | None:
-    return app.sheet.record_shutdown() if app.power.shutting_down() else None
+    return app.pc.record_shutdown() if app.power.shutting_down() else None
 
 
 def ui(args, app: App) -> None:
@@ -159,7 +159,7 @@ def ui(args, app: App) -> None:
 
 
 def bar_status(args, app: App) -> None:
-    print(json.dumps(clock_button.status(app.sheet)))
+    print(json.dumps(clock_button.status(app)))
 
 
 def bar_toggle(args, app: App) -> None:
