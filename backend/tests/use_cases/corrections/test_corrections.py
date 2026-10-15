@@ -2,13 +2,13 @@ import unittest
 
 from chronata.use_cases.log.outcome import UserError
 from chronata.use_cases.questions.questions import Answers
-from tests.fakes import Fixture, at
+from tests.fakes import Fixture, at, hours
 
 
 class CorrectingADay(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-15T18:00:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30", "Northwind")
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Northwind")
         self.f.app.corrections.add("2026-10-15", "08:41", "09:04", "from when the PC came on", None, "Northwind")
         self.f.app.corrections.add("2026-10-15", "09:04", "17:00", "forgot to clock", None, "Northwind")
         self.ids = [shift.id for shift in self.f.app.log.shifts()]

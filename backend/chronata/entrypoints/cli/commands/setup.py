@@ -1,8 +1,9 @@
 from chronata.entrypoints.cli.answers import hours_from, hours_options
-from chronata.entrypoints.cli.hours_prompt import ask_hours
+from chronata.entrypoints.cli.typed_answers import ask_inputs
 from chronata.use_cases.labels.labelling import describe_hours
 from chronata.use_cases.log.outcome import Outcome, UserError
 from chronata.use_cases.questions import typed_input
+from chronata.use_cases.questions.questions import HOURS_INPUTS, Answers, filled_in, hours_values
 from chronata.wiring import App
 
 
@@ -10,8 +11,8 @@ def configure(args, app: App) -> Outcome:
     label_hours = app.log.hours
     print("Type times as numbers, like 830 or 1730. Press Enter to keep what is in brackets.")
     label_answer = input(f"{typed_input.DEFAULT_LABEL_QUESTION} [{label_hours.default_label or 'none'}] ").strip() or None
-    shift_answer, lunch_answer = ask_hours(input, label_hours.main)
-    return app.setup.configure(lunch_answer, shift_answer, label_answer)
+    typed = ask_inputs(input, filled_in(HOURS_INPUTS, hours_values(label_hours.main)))
+    return app.setup.configure(Answers(**typed), label_answer)
 
 
 def label_hours(args, app: App) -> Outcome | None:
@@ -28,8 +29,7 @@ def _change_hours(args, app: App) -> Outcome:
     choice = app.labels.check(args.label)
     if not choice.exists:
         raise UserError(f"there is no label '{args.label.strip()}'; add it first")
-    shift, lunch = hours_from(args, app.log.hours.for_label(choice.label))
-    return app.setup.set_hours(choice.label, shift, lunch, args.no_set_hours)
+    return app.setup.set_hours(choice.label, hours_from(args, app.log.hours.for_label(choice.label)))
 
 
 def register(commands) -> None:

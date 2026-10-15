@@ -1,7 +1,10 @@
+from dataclasses import asdict
+
 from chronata.presenters.page.facts import PageFacts
 from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.working_day import WEEKDAY_NAMES, WorkingDay
 from chronata.use_cases.questions import typed_input
+from chronata.use_cases.questions.questions import HOURS_INPUTS, filled_in, hours_values
 
 
 def state(facts: PageFacts) -> dict:
@@ -16,21 +19,22 @@ def _setup(label_hours: LabelHours) -> dict:
     main = label_hours.main
     return {
         "needed": not label_hours.configured,
-        "lunch": _lunch(main) if main else "",
-        "shift": _shift(main) if main else typed_input.DEFAULT_SHIFT,
-        "lunchQuestion": f"{typed_input.LUNCH_QUESTION} (leave empty for no lunch)",
-        "shiftQuestion": typed_input.SHIFT_QUESTION,
+        "hoursInputs": _inputs(main),
         "defaultLabel": label_hours.default_label,
         "defaultLabelQuestion": typed_input.DEFAULT_LABEL_QUESTION,
     }
 
 
 def _hours_of(label: str, hours: WorkingDay | None, default_label: str) -> dict:
-    described = {"label": label, "isDefault": label == default_label, "setHours": hours is not None}
+    described = {"label": label, "isDefault": label == default_label, "setHours": hours is not None, "hoursInputs": _inputs(hours)}
     if hours is None:
         return {**described, "shift": "", "lunch": "", "dailyHours": None, "weeklyHours": None, "daysOff": []}
     return {**described, "shift": _shift(hours), "lunch": _lunch(hours), "dailyHours": hours.daily_hours, "weeklyHours": hours.weekly_hours,
             "daysOff": [WEEKDAY_NAMES[day] for day in range(7) if day not in hours.workdays]}
+
+
+def _inputs(hours: WorkingDay | None) -> list[dict]:
+    return [asdict(needed) for needed in filled_in(HOURS_INPUTS, hours_values(hours))]
 
 
 def _shift(hours: WorkingDay) -> str:

@@ -3,15 +3,14 @@ import unittest
 from pathlib import Path
 
 from chronata.use_cases.log.verification import verify
-from chronata.use_cases.questions.questions import Answers
 from chronata.wiring import open_saved_copy
-from tests.fakes import Fixture
+from tests.fakes import Fixture, hours
 
 
 class SavingEverywhere(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T17:40:00")
-        self.f.app.labels.create("Northwind", Answers(shift="08:00 to 17:00", lunch="12:00 for 60 min"))
+        self.f.app.labels.create("Northwind", hours("08:00", "17:00", "12:00", "60"))
         self.f.app.corrections.add("2026-10-13", "08:02:11", "17:31:40", "written later", "release prep", "Northwind")
         self.f.app.corrections.add("2026-10-14", "06:00", "07:00", "written later", None)
         self.folder = Path(tempfile.mkdtemp())

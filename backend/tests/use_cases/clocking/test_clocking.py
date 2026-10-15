@@ -2,13 +2,13 @@ import unittest
 from datetime import timedelta
 
 from chronata.use_cases.questions.questions import Answers, OffDefaultLabel
-from tests.fakes import Fixture, at
+from tests.fakes import Fixture, at, hours
 
 
 class SameDayShifts(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:03:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"))
         for label in ("Acme", "Globex"):
             self.f.app.labels.create(label, Answers(no_set_hours=True))
         self.f.app.clocking.clock_in(None, None, "Acme")
@@ -41,7 +41,7 @@ class SameDayShifts(unittest.TestCase):
 class ClockingInOnTheDefault(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:00:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
         self.f.app.labels.create("Acme", Answers(no_set_hours=True))
 
     def test_on_a_workday_another_label_asks_first_and_records_nothing(self):
@@ -81,7 +81,7 @@ class ClockingInOnTheDefault(unittest.TestCase):
 class LunchAfterALateStart(unittest.TestCase):
     def test_clocking_out_ten_minutes_later_for_lunch_makes_up_ten_minutes_late(self):
         f = Fixture("2026-10-14T08:40:00")
-        f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30")
+        f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"))
         f.app.clocking.clock_in(None, None)
         f.at("2026-10-14T12:10:00")
         f.app.clocking.clock_out(None, None)

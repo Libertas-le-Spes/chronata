@@ -3,13 +3,13 @@ import unittest
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.use_cases.questions.questions import Answers
 from chronata.use_cases.reminders.reminders import Reminders
-from tests.fakes import Fixture, at
+from tests.fakes import Fixture, at, hours
 
 
 class Lunch(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:30:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30")
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"))
         self.f.app.clocking.clock_in(None, None)
         self.reminders = Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, "http://page/")
 
@@ -48,7 +48,7 @@ class NotClockedIn(unittest.TestCase):
 
     def test_clocking_in_from_the_reminder_uses_the_default_label(self):
         f = Fixture("2026-10-14T08:40:00")
-        f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
         Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, "http://page/").tick()
         f.desktop.click("Not clocked in")
         self.assertEqual(f.app.log.shifts()[0].label, "Northwind")
@@ -73,9 +73,9 @@ class PcOffPrompt(unittest.TestCase):
 class LunchPerLabel(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:30:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30", "Northwind")
-        self.f.app.labels.create("Globex", Answers(shift="08:00 to 14:00", lunch=""))
-        self.f.app.labels.create("Late lunch", Answers(shift="09:00 to 18:00", lunch="13:30 for 30 min"))
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Northwind")
+        self.f.app.labels.create("Globex", hours("08:00", "14:00"))
+        self.f.app.labels.create("Late lunch", hours("09:00", "18:00", "13:30", "30"))
 
     def lunch_prompts(self, label: str, moment: str) -> list[str]:
         self.f.app.clocking.clock_in(None, None, label, Answers(off_default=True))

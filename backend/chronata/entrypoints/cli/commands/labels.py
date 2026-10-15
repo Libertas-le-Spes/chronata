@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 from chronata.entrypoints.cli.answers import answer_options, answers, hours_from
 from chronata.presenters.readable_copy.readable_copy import label_folder
 from chronata.timekeeping.labels.labels import hours_by_label
@@ -26,8 +24,7 @@ def list_labels(args, app: App) -> None:
 def add_label(args, app: App) -> Outcome:
     if app.labels.check(args.label).exists:
         raise UserError(f"{args.label.strip()} already exists; change its hours with: chronata hours {args.label.strip()!r}")
-    shift, lunch = hours_from(args, None)
-    return app.labels.create(args.label, replace(answers(args), shift=shift, lunch=lunch))
+    return app.labels.create(args.label, hours_from(args, None))
 
 
 def rename_label(args, app: App) -> Outcome:
@@ -61,7 +58,7 @@ def register(commands) -> None:
     command.add_argument("old")
     command.add_argument("new")
     answer_options(command)
-    command.set_defaults(run=rename_label)
+    command.set_defaults(run=rename_label, label_field="new")
 
     command = commands.add_parser("default-label", help="show or set your main client or project; on workdays clocking in on another asks first")
     command.add_argument("label", nargs="?", help="the label, or '' to have no default")

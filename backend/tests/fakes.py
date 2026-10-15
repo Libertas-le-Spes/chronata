@@ -3,9 +3,14 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from chronata.timekeeping.pc.pc_sessions import Boot
+from chronata.use_cases.questions.questions import Answers
 from chronata.wiring import App, open_app
 
 SAST = timezone(timedelta(hours=2))
+
+
+def hours(shift_start: str, shift_end: str, lunch_start: str = "", lunch_minutes: str = "", **more) -> Answers:
+    return Answers(shift_start=shift_start, shift_end=shift_end, lunch_start=lunch_start, lunch_minutes=lunch_minutes, **more)
 
 
 def at(text: str) -> datetime:

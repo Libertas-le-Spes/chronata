@@ -30,7 +30,7 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
                                                      body.get("label", ""), _answers(body)),
         "/api/label": lambda body: app.labels.label_shifts(_ids(body), body.get("label", ""), _answers(body)),
         "/api/default-label": lambda body: app.labels.set_default(body.get("label", ""), _answers(body)),
-        "/api/labels/hours": lambda body: app.setup.set_hours(body.get("label", ""), body.get("shift", ""), body.get("lunch", ""), bool(body.get("noSetHours"))),
+        "/api/labels/hours": lambda body: app.setup.set_hours(body.get("label", ""), _answers(body)),
         "/api/labels/rename": lambda body: app.labels.rename(body.get("from", ""), body.get("to", ""), _answers(body)),
         "/api/correct": lambda body: app.corrections.correct(_ids(body), body.get("start"), body.get("end"), body.get("reason")),
         "/api/mistake": lambda body: app.corrections.mark_mistake(_ids(body), body.get("reason")),
@@ -43,7 +43,7 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/places/add": lambda body: app.saving.add_place(app.log, body.get("kind", ""), body.get("name", ""), body.get("target", ""),
                                                              body.get("username", ""), body.get("password", ""), body.get("folder", "")),
         "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
-        "/api/setup": lambda body: app.setup.configure(body.get("lunch", ""), body.get("shift", ""), body.get("label"), _answers(body)),
+        "/api/setup": lambda body: app.setup.configure(_answers(body), body.get("label")),
     }
 
 
@@ -52,7 +52,7 @@ def _ids(body: dict) -> list[int]:
 
 
 def _answers(body: dict) -> Answers:
-    return Answers.from_dict(body.get("answers", {}))
+    return Answers.from_dict({**body, **body.get("answers", {})})
 
 
 def _label_check(app, typed: str) -> dict:

@@ -41,8 +41,7 @@
     <form id="setup-form" class="grid-form">
       <label class="wide"><span id="default-label-question"></span> <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="e.g. your employer; leave empty for none"></label>
       <p class="label-hint muted small wide" data-when-empty="No default: clocking in on any label goes ahead without asking"></p>
-      <label class="wide"><span id="shift-question"></span> <input name="shift" type="text" autocomplete="off"></label>
-      <label class="wide"><span id="lunch-question"></span> <input name="lunch" type="text" autocomplete="off" placeholder="e.g. 12:00 for 60 min"></label>
+      <div id="setup-hours" class="wide grid-form"></div>
       <div class="wide actions">
         <button type="button" id="setup-cancel">Cancel</button>
         <button class="primary" type="submit">Save</button>

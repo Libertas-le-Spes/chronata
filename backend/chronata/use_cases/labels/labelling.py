@@ -104,7 +104,7 @@ class Labelling:
         return choice.label
 
     def _add(self, label: str, answers: Answers) -> str:
-        hours = None if answers.no_set_hours else typed_input.hours(answers.shift, answers.lunch)
+        hours = None if answers.no_set_hours else typed_input.hours(answers)
         self.log.label_hours.save_hours(label, hours)
         return f"added label {label} with {describe_hours(hours)}"
 

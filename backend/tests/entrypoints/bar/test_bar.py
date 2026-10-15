@@ -3,13 +3,13 @@ import unittest
 from chronata.entrypoints.bar import clock_button as bar
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.use_cases.questions.questions import Answers
-from tests.fakes import Fixture, at
+from tests.fakes import Fixture, at, hours
 
 
 class ClickingTheBarWhenClockedOut(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
         self.f.app.labels.create("Acme", Answers(no_set_hours=True))
         self.desktop = self.f.desktop
 
@@ -70,7 +70,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
 class StartingFromWhenThePcCameOn(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
         self.f.app.labels.create("Acme", Answers(no_set_hours=True))
 
     def pc_on(self, since: str) -> None:
@@ -150,10 +150,10 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
 class ANewLabelFromTheBar(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
 
     def test_typing_a_new_label_asks_its_hours_then_clocks_in(self):
-        self.f.desktop.answers = ["Globex", "Save its hours", "09:00 to 15:00", "", "Clock in on “Globex”"]
+        self.f.desktop.answers = ["Globex", "Save its hours", "900", "1500", "", "Clock in on “Globex”"]
         bar.toggle(self.f.app)
         self.assertEqual(self.f.app.log.shifts()[0].label, "Globex")
         self.assertEqual(self.f.app.log.hours.for_label("Globex").daily_hours, 6)

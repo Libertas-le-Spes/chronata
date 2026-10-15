@@ -18,14 +18,11 @@ export async function changeHours(label) {
     title: `Hours for “${label}”`,
     text: `Overtime, late arrivals and short days for ${label} are measured against these. ${measuredBy(hours)}`,
     choices: [
-      { caption: "No set hours", answers: { noSetHours: true } },
-      { caption: "Save hours", style: "primary", inputs: [
-        { name: "shift", prompt: "When does the shift start and end?", example: "08:00 to 17:00", value: hours ? hours.shift : "", required: true },
-        { name: "lunch", prompt: "Lunch, if there is one (leave it empty for none)", example: "12:00 for 30 min", value: hours ? hours.lunch : "" },
-      ] },
+      { caption: "No set hours", answers: { no_set_hours: true } },
+      { caption: "Save hours", style: "primary", inputs: hours.hoursInputs },
     ],
   });
-  if (answer) act("/api/labels/hours", { label, shift: answer.answers.shift || "", lunch: answer.answers.lunch || "", noSetHours: Boolean(answer.answers.noSetHours) });
+  if (answer) act("/api/labels/hours", { label, ...answer.answers });
 }
 
 export function render(state) {

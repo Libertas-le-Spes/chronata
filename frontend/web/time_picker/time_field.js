@@ -20,7 +20,7 @@ export function timeField(input) {
   input.removeAttribute("step");
   input.setAttribute("inputmode", "none");
   input.setAttribute("autocomplete", "off");
-  input.placeholder = input.placeholder || "--:--";
+  input.placeholder = "--:--";
   input.classList.add("time-field");
   input.addEventListener("click", () => choose(input));
   input.addEventListener("beforeinput", (event) => event.preventDefault());

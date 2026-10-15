@@ -2,7 +2,7 @@ import unittest
 
 from chronata.use_cases.log.outcome import UserError
 from chronata.use_cases.questions.questions import Answers, LabelNeedsHours, UnconfirmedLabel
-from tests.fakes import Fixture
+from tests.fakes import Fixture, hours
 
 
 class Labels(unittest.TestCase):
@@ -25,7 +25,7 @@ class Labels(unittest.TestCase):
         self.assertEqual(raised.exception.near_misses, ("Northwind",))
         with self.assertRaises(LabelNeedsHours):
             self.f.app.corrections.add("2026-10-14", "08:00", "12:00", "written later", None, "Northwnid", answers=Answers(new_label=True))
-        self.f.app.labels.create("Northwnid", Answers(new_label=True, shift="09:00 to 15:00", lunch=""))
+        self.f.app.labels.create("Northwnid", hours("09:00", "15:00", new_label=True))
         self.f.app.corrections.add("2026-10-14", "08:00", "12:00", "written later", None, "Northwnid")
         self.assertIn("Northwnid", self.labels_of_shifts())
 
@@ -60,7 +60,7 @@ class Labels(unittest.TestCase):
 class LabellingAShift(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:03:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"))
         for label in ("Acme", "Globex"):
             self.f.app.labels.create(label, Answers(no_set_hours=True))
         self.f.app.clocking.clock_in(None, None, "Acme")
@@ -77,7 +77,7 @@ class LabellingAShift(unittest.TestCase):
 class TheDefaultLabel(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:00:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
         self.f.app.labels.create("Acme", Answers(no_set_hours=True))
 
     def test_the_default_takes_the_existing_spelling(self):
@@ -94,7 +94,7 @@ class TheDefaultLabel(unittest.TestCase):
 class NewLabelsComeWithTheirHours(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:00:00")
-        self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30", "Northwind")
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Northwind")
 
     def test_clocking_in_on_a_brand_new_label_asks_for_its_hours_and_records_nothing(self):
         with self.assertRaises(LabelNeedsHours) as raised:
@@ -102,11 +102,11 @@ class NewLabelsComeWithTheirHours(unittest.TestCase):
         self.assertEqual((raised.exception.label, self.f.app.log.shifts()), ("Globex", []))
 
     def test_its_hours_can_come_with_the_clock_in_itself(self):
-        self.f.app.clocking.clock_in(None, None, "Globex", Answers(off_default=True, shift="09:00 to 15:00"))
+        self.f.app.clocking.clock_in(None, None, "Globex", hours("09:00", "15:00", off_default=True))
         self.assertEqual((self.f.app.log.shifts()[0].label, self.f.app.log.hours.for_label("Globex").daily_hours), ("Globex", 6))
 
     def test_once_created_it_just_starts_and_keeps_its_own_hours(self):
-        self.f.app.labels.create("Globex", Answers(shift="09:00 to 15:00", lunch=""))
+        self.f.app.labels.create("Globex", hours("09:00", "15:00"))
         self.f.app.clocking.clock_in(None, None, "globex", Answers(off_default=True))
         globex = self.f.app.log.hours.for_label("Globex")
         self.assertEqual((self.f.app.log.shifts()[0].label, globex.daily_hours, globex.lunch), ("Globex", 6, None))
@@ -119,10 +119,10 @@ class NewLabelsComeWithTheirHours(unittest.TestCase):
 
     def test_an_existing_label_cannot_be_created_twice(self):
         with self.assertRaises(UserError):
-            self.f.app.labels.create("northwind", Answers(shift="09:00 to 15:00", lunch=""))
+            self.f.app.labels.create("northwind", hours("09:00", "15:00"))
 
     def test_renaming_a_label_keeps_its_hours(self):
-        self.f.app.labels.create("Globex", Answers(shift="09:00 to 15:00", lunch=""))
+        self.f.app.labels.create("Globex", hours("09:00", "15:00"))
         self.f.app.clocking.clock_in(None, None, "Globex", Answers(off_default=True))
         self.f.app.labels.rename("Globex", "Globex Ltd")
         self.assertEqual(self.f.app.log.hours.for_label("Globex Ltd").daily_hours, 6)

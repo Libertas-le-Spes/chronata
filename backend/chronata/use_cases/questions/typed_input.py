@@ -3,60 +3,37 @@ from datetime import date, datetime, time, timedelta
 
 from chronata.timekeeping.hours.working_day import Lunch, WorkingDay, check_fits
 from chronata.use_cases.log.outcome import UserError
+from chronata.use_cases.questions.questions import Answers
 
-LUNCH_QUESTION = "When is lunch, and how long is it?"
-SHIFT_QUESTION = "When does your shift start and end?"
 DEFAULT_LABEL_QUESTION = "Which client or project is your main one, if any?"
-DEFAULT_SHIFT = "08:00 to 17:00"
-
-CLOCK = re.compile(r"(\d{1,2})(?:[:h.](\d{2}))?\s*(am|pm)?", re.IGNORECASE)
-LENGTH = re.compile(r"(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)?\s*(?:(\d+)\s*(?:m|min|mins|minutes)?)?\s*$", re.IGNORECASE)
-
-
-NO_LUNCH = {"", "none", "no", "no lunch", "-"}
 DIGITS = re.compile(r"\d{1,4}")
 LONGEST_LUNCH = 240
 
 
-def hours(shift_answer: str, lunch_answer: str) -> WorkingDay:
-    shift_start, shift_end = shift(shift_answer)
-    taken = lunch(lunch_answer)
+def hours(answers: Answers) -> WorkingDay:
+    begins, ends = clock(answers.shift_start), clock(answers.shift_end)
+    taken = _lunch(answers.lunch_start, answers.lunch_minutes)
     try:
-        check_fits(shift_start, shift_end, taken)
+        check_fits(begins, ends, taken)
     except ValueError as error:
         raise UserError(str(error))
-    return WorkingDay(shift_start, shift_end, taken)
+    return WorkingDay(begins, ends, taken)
 
 
-def lunch(answer: str) -> Lunch | None:
-    text = answer.strip()
-    if text.lower() in NO_LUNCH:
+def _lunch(start: str, minutes: str) -> Lunch | None:
+    if not start.strip() or not minutes.strip():
         return None
-    found = CLOCK.match(text)
-    if not found:
-        raise UserError(f"'{text}' needs a time and a length, like 12:00 for 60 min")
-    minutes = _lunch_minutes(text, text[found.end():])
-    return Lunch(_clock(found), minutes) if minutes else None
+    return Lunch(clock(start), minutes_number(minutes))
 
 
-def _lunch_minutes(text: str, after_the_time: str) -> int:
-    rest = re.sub(r"^\s*(for|,|-)?\s*", "", after_the_time)
-    length = LENGTH.match(rest)
-    if not rest or not length:
-        raise UserError(f"'{text}' needs a length after the time, like 12:00 for 60 min or 12h00 1h")
-    amount, unit, extra = float(length.group(1)), (length.group(2) or "min").lower(), length.group(3)
-    minutes = round(amount * 60) + int(extra or 0) if unit.startswith("h") else round(amount)
-    if not 0 <= minutes <= LONGEST_LUNCH:
-        raise UserError("lunch has to be between 0 and 4 hours")
-    return minutes
-
-
-def shift(answer: str) -> tuple[time, time]:
-    text = answer.strip() or DEFAULT_SHIFT
-    found = list(CLOCK.finditer(text))
-    if len(found) != 2:
-        raise UserError(f"'{text}' needs a start and an end, like 08:00 to 17:00")
-    return _clock(found[0]), _clock(found[1])
+def clock(text: str) -> time:
+    typed = text.strip()
+    if DIGITS.fullmatch(typed):
+        return clock_number(typed)
+    try:
+        return time.fromisoformat(typed).replace(second=0, microsecond=0)
+    except ValueError:
+        raise UserError(f"'{typed}' is not a time; type it like 830 or 1730")
 
 
 def clock_number(text: str) -> time:
@@ -104,14 +81,3 @@ def required(reason: str | None) -> str:
     if not reason or not reason.strip():
         raise UserError("a reason is required, so the record explains itself")
     return reason.strip()
-
-
-def _clock(found: re.Match) -> time:
-    hour, minute, meridiem = int(found.group(1)), int(found.group(2) or 0), (found.group(3) or "").lower()
-    if meridiem == "pm" and hour < 12:
-        hour += 12
-    if meridiem == "am" and hour == 12:
-        hour = 0
-    if hour > 23 or minute > 59:
-        raise UserError(f"'{found.group(0)}' is not a time of day")
-    return time(hour, minute)

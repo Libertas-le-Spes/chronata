@@ -3,13 +3,13 @@ import unittest
 from chronata.presenters.day.day_story import DayRecords, day_story
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.timekeeping.shifts.day_entries import day_entries
-from tests.fakes import Fixture, at
+from tests.fakes import Fixture, at, hours
 
 
 class OneBlockForTheDay(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-15T08:41:52")
-        self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30", "Northwind")
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Northwind")
         self.f.power.boot_list = [Boot("today", at("2026-10-15T08:41:52"), at("2026-10-15T08:41:52"), True)]
         self.f.app.pc.record_sessions()
         self.step("2026-10-15T09:04:59", lambda app: app.clocking.clock_in(None, None))

@@ -1,11 +1,6 @@
 import { $, el } from "./dom.js";
+import { inputField } from "./input_field.js";
 import { timeFields } from "../time_picker/time_field.js";
-
-function field(input) {
-  return el("label", { class: "wide" }, input.prompt,
-    el("input", { name: input.name, type: input.type || "text", step: input.type ? "1" : null, autocomplete: "off", list: input.suggestions || null,
-      placeholder: input.example ? `e.g. ${input.example}` : null, required: Boolean(input.required) }));
-}
 
 function inputsOf(choices) {
   const byName = new Map(choices.flatMap((choice) => choice.inputs || []).map((input) => [input.name, input]));
@@ -29,7 +24,7 @@ export function ask(question) {
     let answer = null;
     $("#question-title").textContent = question.title || "Just to check";
     $("#question-text").textContent = question.text;
-    $("#question-inputs").replaceChildren(...inputsOf(question.choices).map(field));
+    $("#question-inputs").replaceChildren(...inputsOf(question.choices).map(inputField));
     timeFields($("#question-inputs"));
     for (const input of inputsOf(question.choices)) form.elements[input.name].value = input.value ?? "";
     const choose = (choice) => () => {

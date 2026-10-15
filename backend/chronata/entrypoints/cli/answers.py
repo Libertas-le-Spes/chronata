@@ -1,11 +1,13 @@
-from chronata.entrypoints.cli.hours_prompt import ask_hours
+from dataclasses import replace
+
+from chronata.entrypoints.cli.typed_answers import ask_inputs
 from chronata.timekeeping.hours.working_day import WorkingDay
-from chronata.use_cases.questions.questions import Answers, Choice, Question
+from chronata.use_cases.questions.questions import HOURS_INPUTS, Answers, Choice, Question, filled_in, hours_values
 
 
 def hours_options(command) -> None:
-    command.add_argument("--shift", help="when the shift starts and ends, e.g. '08:00 to 17:00'")
-    command.add_argument("--lunch", help="when lunch is and how long, e.g. '12:00 for 30 min'; leave out for no lunch")
+    for needed in HOURS_INPUTS:
+        command.add_argument("--" + needed.name.replace("_", "-"), help=f"{needed.prompt.lower()}, e.g. {needed.example}")
     command.add_argument("--no-set-hours", action="store_true", help="no shift times: only the time worked is counted")
 
 
@@ -20,14 +22,15 @@ def clock_in_options(command) -> None:
     command.add_argument("--off-default", action="store_true", help="confirm working on a label other than the default on a workday")
 
 
-def hours_from(args, current: WorkingDay | None) -> tuple[str, str]:
-    if any((args.shift, args.lunch, args.no_set_hours)):
-        return args.shift or "", args.lunch or ""
-    return ask_hours(input, current)
+def hours_from(args, current: WorkingDay | None) -> Answers:
+    given = answers(args)
+    if args.no_set_hours or any(getattr(args, needed.name) for needed in HOURS_INPUTS):
+        return given
+    return replace(given, **ask_inputs(input, filled_in(HOURS_INPUTS, hours_values(current))))
 
 
 def answers(args) -> Answers:
-    return Answers(args.new_label, args.off_default, args.shift or "", args.lunch or "", args.no_set_hours)
+    return Answers.from_dict({name: value for name, value in vars(args).items() if value is not None})
 
 
 def how_to_answer(question: Question) -> str:

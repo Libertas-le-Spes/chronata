@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 
+from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.use_cases.log.outcome import UserError
 
 
@@ -7,8 +8,10 @@ from chronata.use_cases.log.outcome import UserError
 class Answers:
     new_label: bool = False
     off_default: bool = False
-    shift: str = ""
-    lunch: str = ""
+    shift_start: str = ""
+    shift_end: str = ""
+    lunch_start: str = ""
+    lunch_minutes: str = ""
     no_set_hours: bool = False
 
     @classmethod
@@ -17,7 +20,7 @@ class Answers:
 
     @property
     def gave_hours(self) -> bool:
-        return self.no_set_hours or bool(self.shift.strip())
+        return self.no_set_hours or bool(self.shift_start.strip())
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,29 @@ class Input:
     name: str
     prompt: str
     example: str
+    type: str = "text"
+    required: bool = False
+    opts_out: bool = False
+    value: str = ""
+
+
+HOURS_INPUTS = (
+    Input("shift_start", "Shift starts at", "830", "time", required=True),
+    Input("shift_end", "Shift ends at", "1730", "time", required=True),
+    Input("lunch_start", "Lunch starts at (leave empty for no lunch)", "1200", "time", opts_out=True),
+    Input("lunch_minutes", "Lunch in minutes (leave empty for no lunch)", "45", "number", opts_out=True),
+)
+
+
+def hours_values(day: WorkingDay | None) -> dict[str, str]:
+    if day is None:
+        return {}
+    lunch = {"lunch_start": f"{day.lunch.start:%H:%M}", "lunch_minutes": str(day.lunch.minutes)} if day.lunch else {}
+    return {"shift_start": f"{day.shift_start:%H:%M}", "shift_end": f"{day.shift_end:%H:%M}", **lunch}
+
+
+def filled_in(inputs: tuple[Input, ...], values: dict[str, str]) -> tuple[Input, ...]:
+    return tuple(replace(needed, value=values.get(needed.name, needed.value)) for needed in inputs)
 
 
 @dataclass(frozen=True)
@@ -54,11 +80,9 @@ class UnconfirmedLabel(Question):
 class LabelNeedsHours(Question):
     def __init__(self, label: str):
         self.label = label
-        hours = (Input("shift", "When does its shift start and end?", "08:00 to 17:00"),
-                 Input("lunch", "Lunch, if there is one (leave it empty for none)", "12:00 for 30 min"))
         super().__init__(f"“{label}” is a new label, with its own folder. What are its hours? "
                          "They are remembered, so next time clocking in on it just starts.",
-                         [Choice("Save its hours", answers={"new_label": True}, inputs=hours),
+                         [Choice("Save its hours", answers={"new_label": True}, inputs=HOURS_INPUTS),
                           Choice("No set hours", answers={"new_label": True, "no_set_hours": True})])
 
 

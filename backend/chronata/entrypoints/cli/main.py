@@ -2,6 +2,7 @@ import argparse
 import sys
 
 from chronata.entrypoints.cli.answers import how_to_answer
+from chronata.entrypoints.cli.typed_answers import ask_choice
 from chronata.entrypoints.cli.commands import clocking, compensation, corrections, desktop, labels, places, proof, reports, setup
 from chronata.timekeeping.record.record import TamperedRecord
 from chronata.use_cases.log.outcome import UserError
@@ -22,7 +23,7 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        outcome = args.run(args, open_app())
+        outcome = _answering(args, open_app())
     except Question as question:
         print(f"chronata: {how_to_answer(question)}", file=sys.stderr)
         return 1
@@ -37,3 +38,23 @@ def main(argv: list[str] | None = None) -> int:
         if outcome.warning:
             print(outcome.warning, file=sys.stderr)
     return 0
+
+
+def _answering(args, app):
+    while True:
+        try:
+            return args.run(args, app)
+        except Question as question:
+            if not sys.stdin.isatty():
+                raise
+            _take(args, ask_choice(input, question))
+
+
+def _take(args, answer: tuple[str | None, dict] | None) -> None:
+    if answer is None:
+        raise UserError("cancelled, nothing changed")
+    label, given = answer
+    if label is not None:
+        setattr(args, getattr(args, "label_field", "label"), label)
+    for name, value in given.items():
+        setattr(args, name, value)

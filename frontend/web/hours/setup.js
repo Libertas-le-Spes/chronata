@@ -1,16 +1,16 @@
 import { act } from "../shared/actions.js";
 import { $, fields } from "../shared/dom.js";
+import { inputField } from "../shared/input_field.js";
+import { timeFields } from "../time_picker/time_field.js";
 
 export function render(state) {
   const { setup } = state;
   const form = $("#setup-form");
-  $("#lunch-question").textContent = setup.lunchQuestion;
-  $("#shift-question").textContent = setup.shiftQuestion;
   $("#default-label-question").textContent = setup.defaultLabelQuestion;
   if ($("#setup").hidden) {
-    form.elements.lunch.value = setup.lunch;
-    form.elements.shift.value = setup.shift;
     form.elements.label.value = setup.defaultLabel;
+    $("#setup-hours").replaceChildren(...setup.hoursInputs.map(inputField));
+    timeFields($("#setup-hours"));
   }
   $("#setup-cancel").hidden = setup.needed;
   if (setup.needed) $("#setup").hidden = false;
