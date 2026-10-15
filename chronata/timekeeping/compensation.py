@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from chronata.timekeeping.entries.compensation import PAID, TIME_OFF, Compensated
 from chronata.timekeeping.record import Entry
 from chronata.timekeeping.overtime import NONE, Day, Week
 
@@ -45,7 +46,7 @@ class Reconciliation:
 def reconcile_by_label(entries: list[Entry], weeks_per_label: dict[str, list[Week]], default_label: str) -> dict[str, Reconciliation]:
     records: dict[str, list[Entry]] = defaultdict(list)
     for entry in entries:
-        if entry.kind == "compensation":
+        if entry.kind == Compensated.kind:
             records[entry.data.get("label") or default_label].append(entry)
     labels = sorted(set(weeks_per_label) | set(records), key=lambda label: (label != default_label, label.casefold()))
     return {label: reconcile(records[label], weeks_per_label.get(label, [])) for label in labels}
@@ -59,7 +60,7 @@ def reconcile(entries: list[Entry], all_weeks: list[Week]) -> Reconciliation:
     days = [day for week in all_weeks for day in week.days if day.overtime > NONE]
     grouped: dict[tuple[date, date], list[dict]] = defaultdict(list)
     for entry in entries:
-        if entry.kind == "compensation":
+        if entry.kind == Compensated.kind:
             grouped[(date.fromisoformat(entry.data["from"]), date.fromisoformat(entry.data["to"]))].append(entry.data)
     periods = [_period(start, end, records, days) for (start, end), records in sorted(grouped.items())]
     unmatched = [day for day in days if not any(period.start <= day.date <= period.end for period in periods)]
@@ -71,7 +72,7 @@ def _period(start: date, end: date, records: list[dict], days: list[Day]) -> Per
         start,
         end,
         sum((day.overtime for day in days if start <= day.date <= end), NONE),
-        sum((timedelta(hours=r["hours"]) for r in records if r["kind"] == "paid"), NONE),
-        sum((timedelta(hours=r["hours"]) for r in records if r["kind"] == "time_off"), NONE),
+        sum((timedelta(hours=r["hours"]) for r in records if r["kind"] == PAID), NONE),
+        sum((timedelta(hours=r["hours"]) for r in records if r["kind"] == TIME_OFF), NONE),
         tuple(r["reference"] for r in records if r.get("reference")),
     )

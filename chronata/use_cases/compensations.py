@@ -1,6 +1,7 @@
+from chronata.timekeeping.entries.compensation import Compensated
 from chronata.use_cases import typed_input
 from chronata.use_cases.labelling import Labelling
-from chronata.use_cases.log import Log, one_writer_at_a_time, with_label
+from chronata.use_cases.log import Log, one_writer_at_a_time
 from chronata.use_cases.outcome import Outcome, UserError
 
 
@@ -17,8 +18,6 @@ class Compensations:
         if hours < 0:
             raise UserError("hours compensated cannot be negative")
         chosen = self.labels.settle(label, new_label, self.labels.in_use(self.log.shifts()), needs_hours=True) or self.log.hours.default_label
-        data = {"from": begins.isoformat(), "to": ends.isoformat(), "hours": hours, **with_label(chosen),
-                "kind": "time_off" if time_off else "paid", "reference": reference or ""}
         given = "given as time off" if time_off else "paid"
         message = f"recorded {hours:g}h of {chosen + ' ' if chosen else ''}overtime {given} for {begins} to {ends}"
-        return self.log.write("compensation", data, message, self.log.clock())
+        return self.log.write(Compensated(begins, ends, hours, time_off, reference or "", chosen), message, self.log.clock())

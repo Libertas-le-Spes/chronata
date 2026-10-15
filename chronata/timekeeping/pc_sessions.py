@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from chronata.timekeeping.entries.pc import PowerSession
 from chronata.timekeeping.record import Entry
 
 NONE = timedelta()
@@ -39,7 +40,7 @@ class Support:
 def pc_sessions(entries: list[Entry]) -> list[PcSession]:
     latest: dict[str, PcSession] = {}
     for entry in entries:
-        if entry.kind == "pc_session":
+        if entry.kind == PowerSession.kind:
             data = entry.data
             off = datetime.fromisoformat(data["off"]) if data.get("off") else None
             first = latest[data["boot"]].first_entry if data["boot"] in latest else entry.seq

@@ -6,6 +6,7 @@ from chronata.timekeeping.compensation import Reconciliation, reconcile_by_label
 from chronata.timekeeping.pc_sessions import PcSession, pc_sessions
 from chronata.timekeeping.replay import shifts
 from chronata.timekeeping.shifts import Shift
+from chronata.timekeeping.entries.new_entry import NewEntry
 from chronata.timekeeping.label_hours import LabelHours
 from chronata.timekeeping.overtime import Week, combined, weeks_by_label
 from chronata.use_cases.outcome import Outcome, UserError
@@ -61,9 +62,12 @@ class Log:
             raise UserError(f"there is no shift {shift_id}")
         return found
 
-    def write(self, kind: str, data: dict, message: str, now: datetime) -> Outcome:
-        self.record.append(kind, data, now)
+    def write(self, entry: NewEntry, message: str, now: datetime) -> Outcome:
+        self.append(entry, now)
         return self.commit(message)
+
+    def append(self, entry: NewEntry, now: datetime) -> None:
+        self.record.append(entry.kind, entry.data(), now)
 
     def commit(self, message: str) -> Outcome:
         self.history.commit(message)
@@ -77,10 +81,3 @@ class Log:
             warning = self.published()
         return Outcome("saved" if warning is None else "saved, with problems", warning)
 
-
-def with_note(data: dict, note: str | None) -> dict:
-    return {**data, "note": note.strip()} if note and note.strip() else data
-
-
-def with_label(label: str | None) -> dict:
-    return {"label": label.strip()} if label and label.strip() else {}

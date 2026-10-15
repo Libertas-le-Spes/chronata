@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from chronata.timekeeping.entries.pc import PcOffBreak, PowerSession
 from chronata.timekeeping.pc_sessions import PcSession, session_at
 from chronata.timekeeping.shifts import Shift, open_shift
 from chronata.use_cases.log import Log, one_writer_at_a_time
@@ -47,11 +48,10 @@ class PcRecords:
         for boot in self.power.boots():
             known = recorded.get(boot.id)
             if boot.current and known is None:
-                self.log.record.append("pc_session", {"boot": boot.id, "on": boot.on.isoformat(), "off": None}, now)
+                self.log.append(PowerSession(boot.id, boot.on, None), now)
                 written += 1
             elif not boot.current and (known is None or known.off is None):
-                data = {"boot": boot.id, "on": boot.on.isoformat(), "off": boot.last_seen.isoformat()}
-                self.log.record.append("pc_session", {**data, "exact": True} if boot.off_is_exact else data, now)
+                self.log.append(PowerSession(boot.id, boot.on, boot.last_seen, boot.off_is_exact), now)
                 written += 1
         break_message = self._pc_off_break(now)
         if not written and not break_message:
@@ -65,8 +65,7 @@ class PcRecords:
     def record_shutdown(self) -> Outcome:
         now = self.log.clock()
         on = self.on_since() or now
-        data = {"boot": self.power.current_boot_id(), "on": on.isoformat(), "off": now.isoformat(), "exact": True}
-        return self.log.write("pc_session", data, f"PC shutting down at {now:%Y-%m-%d %H:%M:%S}", now)
+        return self.log.write(PowerSession(self.power.current_boot_id(), on, now, True), f"PC shutting down at {now:%Y-%m-%d %H:%M:%S}", now)
 
     def _went_off(self, shift: Shift) -> datetime | None:
         started_in = session_at(self.log.pc_sessions(), shift.since)
@@ -80,6 +79,5 @@ class PcRecords:
         went_off = self._went_off(current)
         if went_off is None or went_off.date() != this_boot.on.date():
             return None
-        data = {"shift": current.id, "start": went_off.isoformat(), "end": this_boot.on.isoformat()}
-        self.log.record.append("pc_off_break", data, now)
+        self.log.append(PcOffBreak(current.id, went_off, this_boot.on), now)
         return f"PC was off {went_off:%H:%M:%S}–{this_boot.on:%H:%M:%S}; not counted as work"

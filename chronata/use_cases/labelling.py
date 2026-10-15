@@ -1,4 +1,5 @@
 from chronata.timekeeping.labels import LabelChoice, choose, known_labels, suggested, tidy
+from chronata.timekeeping.entries.labels import ShiftLabelled
 from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.working_day import WorkingDay
 from chronata.use_cases.log import Log, one_writer_at_a_time
@@ -16,7 +17,7 @@ class Labelling:
         label = self.settle(label, new_label, self.in_use(self.log.shifts()), needs_hours=True)
         if shift.label == label:
             raise UserError(f"shift {shift_id} is already labelled {label or 'with nothing'}")
-        return self.log.write("shift_labelled", {"shift": shift.id, "label": label}, f"labelled shift {shift.id} {label or '(no label)'}", self.log.clock())
+        return self.log.write(ShiftLabelled(shift.id, label), f"labelled shift {shift.id} {label or '(no label)'}", self.log.clock())
 
     @one_writer_at_a_time
     def rename(self, old: str, new: str, new_label: bool = False) -> Outcome:
@@ -34,7 +35,7 @@ class Labelling:
         affected = [shift for shift in all_shifts if shift.label == current.label]
         now = self.log.clock()
         for shift in affected:
-            self.log.record.append("shift_labelled", {"shift": shift.id, "label": target, "reason": f"label renamed from {current.label}"}, now)
+            self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current.label}"), now)
         merged = target in known
         message = (f"merged {current.label} into {target}" if merged else f"renamed label {current.label} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
         self.log.label_hours.rename(current.label, target)
