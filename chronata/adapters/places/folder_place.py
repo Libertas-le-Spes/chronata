@@ -8,6 +8,7 @@ from chronata.use_cases.ports import PlaceKindDescription, SaveError
 
 class FolderPlace:
     id = "folder"
+    needs_local_history = False
     description = PlaceKindDescription(
         "Folder", "Folder", "/home/you/Documents/Time", True, False, False,
         "Gets an overview, the whole log in one file, a file per day, and the sealed log. A Dropbox, OneDrive or Syncthing folder works too.",

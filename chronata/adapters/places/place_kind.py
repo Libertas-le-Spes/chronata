@@ -18,6 +18,7 @@ class SavedPlace:
 class PlaceKind(Protocol):
     id: str
     description: PlaceKindDescription
+    needs_local_history: bool
 
     def accept(self, place: SavedPlace) -> SavedPlace: ...
     def added(self, place: SavedPlace) -> None: ...

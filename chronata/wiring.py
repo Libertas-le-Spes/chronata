@@ -60,7 +60,7 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     kinds = [ObsidianVault(), FolderPlace(), GitRepository(GitRemotes(folder.directory)),
              GitRepositoryFolder(GitFolders(locations.repository_copies_folder(folder.directory))), WebDavServer(save_record)]
     places = PlaceBook(settings, kinds)
-    history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
+    history = OptionalHistory(folder.directory, data_folder.LEDGER, places.needs_local_history)
     log = Log(LedgerFile(folder.ledger), history, LabelHoursFile(folder.rules), write_lock(locations.lock_file(folder.directory)), clock)
 
     def readable_copy(current: Log, now: datetime) -> dict[str, bytes]:

@@ -44,6 +44,9 @@ class PlaceBook:
         self._write([p for p in self.places() if p.id != place_id])
         return place
 
+    def needs_local_history(self) -> bool:
+        return any(self._kind_of(place).needs_local_history for place in self.places())
+
     def deliver(self, place: SavedPlace, bundle: dict[str, bytes]) -> None:
         self._kind_of(place).deliver(place, bundle)
 

@@ -160,6 +160,7 @@ class WebServers(unittest.TestCase):
 
 class Notebook:
     id = "notebook"
+    needs_local_history = False
     description = PlaceKindDescription("Notebook", "Page", "front", False, False, False, "Writes on paper.")
 
     def __init__(self):

@@ -9,6 +9,7 @@ FIRST_REMOTE = "origin"
 
 class GitRepository:
     id = "git"
+    needs_local_history = True
     description = PlaceKindDescription(
         "Git repository", "Repository address", "https://github.com/you/time-log.git", False, False, False,
         "Create an empty private repository first. Git hosts record when each save arrives.",

@@ -7,6 +7,7 @@ from chronata.use_cases.ports import PlaceKindDescription
 
 class GitRepositoryFolder:
     id = "git-folder"
+    needs_local_history = False
     description = PlaceKindDescription(
         "Folder in a git repository", "Repository address", "https://github.com/you/notes.git", False, True, False,
         "Saves into one folder of a repository you already use, such as your notes. Only that folder is ever changed, "

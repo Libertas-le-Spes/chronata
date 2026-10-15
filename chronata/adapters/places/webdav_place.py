@@ -9,6 +9,7 @@ from chronata.use_cases.ports import PlaceKindDescription, SaveError
 
 class WebDavServer:
     id = "webdav"
+    needs_local_history = False
     description = PlaceKindDescription(
         "Web server (WebDAV)", "Server address", "https://cloud.example.com/remote.php/dav/files/you/", False, False, True,
         "Nextcloud, ownCloud and most file servers speak WebDAV. The password is kept only on this computer.",
