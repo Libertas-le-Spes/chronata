@@ -2,12 +2,13 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from chronata.presenters.text_report import proven_by, punctuality
+from chronata.presenters.explanation import piece_lines
+from chronata.presenters.text_report import punctuality
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.pc_sessions import PcSession, support
+from chronata.timekeeping.day_entries import DayEntry, day_entries, pc_share
+from chronata.timekeeping.pc_sessions import PcSession
 from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.stamps import Stamp, latest
-from chronata.timekeeping.start_proof import start_proof
 from chronata.timekeeping.working_day import Day, Week
 
 OVERVIEW = "README.md"
@@ -69,36 +70,31 @@ def _whole_log(folder: str, days: dict[date, str], stamps: list[Stamp], entries:
 
 def _day_notes(folder: str, shifts: list[Shift], summaries: dict[date, Day], sessions: list[PcSession],
                stamps: list[Stamp], now: datetime) -> dict[date, str]:
-    per_day: dict[date, list[Shift]] = defaultdict(list)
-    for shift in shifts:
-        per_day[shift.start.date()].append(shift)
-    return {day: _day(folder, day, sorted(day_shifts, key=lambda s: s.start), summaries.get(day), sessions, stamps, now)
-            for day, day_shifts in sorted(per_day.items())}
+    per_day: dict[date, list[DayEntry]] = defaultdict(list)
+    for entry in day_entries(shifts):
+        per_day[entry.day].append(entry)
+    return {day: _day(folder, day, entries, summaries.get(day), sessions, stamps, now) for day, entries in sorted(per_day.items())}
 
 
-def _day(folder: str, day: date, shifts: list[Shift], summary: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> str:
-    counted = [s for s in shifts if not s.voided]
-    worked = sum((s.worked(s.end or now) for s in counted), timedelta())
-    running = " so far" if any(s.end is None for s in counted) else ""
-    whole_day = ""
+def _day(folder: str, day: date, entries: list[DayEntry], summary: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> str:
+    worked = sum((entry.worked(now) for entry in entries), timedelta())
+    running = " so far" if any(entry.end is None for entry in entries) else ""
+    lines = [f"# {day:%A %d %B %Y}", "", f"{folder}: worked {hours(worked)}{running}", ""]
     if summary:
         note = punctuality(summary)
-        whole_day = f"Whole day, all labels: worked {hours(summary.worked)}, overtime {hours(summary.overtime)}" + (f", {note}" if note else "")
-    lines = [f"# {day:%A %d %B %Y}", "", f"{folder}: worked {hours(worked)}{running}", ""]
-    if whole_day:
-        lines += [whole_day, ""]
-    lines += ["| In | Start proven by | Out | Worked | PC on | Status |", "|---|---|---|---|---|---|"]
-    for shift in shifts:
-        backing = support(shift.start, shift.end, sessions, now)
-        pc = "no record" if not backing.sessions else f"{backing.share:.0%}"
-        status = "struck out" if shift.voided else ("still open" if shift.end is None else "")
-        end = f"{shift.end:%H:%M:%S}" if shift.end else "–"
-        worked_here = hours(shift.worked(shift.end or now)) + ("" if shift.end else " so far")
-        proof = proven_by(start_proof(shift, sessions, stamps), shift.start)
-        lines.append(f"| {shift.start:%H:%M:%S} | {proof} | {end} | {worked_here} | {pc} | {status} |")
-    for shift in shifts:
-        lines += [f"- Note ({shift.start:%H:%M}): {note}" for note in shift.notes]
-        lines += [f"- Change ({shift.start:%H:%M}): {change}" for change in shift.changes]
+        lines += [f"Whole day, all labels: worked {hours(summary.worked)}, overtime {hours(summary.overtime)}" + (f", {note}" if note else ""), ""]
+    lines += ["| In | Out | Worked | PC on | Status |", "|---|---|---|---|---|"]
+    for entry in entries:
+        share = pc_share(entry, sessions, now)
+        status = "struck out" if entry.voided else ("still open" if entry.end is None else "")
+        end = f"{entry.end:%H:%M:%S}" if entry.end else "–"
+        worked_here = hours(entry.worked(now)) + ("" if entry.end else " so far")
+        lines.append(f"| {entry.start:%H:%M:%S} | {end} | {worked_here} | {'no record' if share is None else f'{share:.0%}'} | {status} |")
+    lines += ["", "## Full explanation", ""]
+    for entry in entries:
+        for piece in entry.pieces:
+            heading, *details = piece_lines(piece, sessions, stamps, now)
+            lines += [f"- {heading}", *(f"  - {detail}" for detail in details)]
     return "\n".join(lines) + "\n"
 
 

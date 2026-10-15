@@ -1,6 +1,7 @@
 from datetime import date
 
-from chronata.presenters.text_report import report_lines, shift_lines
+from chronata.presenters.text_report import entry_lines, report_lines
+from chronata.timekeeping.day_entries import day_entries
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.shifts import completed, open_shift
 from chronata.timekeeping.labels import worked_by_label
@@ -17,8 +18,8 @@ def status(args, app: App) -> None:
 
 
 def list_shifts(args, app: App) -> None:
-    selected = [s for s in app.log.shifts() if _within(s.start.date(), args)]
-    print("\n".join(shift_lines(selected, app.log.pc_sessions(), app.timestamper.stamps(), app.log.clock())))
+    selected = [entry for entry in day_entries(app.log.shifts()) if _within(entry.day, args)]
+    print("\n".join(entry_lines(selected, app.log.pc_sessions(), app.timestamper.stamps(), app.log.clock())))
 
 
 def report(args, app: App) -> None:

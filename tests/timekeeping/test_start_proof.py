@@ -1,7 +1,7 @@
 import unittest
 from datetime import timedelta, timezone
 
-from chronata.presenters.text_report import proven_by
+from chronata.presenters.explanation import started
 from chronata.timekeeping.pc_sessions import PcSession
 from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.stamps import Stamp
@@ -24,15 +24,15 @@ class WhatProvesTheStart(unittest.TestCase):
         shift = Shift(67, at("2026-10-15T08:41:52"), at("2026-10-15T09:04:59"), timedelta(minutes=32), "Northwind")
         proof = start_proof(shift, SESSIONS, STAMPS)
         self.assertEqual((proof.from_pc_on, proof.entry), (True, 65))
-        self.assertEqual(proven_by(proof, shift.start), "PC on · DigiCert 08:45:18, FreeTSA 08:45:19")
+        self.assertEqual(started(proof, shift.start), "started when the PC came on at 08:41:52 · independently timestamped by DigiCert 08:45:18, FreeTSA 08:45:19")
 
     def test_a_clock_in_is_proven_by_the_first_stamps_covering_its_own_entry(self):
         shift = Shift(66, at("2026-10-15T09:04:59"), None, timedelta(), "Northwind")
-        self.assertEqual(proven_by(start_proof(shift, SESSIONS, STAMPS), shift.start), "entry 66 · DigiCert 09:08:15")
+        self.assertEqual(started(start_proof(shift, SESSIONS, STAMPS), shift.start), "start logged in entry 66 · independently timestamped by DigiCert 09:08:15")
 
     def test_a_shift_not_yet_stamped_says_so(self):
         shift = Shift(68, at("2026-10-15T10:00:00"), None, timedelta(), "Northwind")
-        self.assertEqual(proven_by(start_proof(shift, SESSIONS, STAMPS), shift.start), "entry 68 · not yet independently timestamped")
+        self.assertEqual(started(start_proof(shift, SESSIONS, STAMPS), shift.start), "start logged in entry 68 · not yet independently timestamped")
 
 
 if __name__ == "__main__":

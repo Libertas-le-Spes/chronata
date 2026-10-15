@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
-from chronata.presenters.text_report import LATE_ENOUGH_TO_FLAG
+from chronata.presenters.explanation import LATE_ENOUGH_TO_FLAG
+from chronata.timekeeping.day_entries import DayEntry, day_entries, pc_share
 from chronata.timekeeping.durations import minutes
 from chronata.timekeeping.pc_sessions import PcSession, support
 from chronata.timekeeping.shifts import Shift
@@ -11,14 +12,14 @@ from chronata.timekeeping.start_proof import start_proof
 
 def state(app, taken: Snapshot) -> dict:
     stamps = app.timestamper.stamps()
-    newest_day_first = sorted(taken.shifts, key=lambda s: (-s.start.date().toordinal(), s.start))
+    newest_day_first = sorted(day_entries(taken.shifts), key=lambda e: (-e.day.toordinal(), e.start))
     return {
         "weeks": [
             {"start": week.start.isoformat(), "end": week.end.isoformat(), "worked": minutes(week.worked),
              "overtime": minutes(week.overtime), "running": week.end >= taken.now.date()}
             for week in reversed(taken.weeks)
         ],
-        "shifts": [_shift(shift, taken.sessions, stamps, taken.now) for shift in newest_day_first],
+        "entries": [_entry(entry, taken.sessions, stamps, taken.now) for entry in newest_day_first],
         "days": {
             day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
             for week in taken.weeks for day in week.days if day.late > timedelta() or day.short > timedelta()
@@ -30,7 +31,20 @@ def state(app, taken: Snapshot) -> dict:
     }
 
 
-def _shift(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
+def _entry(entry: DayEntry, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
+    return {
+        "day": entry.day.isoformat(),
+        "label": entry.label,
+        "start": entry.start.isoformat(),
+        "end": entry.end.isoformat() if entry.end else None,
+        "worked": minutes(entry.worked(now)),
+        "voided": entry.voided,
+        "pcShare": pc_share(entry, sessions, now),
+        "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
+    }
+
+
+def _piece(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
     backing = support(shift.start, shift.end, sessions, now)
     proof = start_proof(shift, sessions, stamps)
     return {

@@ -32,8 +32,11 @@
 
 .shift .when { font-weight: 600; }
 .shift .span { color: var(--muted); }
-.shift .proof { margin: 4px 0 0; font-size: 0.9rem; }
-.shift .proof.pc-on { color: var(--live); font-weight: 600; }
+.explanation { margin-top: 6px; }
+.explanation summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
+.piece { margin-top: 8px; }
+.piece-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; }
+.piece.voided .piece-head span:first-child { text-decoration: line-through; color: var(--muted); }
 .shift .worked { font-weight: 600; text-align: right; min-width: 3.5rem; }
 .shift.voided .when, .shift.voided .span, .shift.voided .worked { text-decoration: line-through; color: var(--muted); }
 
