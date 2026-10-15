@@ -1,4 +1,3 @@
-import base64
 import subprocess
 import tempfile
 import unittest
@@ -6,15 +5,12 @@ from pathlib import Path
 from unittest import mock
 
 from chronata.adapters import this_machine
-from chronata.adapters.desktop import linux_desktop, windows_forms
+from chronata.adapters.desktop import linux_desktop
 from chronata.adapters.desktop.kdialog import KDialog
 from chronata.adapters.desktop.linux_desktop import LinuxDesktop
-from chronata.adapters.desktop.windows_desktop import WindowsDesktop
-from chronata.adapters.desktop.windows_forms import WindowsForms
 from chronata.adapters.desktop.zenity import Zenity
 from chronata.adapters.power_history.last_log import LastLog
 from chronata.adapters.power_history.systemd_journal import SystemdJournal
-from chronata.adapters.power_history.windows_events import WindowsEvents
 
 
 def answering(stdout: str, returncode: int = 0):
@@ -22,16 +18,11 @@ def answering(stdout: str, returncode: int = 0):
 
 
 class ChoosingForThisMachine(unittest.TestCase):
-    def test_windows_gets_its_own_desktop_and_event_log(self):
-        self.assertIsInstance(this_machine.desktop("win32"), WindowsDesktop)
-        self.assertIsInstance(this_machine.power_history("win32"), WindowsEvents)
+    def test_with_systemd_it_reads_the_journal(self):
+        self.assertIsInstance(this_machine.power_history(Path(tempfile.mkdtemp())), SystemdJournal)
 
-    def test_linux_with_systemd_reads_the_journal(self):
-        self.assertIsInstance(this_machine.power_history("linux", Path(tempfile.mkdtemp())), SystemdJournal)
-
-    def test_linux_without_systemd_reads_the_login_records(self):
-        self.assertIsInstance(this_machine.power_history("linux", Path(tempfile.mkdtemp()) / "absent"), LastLog)
-        self.assertIsInstance(this_machine.desktop("linux"), LinuxDesktop)
+    def test_without_systemd_it_reads_the_login_records(self):
+        self.assertIsInstance(this_machine.power_history(Path(tempfile.mkdtemp()) / "absent"), LastLog)
 
 
 class LinuxDialogTools(unittest.TestCase):
@@ -73,26 +64,6 @@ class KDialog_(unittest.TestCase):
     def test_cancelling_the_menu_is_no_answer(self):
         with answering("", 1):
             self.assertIsNone(KDialog().choose("Chronata", "Sure?", ["Use Northwind"]))
-
-
-class WindowsForms_(unittest.TestCase):
-    def test_powershell_draws_the_choice_with_the_question_and_options_handed_over(self):
-        with answering("Clock in on Acme") as run:
-            picked = WindowsForms().choose("Chronata", "Today is a workday?", ["Use Northwind", "Clock in on Acme"])
-        command, settings = run.call_args.args[0], run.call_args.kwargs
-        self.assertEqual(picked, "Clock in on Acme")
-        self.assertEqual(command[:5], ["powershell", "-NoProfile", "-NonInteractive", "-Sta", "-EncodedCommand"])
-        self.assertEqual(base64.b64decode(command[5]).decode("utf-16-le"), windows_forms.script_for(["window.ps1", "choose.ps1"]))
-        self.assertEqual((settings["env"]["CHRONATA_QUESTION"], settings["env"]["CHRONATA_OPTIONS"]),
-                         ("Today is a workday?", "Use Northwind\nClock in on Acme"))
-
-    def test_closing_the_form_is_no_answer(self):
-        with answering("", 1):
-            self.assertIsNone(WindowsForms().ask("Chronata", "Which label?", "Northwind"))
-
-    def test_without_powershell_there_is_no_answer_rather_than_a_crash(self):
-        with mock.patch("subprocess.run", side_effect=FileNotFoundError("powershell")):
-            self.assertIsNone(WindowsForms().ask("Chronata", "Which label?", "Northwind"))
 
 
 if __name__ == "__main__":

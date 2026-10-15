@@ -21,7 +21,7 @@ def bar_toggle(args, app: App) -> None:
 
 def service(args, app: App) -> None:
     from chronata.entrypoints.background_service import run
-    run(app, args.port, with_tray=not args.no_tray)
+    run(app, args.port)
 
 
 def shutting_down(args, app: App) -> Outcome | None:
@@ -40,9 +40,8 @@ def register(commands) -> None:
     command = commands.add_parser("toggle", help="clock in or out from the bar")
     command.set_defaults(run=bar_toggle)
 
-    command = commands.add_parser("service", help="run in the background: the page, PC on/off records, reminders and the tray icon")
+    command = commands.add_parser("service", help="run in the background: the page, PC on/off records and reminders")
     command.add_argument("--port", type=int, default=DEFAULT_PORT)
-    command.add_argument("--no-tray", action="store_true", help="leave out the tray icon, e.g. when a bar widget does its job")
     command.set_defaults(run=service)
 
     command = commands.add_parser("shutting-down", help="record the exact moment the PC shuts down (run by the service)")
