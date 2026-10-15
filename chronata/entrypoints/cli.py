@@ -4,7 +4,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from chronata.entrypoints.omarchy import bar
+from chronata.entrypoints import clock_button
 from chronata.entrypoints.web.server import DEFAULT_PORT
 from chronata.presenters.readable_copy import label_folder
 from chronata.presenters.text_report import report_lines, shift_lines
@@ -148,16 +148,16 @@ def ui(args, app: App) -> None:
 
 
 def bar_status(args, app: App) -> None:
-    print(json.dumps(bar.status(app.sheet)))
+    print(json.dumps(clock_button.status(app.sheet)))
 
 
 def bar_toggle(args, app: App) -> None:
-    bar.toggle(app)
+    clock_button.toggle(app)
 
 
 def service(args, app: App) -> None:
     from chronata.entrypoints.background_service import run
-    run(app, args.port)
+    run(app, args.port, with_tray=not args.no_tray)
 
 
 def _within(day: date, args) -> bool:
@@ -285,8 +285,9 @@ def _parser() -> argparse.ArgumentParser:
     command = commands.add_parser("toggle", help="clock in or out from the bar")
     command.set_defaults(run=bar_toggle)
 
-    command = commands.add_parser("service", help="run in the background: the page, PC on/off records and reminders")
+    command = commands.add_parser("service", help="run in the background: the page, PC on/off records, reminders and the tray icon")
     command.add_argument("--port", type=int, default=DEFAULT_PORT)
+    command.add_argument("--no-tray", action="store_true", help="leave out the tray icon, e.g. when a bar widget does its job")
     command.set_defaults(run=service)
     return parser
 
