@@ -25,7 +25,8 @@ class LinuxDesktop:
             return
 
         def wait_for_click():
-            answered = subprocess.run([*command, f"--action=default={click_label}"], capture_output=True, text=True, check=False)
+            question = [*command, "--urgency=critical", f"--action=default={click_label}"]
+            answered = subprocess.run(question, capture_output=True, text=True, check=False)
             if answered.stdout.strip() == "default":
                 on_click()
 
