@@ -29,6 +29,14 @@ class WorkingDay:
     def weekly_hours(self) -> float:
         return self.weekly_limit or self.daily_hours * len(self.workdays)
 
+    def due_by(self, moment: time) -> timedelta:
+        until = min(max(moment, self.shift_start), self.shift_end)
+        due = _between(self.shift_start, until)
+        if self.lunch:
+            lunch_end = (datetime.combine(date.min, self.lunch.start) + timedelta(minutes=self.lunch.minutes)).time()
+            due -= _between(self.lunch.start, min(max(until, self.lunch.start), lunch_end))
+        return due
+
     def before_end_of_workday(self, moment: datetime) -> bool:
         return moment.weekday() in self.workdays and moment.time() < self.shift_end
 
@@ -37,6 +45,10 @@ class WorkingDay:
             return None
         begins = datetime.combine(day, self.lunch.start, zone)
         return begins, begins + timedelta(minutes=self.lunch.minutes)
+
+
+def _between(start: time, end: time) -> timedelta:
+    return datetime.combine(date.min, end) - datetime.combine(date.min, start)
 
 
 def check_fits(shift_start: time, shift_end: time, lunch: Lunch | None) -> None:

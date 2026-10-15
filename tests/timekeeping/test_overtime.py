@@ -1,6 +1,7 @@
 import unittest
 from datetime import time, timedelta
 
+from chronata.presenters.text_report import punctuality
 from chronata.timekeeping.label_hours import LabelHours
 from chronata.timekeeping.overtime import combined, days_so_far, weeks, weeks_by_label
 from chronata.timekeeping.shifts import Shift
@@ -88,10 +89,39 @@ class LabelsWithTheirOwnHours(unittest.TestCase):
     def test_unlabelled_time_counts_as_the_default_labels(self):
         self.assertEqual(list(weeks_by_label([shift("2026-10-05", "08:00", "12:00")], self.hours)), ["Northwind"])
 
-    def test_a_day_still_running_is_not_short(self):
-        days = days_so_far([shift("2026-10-05", "08:20", None, "Northwind")], self.hours, at("2026-10-05T10:00:00"))
-        today = days[(at("2026-10-05T10:00:00").date(), "Northwind")]
-        self.assertEqual((today.worked, today.late, today.short), (timedelta(hours=1, minutes=40), timedelta(minutes=20), timedelta()))
+
+class MakingUpALateStart(unittest.TestCase):
+    hours = LabelHours("Northwind", {"Northwind": WorkingDay(time(8, 30), time(17, 30), Lunch(time(12), 60))})
+
+    def today_at(self, moment: str, *pieces: tuple[str, str | None]):
+        shifts = [shift("2026-10-15", start, end, "Northwind") for start, end in pieces]
+        return days_so_far(shifts, self.hours, at(f"2026-10-15T{moment}"))[(at("2026-10-15T00:00:00").date(), "Northwind")]
+
+    def test_ten_minutes_late_is_made_up_by_going_to_lunch_ten_minutes_later(self):
+        day = self.today_at("12:30:00", ("08:40", "12:10"))
+        self.assertEqual((day.late, day.made_up, day.running, punctuality(day)), (timedelta(minutes=10), True, True, "arrived 0:10 late, made up so far"))
+
+    def test_going_to_lunch_on_time_leaves_it_behind_so_far(self):
+        day = self.today_at("12:30:00", ("08:40", "12:00"))
+        self.assertEqual(punctuality(day), "arrived 0:10 late, 0:10 behind so far")
+
+    def test_while_still_working_it_is_measured_up_to_now(self):
+        day = self.today_at("10:00:00", ("08:40", None))
+        self.assertEqual((day.worked, day.short, day.running), (timedelta(hours=1, minutes=20), timedelta(minutes=10), True))
+
+    def test_leaving_early_is_behind_so_far_until_the_shift_time_is_over_then_short(self):
+        pieces = (("08:40", "12:10"), ("13:10", "15:00"))
+        self.assertEqual(punctuality(self.today_at("16:00:00", *pieces)), "arrived 0:10 late, 0:10 behind so far")
+        self.assertEqual(punctuality(self.today_at("18:00:00", *pieces)), "arrived 0:10 late, 2:40 short of a full day")
+
+    def test_overtime_only_starts_once_the_late_start_is_made_up(self):
+        lunch = ("08:40", "12:10")
+        self.assertEqual(self.today_at("20:00:00", lunch, ("13:10", "17:40")).overtime, timedelta())
+        self.assertEqual(self.today_at("20:00:00", lunch, ("13:10", "17:50")).overtime, timedelta(minutes=10))
+
+    def test_a_full_day_after_a_late_start_is_made_up_once_the_day_is_over(self):
+        day = self.today_at("18:00:00", ("08:40", "12:10"), ("13:10", "17:40"))
+        self.assertEqual((day.made_up, day.running), (True, False))
 
 
 if __name__ == "__main__":

@@ -21,9 +21,10 @@ function pcChip(entry) {
 }
 
 function punctualityText(day) {
-  if (!day.late) return `${hours(day.short)} short of a full day`;
-  if (day.madeUp) return `Late ${hours(day.late)} · made up, left ${clockTime(day.lastOut).slice(0, 5)}`;
-  return day.short ? `Late ${hours(day.late)} · ${hours(day.short)} short` : `Late ${hours(day.late)}`;
+  const gap = day.running ? `${hours(day.short)} behind so far` : `${hours(day.short)} short`;
+  if (!day.late) return day.running ? gap : `${hours(day.short)} short of a full day`;
+  if (day.madeUp) return day.running ? `Late ${hours(day.late)} · made up so far` : `Late ${hours(day.late)} · made up, left ${clockTime(day.lastOut).slice(0, 5)}`;
+  return `Late ${hours(day.late)} · ${gap}`;
 }
 
 function chips(entry, day) {

@@ -40,7 +40,7 @@ def _entry(entry: DayEntry, day: Day | None, sessions: list[PcSession], stamps: 
         "worked": minutes(entry.worked(now)),
         "voided": entry.voided,
         "pcShare": pc_share(entry, sessions, now),
-        "punctuality": {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()} if flagged else None,
+        "punctuality": {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "running": day.running, "lastOut": day.last_out.isoformat()} if flagged else None,
         "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
     }
 

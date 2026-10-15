@@ -78,15 +78,16 @@ class ClockingInOnTheDefault(unittest.TestCase):
 
 
 
-class ADayStillRunning(unittest.TestCase):
-    def test_is_neither_short_nor_made_up_while_you_are_still_working(self):
-        f = Fixture("2026-10-14T10:00:00")
-        f.app.setup.configure("", "08:00 to 16:00")
-        f.app.corrections.add("2026-10-14", "08:15", "08:45", "written later", None)
-        f.app.corrections.add("2026-10-14", "09:00", "09:30", "written later", None)
+class LunchAfterALateStart(unittest.TestCase):
+    def test_clocking_out_ten_minutes_later_for_lunch_makes_up_ten_minutes_late(self):
+        f = Fixture("2026-10-14T08:40:00")
+        f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30")
         f.app.clocking.clock_in(None, None)
+        f.at("2026-10-14T12:10:00")
+        f.app.clocking.clock_out(None, None)
+        f.at("2026-10-14T12:30:00")
         today = f.app.log.weeks()[0].days[0]
-        self.assertEqual((today.late, today.short, today.made_up), (timedelta(minutes=15), timedelta(), False))
+        self.assertEqual((today.late, today.made_up), (timedelta(minutes=10), True))
 
 
 if __name__ == "__main__":

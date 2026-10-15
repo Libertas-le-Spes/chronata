@@ -1,9 +1,8 @@
-from dataclasses import replace
 from datetime import date, datetime, timedelta
 
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
 from chronata.timekeeping.durations import minutes
-from chronata.timekeeping.shifts import Shift, completed
+from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.overtime import Week, combined, weeks_by_label
 
 WEEKS_SHOWN = 8
@@ -12,8 +11,7 @@ WEEKS_SHOWN = 8
 def state(app, taken: Snapshot) -> dict:
     running = None if taken.interrupted else taken.current
     now = taken.now
-    counted = completed(taken.shifts) + ([replace(running, end=now)] if running else [])
-    all_weeks = combined(weeks_by_label(counted, taken.hours), taken.hours.default_label)
+    all_weeks = combined(weeks_by_label(taken.shifts, taken.hours, now), taken.hours.default_label)
     recent: dict[date, Week | None] = {week.start: week for week in all_weeks[-WEEKS_SHOWN:]}
     recent.setdefault(now.date() - timedelta(days=now.weekday()), None)
     return {"chart": {

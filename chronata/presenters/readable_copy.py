@@ -7,7 +7,7 @@ from chronata.presenters.text_report import punctuality
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.day_entries import DayEntry, day_entries, pc_share
 from chronata.timekeeping.pc_sessions import PcSession
-from chronata.timekeeping.shifts import Shift, completed
+from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.stamps import Stamp, latest
 from chronata.timekeeping.label_hours import LabelHours
 from chronata.timekeeping.overtime import Day, Week, combined, days_so_far, weeks_by_label
@@ -26,7 +26,7 @@ def label_folder(label: str) -> str:
 def readable_files(all_shifts: list[Shift], label_hours: LabelHours, sessions: list[PcSession],
                    stamps: list[Stamp], entries: int, now: datetime) -> dict[str, bytes]:
     summaries = days_so_far(all_shifts, label_hours, now)
-    all_weeks = combined(weeks_by_label(completed(all_shifts), label_hours), label_hours.default_label)
+    all_weeks = combined(weeks_by_label(all_shifts, label_hours, now), label_hours.default_label)
     by_folder: dict[str, list[Shift]] = defaultdict(list)
     for shift in all_shifts:
         by_folder[label_folder(shift.label)].append(shift)

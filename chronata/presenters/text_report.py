@@ -23,13 +23,12 @@ def entry_lines(entries: list[DayEntry], sessions: list[PcSession], stamps: list
 
 
 def punctuality(day: Day) -> str | None:
-    if day.running:
-        return f"arrived {hours(day.late)} late" if day.late > timedelta() else None
+    gap = f"{hours(day.short)} behind so far" if day.running else f"{hours(day.short)} short of a full day"
     if day.late <= timedelta():
-        return f"{hours(day.short)} short of a full day" if day.short > timedelta() else None
+        return gap if day.short > timedelta() else None
     if day.made_up:
-        return f"arrived {hours(day.late)} late, made up (left {day.last_out:%H:%M})"
-    return f"arrived {hours(day.late)} late, {hours(day.short)} short of a full day"
+        return f"arrived {hours(day.late)} late, made up so far" if day.running else f"arrived {hours(day.late)} late, made up (left {day.last_out:%H:%M})"
+    return f"arrived {hours(day.late)} late, {gap}"
 
 
 def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str, Reconciliation], today: date) -> list[str]:
