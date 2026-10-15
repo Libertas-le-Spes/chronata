@@ -20,6 +20,7 @@ class PcSession:
     on: datetime
     off: datetime | None
     exact: bool = False
+    first_entry: int = 0
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,8 @@ def pc_sessions(entries: list[Entry]) -> list[PcSession]:
         if entry.kind == "pc_session":
             data = entry.data
             off = datetime.fromisoformat(data["off"]) if data.get("off") else None
-            latest[data["boot"]] = PcSession(data["boot"], datetime.fromisoformat(data["on"]), off, bool(data.get("exact")))
+            first = latest[data["boot"]].first_entry if data["boot"] in latest else entry.seq
+            latest[data["boot"]] = PcSession(data["boot"], datetime.fromisoformat(data["on"]), off, bool(data.get("exact")), first)
     return sorted(latest.values(), key=lambda session: session.on)
 
 

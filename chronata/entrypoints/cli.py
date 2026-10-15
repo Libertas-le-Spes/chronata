@@ -85,7 +85,7 @@ def status(args, app: App) -> None:
 
 def list_shifts(args, app: App) -> None:
     selected = [s for s in app.sheet.shifts() if _within(s.start.date(), args)]
-    print("\n".join(shift_lines(selected, app.sheet.pc_sessions(), app.sheet.clock())))
+    print("\n".join(shift_lines(selected, app.sheet.pc_sessions(), app.timestamper.stamps(), app.sheet.clock())))
 
 
 def report(args, app: App) -> None:

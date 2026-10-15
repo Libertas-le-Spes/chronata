@@ -282,7 +282,9 @@ function shiftCard(shift, day) {
       : `Late ${hours(day.late)} · ${hours(day.short)} short`));
   if (!shift.end) chips.push(el("span", { class: "chip live" }, "Open"));
   if (shift.voided) chips.push(el("span", { class: "chip" }, "Struck out"));
-  if (shift.lateBy != null) chips.push(el("span", { class: "chip warn" }, `Entered ${lateLabel(shift.lateBy)} after the fact`));
+  if (shift.lateBy != null) chips.push(shift.proof.fromPcOn
+    ? el("span", { class: "chip" }, "Written down later, from the PC-on time")
+    : el("span", { class: "chip warn" }, `Entered ${lateLabel(shift.lateBy)} after the fact`));
   chips.push(pcChip(shift));
   const corrections = shift.changes.filter((change) => change.includes(" changed ")).length;
   if (corrections) chips.push(el("span", { class: "chip" }, corrections === 1 ? "Corrected" : `Corrected ${corrections}×`));
@@ -307,9 +309,18 @@ function shiftCard(shift, day) {
       el("span", { class: "worked" }, shift.worked == null ? "" : hours(shift.worked)),
       tools || el("span", { class: "tools" }),
     ),
+    proofLine(shift),
     chips.length ? el("div", { class: "chips" }, chips) : null,
     trail.length ? el("ul", { class: "trail" }, trail) : null,
   );
+}
+
+function proofLine(shift) {
+  const { fromPcOn, entry, stamps } = shift.proof;
+  const source = fromPcOn ? `PC came on at ${clockTime(shift.start)}` : `Start logged in entry ${entry}`;
+  const by = stamps.map((s) => `${s.authority} ${s.time.slice(0, 10) === shift.start.slice(0, 10) ? clockTime(s.time) : `${dayLabel(s.time)} ${clockTime(s.time)}`}`);
+  return el("p", { class: `proof ${fromPcOn ? "pc-on" : ""}` },
+    stamps.length ? `${source} · independently timestamped by ${by.join(", ")}` : `${source} · not yet independently timestamped`);
 }
 
 function pcChip(shift) {

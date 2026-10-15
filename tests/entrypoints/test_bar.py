@@ -78,6 +78,13 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
         shift = self.f.sheet.shifts()[0]
         self.assertEqual((shift.start, shift.notes), (at("2026-10-14T07:50:00"), ["started when the PC came on"]))
 
+    def test_a_shift_from_when_the_pc_came_on_is_shown_with_that_proof_first(self):
+        self.pc_on("2026-10-14T07:50:00")
+        self.f.sheet.record_pc_sessions()
+        self.click("Northwind", "Since 07:50")
+        day = (self.f.data / "Northwind" / "Days" / "2026-10-14.md").read_text()
+        self.assertIn("| 07:50:00 | PC on · not yet independently timestamped |", day)
+
     def test_or_from_now(self):
         self.pc_on("2026-10-14T07:50:00")
         self.click("Northwind", "From now")

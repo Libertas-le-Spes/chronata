@@ -262,6 +262,8 @@ button:disabled { opacity: 0.6; cursor: progress; }
 
 .shift .when { font-weight: 600; }
 .shift .span { color: var(--muted); }
+.shift .proof { margin: 4px 0 0; font-size: 0.9rem; }
+.shift .proof.pc-on { color: var(--live); font-weight: 600; }
 .shift .worked { font-weight: 600; text-align: right; min-width: 3.5rem; }
 .shift.voided .when, .shift.voided .span, .shift.voided .worked { text-decoration: line-through; color: var(--muted); }
 

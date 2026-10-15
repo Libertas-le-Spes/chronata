@@ -7,6 +7,8 @@ from chronata.timekeeping.durations import minutes
 from chronata.timekeeping.pc_sessions import PcSession, support
 from chronata.timekeeping.labels import hours_by_label, known_labels
 from chronata.timekeeping.shifts import Shift, completed, open_shift
+from chronata.timekeeping.stamps import Stamp
+from chronata.timekeeping.start_proof import start_proof
 from chronata.timekeeping.working_day import WEEKDAY_NAMES, Week, WorkingDay, weeks
 from chronata.use_cases import typed_input
 
@@ -23,6 +25,7 @@ def page_state(app) -> dict:
     this_boot = sheet.this_boot()
     interrupted = sheet.interrupted()
     unclocked = sheet.unclocked_since()
+    stamps = app.timestamper.stamps()
     return {
         "now": now.isoformat(),
         "open": {"id": current.id, "label": current.label, "start": current.start.isoformat(),
@@ -40,7 +43,7 @@ def page_state(app) -> dict:
              "overtime": minutes(week.overtime), "running": week.end >= now.date()}
             for week in reversed(all_weeks)
         ],
-        "shifts": [_shift(shift, sessions, now) for shift in reversed(all_shifts)],
+        "shifts": [_shift(shift, sessions, stamps, now) for shift in sorted(all_shifts, key=lambda s: (-s.start.date().toordinal(), s.start))],
         "unexplainedBreaks": [
             {"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()}
             for shift in all_shifts for gap in shift.breaks if gap.cause == "PC off" and not gap.reason
@@ -86,8 +89,9 @@ def page_state(app) -> dict:
     }
 
 
-def _shift(shift: Shift, sessions: list[PcSession], now: datetime) -> dict:
+def _shift(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
     backing = support(shift.start, shift.end, sessions, now)
+    proof = start_proof(shift, sessions, stamps)
     return {
         "id": shift.id,
         "label": shift.label,
@@ -99,6 +103,11 @@ def _shift(shift: Shift, sessions: list[PcSession], now: datetime) -> dict:
         "lateBy": minutes(shift.entered_late_by) if shift.entered_late_by > LATE_ENOUGH_TO_FLAG else None,
         "notes": shift.notes,
         "changes": shift.changes,
+        "proof": {
+            "fromPcOn": proof.from_pc_on,
+            "entry": proof.entry,
+            "stamps": [{"authority": s.authority_name, "time": s.time.astimezone(shift.start.tzinfo).isoformat()} for s in proof.stamps],
+        },
         "pc": {
             "share": round(backing.share, 3),
             "beforeRecords": backing.before_records,
