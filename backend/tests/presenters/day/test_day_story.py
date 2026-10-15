@@ -1,6 +1,6 @@
 import unittest
 
-from chronata.presenters.page.day_lines import DayRecords, day_lines
+from chronata.presenters.day.day_story import DayRecords, day_story
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.timekeeping.shifts.day_entries import day_entries
 from tests.fakes import Fixture, at
@@ -24,7 +24,7 @@ class OneBlockForTheDay(unittest.TestCase):
     def lines(self, day: str = "2026-10-15") -> list[tuple]:
         entry = next(e for e in day_entries(self.f.app.log.shifts()) if e.day.isoformat() == day)
         records = DayRecords(self.f.app.log.pc_sessions(), [], self.f.now)
-        return [(line["what"], (line["at"] or "")[11:19], line["detail"], line["mistake"]) for line in day_lines(entry, records)]
+        return [(line.what, line.time_on(entry.day), line.detail, line.mistake) for line in day_story(entry, records)]
 
     def test_the_pc_leads_and_the_manual_clock_ins_follow(self):
         self.assertEqual(self.lines(), [

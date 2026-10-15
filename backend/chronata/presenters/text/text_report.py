@@ -1,25 +1,35 @@
 from datetime import date, datetime, timedelta
 
-from chronata.presenters.text.explanation import piece_lines
+from chronata.presenters.day.day_story import DayRecords, Line, day_story
 from chronata.timekeeping.compensation.compensation import Period, Reconciliation, all_labels
 from chronata.timekeeping.hours.overtime import Day, Week
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp
-from chronata.timekeeping.shifts.day_entries import DayEntry
+from chronata.timekeeping.shifts.day_entries import DayEntry, pc_share
 from chronata.timekeeping.shifts.durations import hours
+from chronata.timekeeping.shifts.shifts import named
 
 
 def entry_lines(entries: list[DayEntry], sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> list[str]:
+    records = DayRecords(sessions, stamps, now)
     lines = [f"{'date':10}  {'start':8}  {'end':8}  {'worked':>6}  label"]
     for entry in entries:
         end = f"{entry.end:%H:%M:%S}" if entry.end else "--:--:--"
-        flags = [entry.label or "(no label)"] + (["OPEN"] if entry.end is None else []) + (["MARKED AS A MISTAKE"] if entry.voided else [])
-        lines.append(f"{entry.start:%Y-%m-%d}  {entry.start:%H:%M:%S}  {end}  {hours(entry.worked(now)):>6}  {', '.join(flags)}")
-        for piece in entry.pieces:
-            heading, *details = piece_lines(piece, sessions, stamps, now)
-            lines.append(f"{'':6}{heading}")
-            lines += [f"{'':8}{detail}" for detail in details]
+        lines.append(f"{entry.start:%Y-%m-%d}  {entry.start:%H:%M:%S}  {end}  {hours(entry.worked(now)):>6}  {', '.join(_flags(entry, records))}")
+        lines += [_story_line(line, entry) for line in day_story(entry, records)]
     return lines
+
+
+def _flags(entry: DayEntry, records: DayRecords) -> list[str]:
+    share = pc_share(entry, records.sessions, records.now)
+    pc = [f"PC on {share:.0%}"] if share is not None and not entry.voided else []
+    status = ["OPEN"] * (entry.end is None) + ["MARKED AS A MISTAKE"] * entry.voided
+    return [entry.label or "(no label)", *status, *pc, named(sorted(entry.pieces, key=lambda piece: piece.id))]
+
+
+def _story_line(line: Line, entry: DayEntry) -> str:
+    own = f" (shift {line.mistake})" if line.mistake else ""
+    return f"{'':6}{line.what:<20}{line.time_on(entry.day):<18}{line.detail}{own}".rstrip()
 
 
 def punctuality(day: Day) -> str | None:

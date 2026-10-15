@@ -1,9 +1,8 @@
 from datetime import datetime
 
-from chronata.presenters.page.day_lines import DayRecords, day_lines
+from chronata.presenters.day.day_story import LATE_ENOUGH_TO_FLAG, DayRecords, Line, day_story
 from chronata.presenters.page.facts import PageFacts
 from chronata.presenters.page.values import iso
-from chronata.presenters.text.explanation import LATE_ENOUGH_TO_FLAG
 from chronata.timekeeping.hours.overtime import Day, days_so_far
 from chronata.timekeeping.pc.pc_sessions import PcSession, support
 from chronata.timekeeping.pc.start_proof import start_proof
@@ -44,9 +43,13 @@ def _entry(entry: DayEntry, day: Day | None, records: DayRecords) -> dict:
         "pcShare": pc_share(entry, sessions, now),
         "punctuality": _punctuality(day),
         "ids": [piece.id for piece in entry.counted],
-        "lines": day_lines(entry, records),
+        "lines": [_line(line, entry) for line in day_story(entry, records)],
         "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
     }
+
+
+def _line(line: Line, entry: DayEntry) -> dict:
+    return {"what": line.what, "time": line.time_on(entry.day), "detail": line.detail, "mistake": line.mistake}
 
 
 def _punctuality(day: Day | None) -> dict | None:

@@ -2,7 +2,7 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from chronata.presenters.text.explanation import piece_lines
+from chronata.presenters.day.day_story import DayRecords, Line, day_story
 from chronata.presenters.text.text_report import punctuality
 from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.overtime import Day, Week, combined, days_so_far, weeks_by_label
@@ -114,11 +114,12 @@ def _status(entry: DayEntry) -> str:
 
 
 def _explanation(entries: list[DayEntry], sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> list[str]:
-    lines = []
-    for piece in (piece for entry in entries for piece in entry.pieces):
-        heading, *details = piece_lines(piece, sessions, stamps, now)
-        lines += [f"- {heading}", *(f"  - {detail}" for detail in details)]
-    return lines
+    records = DayRecords(sessions, stamps, now)
+    return [_story_line(line, entry) for entry in entries for line in day_story(entry, records)]
+
+
+def _story_line(line: Line, entry: DayEntry) -> str:
+    return " · ".join(part for part in (f"- **{line.what}** {line.time_on(entry.day)}".rstrip(), line.detail) if part)
 
 
 def _seal(stamps: list[Stamp], entries: int) -> str:

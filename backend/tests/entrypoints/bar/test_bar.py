@@ -97,7 +97,7 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
         self.click("Northwind", "Since 07:50")
         day = (self.f.data / "Northwind" / "Days" / "2026-10-14.md").read_text()
         self.assertIn("| 07:50:00 | – |", day)
-        self.assertIn("  - started when the PC came on at 07:50:00 · not yet independently timestamped", day)
+        self.assertIn("- **PC on** 07:50:00 · not yet independently timestamped\n- **Manual clock in** 08:05:00 · counted from 07:50:00", day)
 
     def test_the_bar_counts_the_whole_day_from_when_the_pc_came_on(self):
         self.pc_on("2026-10-14T07:50:00")

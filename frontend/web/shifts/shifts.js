@@ -39,15 +39,10 @@ function chips(entry, day) {
   return found;
 }
 
-function lineTime(line, entry) {
-  if (!line.at) return "";
-  return line.at.slice(0, 10) === entry.day ? clockTime(line.at) : `${dayLabel(line.at)} ${clockTime(line.at).slice(0, 5)}`;
-}
-
-function lineItem(line, entry) {
+function lineItem(line) {
   return el("li", { class: "line" },
     el("span", { class: "what" }, line.what),
-    el("span", { class: "at" }, lineTime(line, entry)),
+    el("span", { class: "at" }, line.time),
     el("span", { class: "detail" }, line.detail),
     line.mistake ? el("button", { type: "button", class: "link", onclick: () => markMistake([line.mistake], "This time stops counting") }, "Mark as mistake") : null,
   );
@@ -72,7 +67,7 @@ function entryCard(entry, day) {
     el("div", { class: "chips" }, chips(entry, day)),
     el("details", { class: "explanation" },
       el("summary", {}, "Full explanation"),
-      el("ul", { class: "trail day" }, entry.lines.map((line) => lineItem(line, entry))),
+      el("ul", { class: "trail day" }, entry.lines.map(lineItem)),
       dayTools(entry),
     ),
   );
