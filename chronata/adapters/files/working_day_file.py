@@ -34,6 +34,7 @@ class WorkingDayFile:
             working_day,
             weekly_hours=float(raw.get("weekly_hours") or working_day.daily_hours * len(workdays)),
             early_leave_grace=timedelta(minutes=int(raw.get("early_leave_minutes", 7))),
+            default_label=saved.get("default_label", ""),
         )
 
     def save(self, shift_start: time, shift_end: time, lunch_start: time, lunch_minutes: int) -> None:
@@ -44,7 +45,14 @@ class WorkingDayFile:
             "lunch": {"start": f"{lunch_start:%H:%M}", "minutes": lunch_minutes},
             "workdays": saved.get("workdays", DEFAULTS["workdays"]),
         }
-        self.path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
+        self._write(updated)
+
+    def save_default_label(self, label: str) -> None:
+        saved = {key: value for key, value in self._saved().items() if key != "default_label"}
+        self._write({**saved, "default_label": label} if label else saved)
+
+    def _write(self, rules: dict) -> None:
+        self.path.write_text(json.dumps(rules, indent=2) + "\n", encoding="utf-8")
 
     def _saved(self) -> dict:
         return json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else {}

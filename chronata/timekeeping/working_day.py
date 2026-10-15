@@ -18,6 +18,7 @@ class WorkingDay:
     weekly_hours: float
     configured: bool
     early_leave_grace: timedelta = timedelta(minutes=7)
+    default_label: str = ""
 
     @property
     def daily_hours(self) -> float:
@@ -26,6 +27,9 @@ class WorkingDay:
 
     def before_end_of_workday(self, moment: datetime) -> bool:
         return moment.weekday() in self.workdays and moment.time() < self.shift_end
+
+    def strays_from_default(self, label: str, moment: datetime) -> bool:
+        return bool(self.default_label) and moment.weekday() in self.workdays and label != self.default_label
 
     def lunch_on(self, day: date, zone) -> tuple[datetime, datetime]:
         begins = datetime.combine(day, self.lunch_start, zone)

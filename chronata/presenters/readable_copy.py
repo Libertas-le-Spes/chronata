@@ -2,11 +2,12 @@ import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from chronata.presenters.text_report import punctuality
+from chronata.presenters.text_report import proven_by, punctuality
 from chronata.timekeeping.durations import hours
 from chronata.timekeeping.pc_sessions import PcSession, support
 from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.stamps import Stamp, latest
+from chronata.timekeeping.start_proof import start_proof
 from chronata.timekeeping.working_day import Day, Week
 
 OVERVIEW = "README.md"
@@ -29,7 +30,7 @@ def readable_files(all_shifts: list[Shift], all_weeks: list[Week], sessions: lis
     files: dict[str, bytes] = {}
     totals: dict[str, timedelta] = {}
     for folder, shifts in sorted(by_folder.items()):
-        days = _day_notes(folder, shifts, summaries, sessions, now)
+        days = _day_notes(folder, shifts, summaries, sessions, stamps, now)
         totals[folder] = sum((s.worked(s.end or now) for s in shifts if not s.voided), timedelta())
         files.update({f"{folder}/{DAYS}/{day:%Y-%m-%d}.md": note.encode() for day, note in days.items()})
         files[f"{folder}/{OVERVIEW}"] = _label_overview(folder, days, totals[folder], stamps, entries).encode()
@@ -66,14 +67,16 @@ def _whole_log(folder: str, days: dict[date, str], stamps: list[Stamp], entries:
     return f"# {folder}: time log\n\n{_seal(stamps, entries)}\n\n" + "\n".join(notes)
 
 
-def _day_notes(folder: str, shifts: list[Shift], summaries: dict[date, Day], sessions: list[PcSession], now: datetime) -> dict[date, str]:
+def _day_notes(folder: str, shifts: list[Shift], summaries: dict[date, Day], sessions: list[PcSession],
+               stamps: list[Stamp], now: datetime) -> dict[date, str]:
     per_day: dict[date, list[Shift]] = defaultdict(list)
     for shift in shifts:
         per_day[shift.start.date()].append(shift)
-    return {day: _day(folder, day, day_shifts, summaries.get(day), sessions, now) for day, day_shifts in sorted(per_day.items())}
+    return {day: _day(folder, day, sorted(day_shifts, key=lambda s: s.start), summaries.get(day), sessions, stamps, now)
+            for day, day_shifts in sorted(per_day.items())}
 
 
-def _day(folder: str, day: date, shifts: list[Shift], summary: Day | None, sessions: list[PcSession], now: datetime) -> str:
+def _day(folder: str, day: date, shifts: list[Shift], summary: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> str:
     counted = [s for s in shifts if not s.voided]
     worked = sum((s.worked(s.end or now) for s in counted), timedelta())
     running = " so far" if any(s.end is None for s in counted) else ""
@@ -84,14 +87,15 @@ def _day(folder: str, day: date, shifts: list[Shift], summary: Day | None, sessi
     lines = [f"# {day:%A %d %B %Y}", "", f"{folder}: worked {hours(worked)}{running}", ""]
     if whole_day:
         lines += [whole_day, ""]
-    lines += ["| In | Out | Worked | PC on | Status |", "|---|---|---|---|---|"]
+    lines += ["| In | Start proven by | Out | Worked | PC on | Status |", "|---|---|---|---|---|---|"]
     for shift in shifts:
         backing = support(shift.start, shift.end, sessions, now)
         pc = "no record" if not backing.sessions else f"{backing.share:.0%}"
         status = "struck out" if shift.voided else ("still open" if shift.end is None else "")
         end = f"{shift.end:%H:%M:%S}" if shift.end else "–"
         worked_here = hours(shift.worked(shift.end or now)) + ("" if shift.end else " so far")
-        lines.append(f"| {shift.start:%H:%M:%S} | {end} | {worked_here} | {pc} | {status} |")
+        proof = proven_by(start_proof(shift, sessions, stamps), shift.start)
+        lines.append(f"| {shift.start:%H:%M:%S} | {proof} | {end} | {worked_here} | {pc} | {status} |")
     for shift in shifts:
         lines += [f"- Note ({shift.start:%H:%M}): {note}" for note in shift.notes]
         lines += [f"- Change ({shift.start:%H:%M}): {change}" for change in shift.changes]

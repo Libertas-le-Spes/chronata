@@ -32,6 +32,8 @@ class FakeDesktop:
     def __init__(self):
         self.notices: list[tuple[str, object]] = []
         self.opened: list[str] = []
+        self.answers: list[str | None] = []
+        self.asked: list[tuple[str, object]] = []
 
     def notify(self, summary, body="", on_click=None, click_label="Open"):
         self.notices.append((summary, on_click))
@@ -41,6 +43,14 @@ class FakeDesktop:
 
     def choose_folder(self):
         return None
+
+    def ask(self, question, suggested):
+        self.asked.append((question, suggested))
+        return self.answers.pop(0)
+
+    def choose(self, question, options):
+        self.asked.append((question, options))
+        return self.answers.pop(0)
 
     def click(self, summary_start: str) -> None:
         next(action for summary, action in self.notices if summary.startswith(summary_start) and action)()

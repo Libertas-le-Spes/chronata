@@ -7,6 +7,7 @@ from typing import Callable
 from chronata.adapters.desktop.folder_picker import pick_with_tk
 
 APP_NAME = "Chronata"
+CANCEL = "Cancel"
 FOLDER_PICKERS = [
     ["zenity", "--file-selection", "--directory", "--title=Where should Chronata save?"],
     ["kdialog", "--getexistingdirectory", "--title", "Where should Chronata save?"],
@@ -41,3 +42,20 @@ class LinuxDesktop:
                     return None
                 return chosen.stdout.strip() or None
         return pick_with_tk()
+
+    def ask(self, question: str, suggested: str) -> str | None:
+        answered = _zenity("--entry", f"--title={APP_NAME}", f"--text={question}", f"--entry-text={suggested}")
+        return answered.stdout.strip() if answered and answered.returncode == 0 else None
+
+    def choose(self, question: str, options: list[str]) -> str | None:
+        buttons = [f"--extra-button={option}" for option in [*options, CANCEL]]
+        answered = _zenity("--question", "--switch", "--no-markup", f"--title={APP_NAME}", f"--text={question}", *buttons)
+        picked = answered.stdout.strip() if answered else ""
+        return picked if picked and picked != CANCEL else None
+
+
+def _zenity(*arguments: str) -> subprocess.CompletedProcess | None:
+    try:
+        return subprocess.run(["zenity", *arguments], capture_output=True, text=True, check=False, timeout=600)
+    except (OSError, subprocess.TimeoutExpired):
+        return None

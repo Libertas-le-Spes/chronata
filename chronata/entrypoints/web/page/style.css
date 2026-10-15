@@ -262,6 +262,8 @@ button:disabled { opacity: 0.6; cursor: progress; }
 
 .shift .when { font-weight: 600; }
 .shift .span { color: var(--muted); }
+.shift .proof { margin: 4px 0 0; font-size: 0.9rem; }
+.shift .proof.pc-on { color: var(--live); font-weight: 600; }
 .shift .worked { font-weight: 600; text-align: right; min-width: 3.5rem; }
 .shift.voided .when, .shift.voided .span, .shift.voided .worked { text-decoration: line-through; color: var(--muted); }
 
@@ -283,6 +285,7 @@ button:disabled { opacity: 0.6; cursor: progress; }
 .label-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .label-table th, .label-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .label-table td.number, .label-table th.number { text-align: right; }
+.label-table td.row-actions button + button { margin-left: 12px; }
 
 .trail { margin: 6px 0 0; padding: 0; list-style: none; font-size: 0.85rem; color: var(--muted); }
 .trail li { padding-left: 12px; border-left: 2px solid var(--line); margin-top: 2px; overflow-wrap: anywhere; }

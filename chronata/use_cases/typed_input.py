@@ -5,6 +5,7 @@ from chronata.use_cases.outcome import UserError
 
 LUNCH_QUESTION = "When is lunch, and how long is it?"
 SHIFT_QUESTION = "When does your shift start and end?"
+DEFAULT_LABEL_QUESTION = "Which client or project is your main one, if any?"
 DEFAULT_LUNCH = "12:00 for 60 min"
 DEFAULT_SHIFT = "08:00 to 17:00"
 
