@@ -1,4 +1,5 @@
 import { $, el } from "./dom.js";
+import { timeFields } from "../time_picker/time_field.js";
 
 function field(input) {
   return el("label", { class: "wide" }, input.prompt,
@@ -29,6 +30,7 @@ export function ask(question) {
     $("#question-title").textContent = question.title || "Just to check";
     $("#question-text").textContent = question.text;
     $("#question-inputs").replaceChildren(...inputsOf(question.choices).map(field));
+    timeFields($("#question-inputs"));
     for (const input of inputsOf(question.choices)) form.elements[input.name].value = input.value ?? "";
     const choose = (choice) => () => {
       const typed = filledIn(form, choice);

@@ -12,6 +12,7 @@ import { syncWith } from "./shared/server_time.js";
 import * as setup from "./hours/setup.js";
 import * as shifts from "./shifts/shifts.js";
 import * as tabs from "./shared/tabs.js";
+import { timeFields } from "./time_picker/time_field.js";
 import { toast } from "./shared/toast.js";
 
 const sections = [clock, integrity, compensation, shifts, chart, pcBreaks, hours, labels, places, setup];
@@ -44,6 +45,7 @@ function followLink() {
 }
 
 whenChanged(refresh);
+timeFields(document);
 [...sections.filter((section) => section.wire), tabs].forEach((section) => section.wire());
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refresh());
 setInterval(refresh, 60000);

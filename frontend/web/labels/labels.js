@@ -86,10 +86,10 @@ export function render(state) {
   const rows = state.labelSummary.filter((row) => row.label);
   $("#by-label").replaceChildren(...(rows.length ? [el("div", { class: "card" },
     el("h3", {}, "Labels"),
-    el("table", { class: "label-table" },
+    el("div", { class: "table-scroll" }, el("table", { class: "label-table" },
       el("tr", {}, el("th", {}, "Label"), el("th", {}, "Hours"), el("th", {}, "Folder"), el("th", { class: "number" }, "This week"), el("th", { class: "number" }, "All time"), el("th", {}, "")),
       ...rows.map((row) => labelRow(row, state)),
-    ),
+    )),
   )] : []));
 }
 

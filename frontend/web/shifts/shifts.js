@@ -87,8 +87,8 @@ async function correct(entry) {
     title: "Correct the day",
     text: "The corrected time shows on top. The PC and manual clock-in times stay on record underneath.",
     choices: [{ caption: "Save correction", style: "primary", inputs: [
-      { name: "start", prompt: "Started", type: "datetime-local", value: entry.start.slice(0, 19), required: true },
-      { name: "end", prompt: "Finished", type: "datetime-local", value: entry.end.slice(0, 19), required: true },
+      { name: "start", prompt: "Started", type: "time", value: entry.start.slice(11, 19), required: true },
+      { name: "end", prompt: "Finished", type: "time", value: entry.end.slice(11, 19), required: true },
       { name: "reason", prompt: "Reason", required: true },
     ] }],
   });

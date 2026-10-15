@@ -1,5 +1,6 @@
 .label-hint { margin: -4px 0 0; min-height: 1.2em; }
 .label-hint button { padding: 0 4px; }
+.table-scroll { overflow-x: auto; }
 .label-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
 .label-table th, .label-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .label-table td.number, .label-table th.number { text-align: right; }

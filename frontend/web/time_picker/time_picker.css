@@ -1,0 +1,34 @@
+.time-field { cursor: pointer; caret-color: transparent; font-variant-numeric: tabular-nums; }
+
+dialog.time-picker { width: min(340px, calc(100vw - 32px)); padding: 20px 20px 12px; border-radius: 24px; }
+.time-picker form { display: flex; flex-direction: column; gap: 16px; }
+.time-picker [hidden] { display: none !important; }
+.time-picker .picker-title { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+.time-picker .readout { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.time-picker .part {
+  font-size: 3.2rem; line-height: 1; padding: 10px 14px; min-width: 5.5rem;
+  border: 0; border-radius: 12px; background: var(--surface-2); color: var(--text); font-variant-numeric: tabular-nums;
+}
+.time-picker .part.chosen { background: var(--accent); color: var(--accent-text); }
+.time-picker .colon { font-size: 3rem; line-height: 1; }
+.time-picker .seconds { font-size: 1.4rem; color: var(--muted); align-self: flex-end; padding-bottom: 8px; }
+
+.time-picker .dial { width: 100%; max-width: 256px; align-self: center; touch-action: none; user-select: none; cursor: pointer; }
+.time-picker .dial:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 50%; }
+.time-picker .dial .face { fill: var(--surface-2); }
+.time-picker .dial .hand { stroke: var(--accent); stroke-width: 2; }
+.time-picker .dial .hand-dot, .time-picker .dial .knob { fill: var(--accent); }
+.time-picker .dial .knob-dot { fill: var(--accent-text); }
+.time-picker .dial .mark { fill: var(--text); font-size: 15px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.time-picker .dial .mark.chosen { fill: var(--accent-text); font-weight: 600; }
+
+.time-picker .typed { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.time-picker .typed label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.time-picker .typed input { font-size: 1.4rem; text-align: center; width: 100%; min-width: 0; }
+
+.time-picker .picker-actions { display: flex; align-items: center; gap: 8px; }
+.time-picker .spacer { flex: 1; }
+.time-picker .picker-actions .link { font-size: 0.95rem; }
+.time-picker .icon-button { border: 0; background: none; padding: 6px; color: var(--muted); display: inline-flex; }
+.time-picker .icon-button:hover { color: var(--text); }
