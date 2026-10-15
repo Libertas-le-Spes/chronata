@@ -1,0 +1,13 @@
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+.chip {
+  font-size: 0.75rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.chip.live { background: var(--ok-bg); color: var(--live); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.label { background: var(--accent); color: var(--accent-text); font-weight: 600; }

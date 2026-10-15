@@ -1,0 +1,37 @@
+.totals {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tile .label { color: var(--muted); font-size: 0.8rem; }
+.tile .value { font-size: 1.5rem; font-weight: 600; }
+.tile.danger.has-value { background: var(--danger-bg); border-color: transparent; }
+.tile.danger.has-value .value { color: var(--danger); }
+
+.period { margin-bottom: 12px; }
+.period-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+
+.figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.figures div { display: flex; flex-direction: column; }
+.figures span:first-child { color: var(--muted); font-size: 0.8rem; }
+.figures span:last-child { font-weight: 600; font-size: 1.1rem; }
+.figures .bad span:last-child { color: var(--danger); }
+.figures .good span:last-child { color: var(--live); }
+
+.days { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.days li { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 2px 8px; font-size: 0.85rem; }
+
+@media (max-width: 640px) {
+  .totals, .figures { grid-template-columns: repeat(2, 1fr); }
+}

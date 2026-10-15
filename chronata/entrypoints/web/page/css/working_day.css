@@ -1,0 +1,2 @@
+.setup { border-color: var(--accent); }
+.setup label span { color: var(--text); font-size: 0.95rem; font-weight: 600; }

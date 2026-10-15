@@ -3,6 +3,7 @@ import secrets
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -14,7 +15,8 @@ from chronata.use_cases.verification import verify
 
 PAGES = Path(__file__).parent / "page"
 DEFAULT_PORT = 47630
-STATIC = {"/app.js": "text/javascript", "/style.css": "text/css"}
+PAGE_FILE = re.compile(r"^/(js|css)/[a-z_]+\.(js|css)$")
+CONTENT_TYPES = {"js": "text/javascript", "css": "text/css"}
 
 
 def page_url(port: int) -> str:
@@ -84,8 +86,9 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
             if self.path == "/":
                 page = (PAGES / "index.html").read_text(encoding="utf-8").replace("{{token}}", token)
                 return self._send(200, "text/html; charset=utf-8", page.encode("utf-8"))
-            if self.path in STATIC:
-                return self._send(200, f"{STATIC[self.path]}; charset=utf-8", (PAGES / self.path.lstrip("/")).read_bytes())
+            if PAGE_FILE.match(self.path) and (PAGES / self.path.lstrip("/")).is_file():
+                kind = self.path.rsplit(".", 1)[1]
+                return self._send(200, f"{CONTENT_TYPES[kind]}; charset=utf-8", (PAGES / self.path.lstrip("/")).read_bytes())
             if not self._trusted():
                 return self._json(403, {"error": "forbidden"})
             if self.path == "/api/state":

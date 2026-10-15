@@ -1,0 +1,43 @@
+details summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+details label { display: block; margin-top: 8px; }
+
+input, select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  border-radius: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; font-weight: 600; }
+button.danger-button { background: var(--danger); color: var(--bg); border-color: transparent; font-weight: 600; }
+button.link { border: 0; background: none; padding: 2px 6px; color: var(--muted); font-size: 0.85rem; }
+button.link:hover { color: var(--text); text-decoration: underline; }
+button:disabled { opacity: 0.6; cursor: progress; }
+
+.grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 12px; }
+.grid-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.grid-form .wide { grid-column: 1 / -1; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.small-button { padding: 4px 12px; font-size: 0.85rem; }
+.with-button { display: flex; gap: 8px; }
+.with-button input { flex: 1; }
