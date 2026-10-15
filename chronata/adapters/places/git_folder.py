@@ -8,9 +8,15 @@ from chronata.use_cases.ports import SaveError
 
 def checked_folder(folder: str) -> str:
     path = PurePosixPath(folder.strip().strip("/"))
-    if not path.parts or path.is_absolute() or ".." in path.parts or path.parts[0] == ".git":
+    if not _inside_the_repository(path):
         raise SaveError("give a folder inside the repository, like 'Work Logs'")
     return str(path)
+
+
+def _inside_the_repository(path: PurePosixPath) -> bool:
+    if not path.parts or path.is_absolute():
+        return False
+    return ".." not in path.parts and path.parts[0] != ".git"
 
 
 class GitFolders:

@@ -21,13 +21,16 @@ def read(data: bytes, offset: int) -> tuple[int, bytes, int]:
         raise ValueError("truncated")
     tag, length, offset = data[offset], data[offset + 1], offset + 2
     if length & 0x80:
-        count = length & 0x7F
-        if count == 0 or count > 4 or offset + count > len(data):
-            raise ValueError("bad length")
-        length, offset = int.from_bytes(data[offset:offset + count], "big"), offset + count
+        length, offset = _long_length(data, offset, length & 0x7F)
     if offset + length > len(data):
         raise ValueError("truncated")
     return tag, data[offset:offset + length], offset + length
+
+
+def _long_length(data: bytes, offset: int, count: int) -> tuple[int, int]:
+    if not 0 < count <= 4 or offset + count > len(data):
+        raise ValueError("bad length")
+    return int.from_bytes(data[offset:offset + count], "big"), offset + count
 
 
 def integer(value: int) -> bytes:

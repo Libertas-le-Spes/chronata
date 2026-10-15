@@ -25,11 +25,20 @@ def _remove_no_longer_written(folder: Path, written: set[str]) -> None:
     listing = folder / WRITTEN_LIST
     before = set(listing.read_text(encoding="utf-8").splitlines()) if listing.exists() else set()
     for relative in sorted(before - written):
-        stale = folder / relative
-        if stale.is_file():
-            stale.unlink()
-        for parent in stale.parents:
-            if parent == folder or not parent.is_dir() or any(parent.iterdir()):
-                break
-            parent.rmdir()
+        _remove(folder / relative, folder)
     listing.write_text("\n".join(sorted(written)) + "\n", encoding="utf-8")
+
+
+def _remove(stale: Path, folder: Path) -> None:
+    if stale.is_file():
+        stale.unlink()
+    for parent in stale.parents:
+        if not _empty_below(parent, folder):
+            break
+        parent.rmdir()
+
+
+def _empty_below(parent: Path, folder: Path) -> bool:
+    if parent == folder or not parent.is_dir():
+        return False
+    return not any(parent.iterdir())

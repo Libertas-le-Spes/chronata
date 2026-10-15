@@ -1,9 +1,12 @@
+from datetime import datetime
+
 from chronata.entrypoints.clock_in_questions import ask_and_clock_in
 from chronata.entrypoints.web.server import DEFAULT_PORT, page_url
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.shifts import open_shift
+from chronata.timekeeping.shifts import Shift, open_shift
 from chronata.timekeeping.today import day_so_far
 from chronata.use_cases.outcome import UserError
+from chronata.use_cases.pc_records import Interrupted
 
 CLOCK_ICON = ""
 WARNING_ICON = ""
@@ -12,24 +15,32 @@ WARNING_ICON = ""
 def status(app) -> dict:
     interrupted = app.pc.interrupted()
     if interrupted:
-        return {
-            "text": WARNING_ICON,
-            "tooltip": f"Still clocked in from {interrupted.shift.start:%a %H:%M}, before the PC last turned off.\nRight-click to open Chronata and close that shift.",
-            "state": "interrupted",
-        }
+        return _interrupted(interrupted)
     all_shifts = app.log.shifts()
     current = open_shift(all_shifts)
     if current:
-        started, so_far = day_so_far(all_shifts, app.log.clock())
-        worked = hours(so_far)
-        on_label = f" on {current.label}" if current.label else ""
-        return {
-            "text": f"{CLOCK_ICON}\n{worked}",
-            "tooltip": f"Working{on_label}, {worked} today since {started:%H:%M:%S}\nClick to clock out · right-click to open Chronata",
-            "state": "in",
-            "elapsed": worked,
-        }
+        return _working(current, all_shifts, app.log.clock())
     return {"text": CLOCK_ICON, "tooltip": "Not clocked in\nClick to choose a label and clock in · right-click to open Chronata", "state": "out"}
+
+
+def _interrupted(interrupted: Interrupted) -> dict:
+    return {
+        "text": WARNING_ICON,
+        "tooltip": f"Still clocked in from {interrupted.shift.start:%a %H:%M}, before the PC last turned off.\nRight-click to open Chronata and close that shift.",
+        "state": "interrupted",
+    }
+
+
+def _working(current: Shift, all_shifts: list[Shift], now: datetime) -> dict:
+    started, so_far = day_so_far(all_shifts, now)
+    worked = hours(so_far)
+    on_label = f" on {current.label}" if current.label else ""
+    return {
+        "text": f"{CLOCK_ICON}\n{worked}",
+        "tooltip": f"Working{on_label}, {worked} today since {started:%H:%M:%S}\nClick to clock out · right-click to open Chronata",
+        "state": "in",
+        "elapsed": worked,
+    }
 
 
 def toggle(app) -> None:

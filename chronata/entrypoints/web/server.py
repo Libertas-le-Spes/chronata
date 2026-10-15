@@ -41,6 +41,14 @@ def serve_in_background(app, port: int) -> bool:
     return True
 
 
+def _page_file(path: str, token: str) -> tuple[str, bytes] | None:
+    if path == "/":
+        return "text/html; charset=utf-8", (PAGES / "index.html").read_text(encoding="utf-8").replace("{{token}}", token).encode("utf-8")
+    if not PAGE_FILE.match(path) or not (PAGES / path.lstrip("/")).is_file():
+        return None
+    return f"{CONTENT_TYPES[path.rsplit('.', 1)[1]]}; charset=utf-8", (PAGES / path.lstrip("/")).read_bytes()
+
+
 def _bind(app, port: int) -> HTTPServer | None:
     try:
         return HTTPServer(("127.0.0.1", port), _handler(app, port, secrets.token_urlsafe(32)))
@@ -56,12 +64,9 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
         def do_GET(self):
             if self.headers.get("Host") not in allowed_hosts:
                 return self._send(403, "text/plain", b"forbidden")
-            if self.path == "/":
-                page = (PAGES / "index.html").read_text(encoding="utf-8").replace("{{token}}", token)
-                return self._send(200, "text/html; charset=utf-8", page.encode("utf-8"))
-            if PAGE_FILE.match(self.path) and (PAGES / self.path.lstrip("/")).is_file():
-                kind = self.path.rsplit(".", 1)[1]
-                return self._send(200, f"{CONTENT_TYPES[kind]}; charset=utf-8", (PAGES / self.path.lstrip("/")).read_bytes())
+            page_file = _page_file(self.path, token)
+            if page_file:
+                return self._send(200, *page_file)
             if not self._trusted():
                 return self._json(403, {"error": "forbidden"})
             address = urlparse(self.path)

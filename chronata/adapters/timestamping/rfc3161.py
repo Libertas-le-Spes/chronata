@@ -85,10 +85,7 @@ def _ask(url: str, digest: bytes) -> bytes:
 
 
 def _granted_time(reply: bytes, digest: bytes | None) -> datetime:
-    tag, body, _ = der.read(reply, 0)
-    status_tag, status, _ = der.read(body, 0)
-    _, code, _ = der.read(status, 0)
-    if tag != 0x30 or status_tag != 0x30 or int.from_bytes(code, "big") not in (0, 1):
+    if not _granted(reply):
         raise ValueError("the timestamp authority refused the request")
     info = _find_token_info(reply)
     if info is None:
@@ -104,9 +101,25 @@ def _find_token_info(data: bytes) -> tuple[bytes, bytes] | None:
         if tag != 0x30:
             continue
         children = der.children(body)
-        if (len(children) >= 5 and children[0][0] == 0x02 and children[1][0] == 0x06
-                and children[2][0] == 0x30 and children[4][0] == 0x18):
-            imprint = der.children(children[2][1])
-            if len(imprint) == 2 and imprint[1][0] == 0x04:
-                return imprint[1][1], children[4][1]
+        if not _shaped_like_token_info(children):
+            continue
+        imprint = der.children(children[2][1])
+        if len(imprint) == 2 and imprint[1][0] == 0x04:
+            return imprint[1][1], children[4][1]
     return None
+
+
+def _granted(reply: bytes) -> bool:
+    tag, body, _ = der.read(reply, 0)
+    status_tag, status, _ = der.read(body, 0)
+    _, code, _ = der.read(status, 0)
+    if (tag, status_tag) != (0x30, 0x30):
+        return False
+    return int.from_bytes(code, "big") in (0, 1)
+
+
+def _shaped_like_token_info(children: list[tuple[int, bytes]]) -> bool:
+    expected = (0x02, 0x06, 0x30, None, 0x18)
+    if len(children) < len(expected):
+        return False
+    return all(tag is None or children[at][0] == tag for at, tag in enumerate(expected))

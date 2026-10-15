@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
 from chronata.entrypoints.web.page_state.values import iso
