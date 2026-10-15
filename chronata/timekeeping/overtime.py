@@ -54,8 +54,7 @@ def weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, now: dat
 
 
 def weeks_by_label(all_shifts: list[Shift], hours: LabelHours, now: datetime | None = None) -> dict[str, list[Week]]:
-    running = open_shift(all_shifts)
-    today = running if running and now and running.start.date() == now.date() else None
+    today = _running_today(all_shifts, now)
     counted = completed(all_shifts) + ([replace(today, end=now)] if today else [])
     grouped: dict[str, list[Shift]] = defaultdict(list)
     for shift in counted:
@@ -91,33 +90,48 @@ def combined(by_label: dict[str, list[Week]], main_label: str) -> list[Week]:
     return [Week(start, tuple(days)) for start, days in sorted(merged.items())]
 
 
+def _running_today(all_shifts: list[Shift], now: datetime | None) -> Shift | None:
+    running = open_shift(all_shifts)
+    if running is None or now is None:
+        return None
+    return running if running.start.date() == now.date() else None
+
+
 def _days(worked_days: list[tuple[date, list[Shift]]], working_day: WorkingDay | None, now: datetime | None, clocked_in: bool) -> tuple[Day, ...]:
     if working_day is None:
         return tuple(_unmeasured(day, day_shifts) for day, day_shifts in worked_days)
-    full_day = timedelta(hours=working_day.daily_hours)
     weekly_room = timedelta(hours=working_day.weekly_hours)
     days = []
     for day, day_shifts in worked_days:
-        worked = sum((shift.worked(shift.end) for shift in day_shifts), NONE)
-        workday = day.weekday() in working_day.workdays
-        ordinary = min(worked, full_day, weekly_room) if workday else NONE
-        weekly_room -= ordinary
-        first_in = min(shift.start for shift in day_shifts)
-        last_out = max(shift.end for shift in day_shifts)
-        late = max(first_in - datetime.combine(day, working_day.shift_start, first_in.tzinfo), NONE) if workday else NONE
-        judged_at = _judged_at(day, working_day, last_out, now, clocked_in)
-        due = full_day if judged_at is None else working_day.due_by(judged_at)
-        short = max(due - worked, NONE) if workday else NONE
-        if late == NONE and short <= working_day.early_leave_grace:
-            short = NONE
-        days.append(Day(day, worked, worked - ordinary, first_in, last_out, late, short, judged_at is not None))
+        measured = _measured(day, day_shifts, working_day, weekly_room, now, clocked_in)
+        weekly_room -= measured.worked - measured.overtime
+        days.append(measured)
     return tuple(days)
 
 
+def _measured(day: date, day_shifts: list[Shift], working_day: WorkingDay, weekly_room: timedelta, now: datetime | None, clocked_in: bool) -> Day:
+    worked = sum((shift.worked(shift.end) for shift in day_shifts), NONE)
+    first_in, last_out = min(shift.start for shift in day_shifts), max(shift.end for shift in day_shifts)
+    judged_at = _judged_at(day, working_day, last_out, now, clocked_in)
+    if day.weekday() not in working_day.workdays:
+        return Day(day, worked, worked, first_in, last_out, NONE, NONE, judged_at is not None)
+    full_day = timedelta(hours=working_day.daily_hours)
+    late = max(first_in - datetime.combine(day, working_day.shift_start, first_in.tzinfo), NONE)
+    due = full_day if judged_at is None else working_day.due_by(judged_at)
+    short = _forgiven(max(due - worked, NONE), late, working_day)
+    return Day(day, worked, worked - min(worked, full_day, weekly_room), first_in, last_out, late, short, judged_at is not None)
+
+
+def _forgiven(short: timedelta, late: timedelta, working_day: WorkingDay) -> timedelta:
+    return NONE if late == NONE and short <= working_day.early_leave_grace else short
+
+
 def _judged_at(day: date, working_day: WorkingDay, last_out: datetime, now: datetime | None, clocked_in: bool) -> time | None:
-    if now is None or day != now.date() or (not clocked_in and now.time() >= working_day.shift_end):
+    if now is None or day != now.date():
         return None
-    return now.time() if clocked_in else last_out.time()
+    if clocked_in:
+        return now.time()
+    return last_out.time() if now.time() < working_day.shift_end else None
 
 
 def _unmeasured(day: date, day_shifts: list[Shift]) -> Day:

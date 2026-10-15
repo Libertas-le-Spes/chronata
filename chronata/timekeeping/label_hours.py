@@ -27,7 +27,9 @@ class LabelHours:
         return moment.weekday() in (self.main.workdays if self.main else MONDAY_TO_FRIDAY)
 
     def strays_from_default(self, label: str, moment: datetime) -> bool:
-        return bool(self.default_label) and self.is_workday(moment) and label != self.default_label
+        if not self.default_label or label == self.default_label:
+            return False
+        return self.is_workday(moment)
 
     def before_end_of_workday(self, label: str, moment: datetime) -> bool:
         hours = self.for_label(label)

@@ -24,6 +24,11 @@ class PcSession:
     exact: bool = False
     first_entry: int = 0
 
+    def covers(self, moment: datetime) -> bool:
+        if moment < self.on:
+            return False
+        return self.off is None or moment <= self.off
+
 
 @dataclass(frozen=True)
 class Support:
@@ -49,7 +54,7 @@ def pc_sessions(entries: list[Entry]) -> list[PcSession]:
 
 
 def session_at(sessions: list[PcSession], moment: datetime) -> PcSession | None:
-    return next((s for s in sessions if s.on <= moment and (s.off is None or moment <= s.off)), None)
+    return next((s for s in sessions if s.covers(moment)), None)
 
 
 def support(start: datetime, end: datetime | None, sessions: list[PcSession], now: datetime) -> Support:
