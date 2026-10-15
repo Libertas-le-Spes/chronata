@@ -1,18 +1,14 @@
 from time import sleep
-from datetime import date, datetime, timedelta
 
 from chronata.timekeeping.shifts import completed, open_shift
-from chronata.timekeeping.today import unexplained_pc_breaks
-from chronata.use_cases.outcome import UserError
-from chronata.use_cases.ports import Desktop
 from chronata.use_cases.clocking import Clocking
 from chronata.use_cases.log import Log
+from chronata.use_cases.outcome import UserError
 from chronata.use_cases.pc_records import PcRecords
-
-REMINDER_HOURS = range(7, 18)
-BETWEEN_REMINDERS = timedelta(hours=1)
-REMINDERS_PER_DAY = 2
-LONG_SHIFT = timedelta(hours=12)
+from chronata.use_cases.ports import Desktop
+from chronata.use_cases.reminding.at_login import NeedsSetUp, PcOffUnexplained, ShiftLeftOpen
+from chronata.use_cases.reminding.during_the_day import LongShift, LunchOver, LunchTime, NotClockedIn
+from chronata.use_cases.reminding.situation import Actions, Nudge, Situation
 
 
 class Reminders:
@@ -22,68 +18,20 @@ class Reminders:
         self.pc = pc
         self.desktop = desktop
         self.page_url = page_url
-        self.clock_in_reminders: dict[date, list[datetime]] = {}
-        self.lunch_asked: set[date] = set()
-        self.lunch_return_asked: set[date] = set()
-        self.long_shift_warned: set[int] = set()
+        self.at_login = [NeedsSetUp(), PcOffUnexplained(), ShiftLeftOpen()]
+        self.during_the_day = [LunchTime(), LongShift(), LunchOver(), NotClockedIn()]
+        self.actions = Actions(self._clock_in, self._clock_out, self._open)
 
     def on_login(self) -> None:
         self.pc.record_sessions()
-        if not self.log.hours.configured:
-            self.desktop.notify("Set your working day", "Your shift hours, and lunch if you take one. Click to answer.",
-                                self._open("setup"), click_label="Set up")
-        for _, gap in unexplained_pc_breaks(self.log.shifts(), self.log.clock().date()):
-            self.desktop.notify(f"Your PC was off {gap.start:%H:%M}–{gap.end:%H:%M}",
-                                "That time isn't counted as work. Click to say why, for the record.",
-                                self._open("explain-break"), click_label="Say why")
-        interrupted = self.pc.interrupted()
-        if interrupted is None:
-            return
-        if interrupted.pc_went_off is None:
-            self.desktop.notify("Last shift is still open", f"Started {interrupted.shift.start:%a %d %b %H:%M}. Click to open the log and close it.",
-                                self._open(""))
-            return
-        went_off = interrupted.pc_went_off
-        self.desktop.notify(
-            "You were clocked in when the PC turned off",
-            f"Shift from {interrupted.shift.start:%a %H:%M}. The PC turned off {went_off:%a %H:%M}. Click to clock out at that time.",
-            lambda: self._clock_out(went_off.isoformat(), "clocked out at the time the PC turned off"),
-            click_label="Clock out at that time",
-        )
+        situation, shifts, interrupted = self._situation(), self.log.shifts(), self.pc.interrupted()
+        for nudge in (nudge for kind in self.at_login for nudge in kind.notices(situation, shifts, interrupted)):
+            self._show(nudge)
 
     def tick(self) -> None:
-        now = self.log.clock()
-        all_shifts = self.log.shifts()
-        current = open_shift(all_shifts)
-        if current:
-            lunch = self._lunch(current.label, now)
-            if lunch and lunch[0] <= now < lunch[1] and now.date() not in self.lunch_asked:
-                self.lunch_asked.add(now.date())
-                self.desktop.notify("Lunch time", "Clocking out for lunch? Ignore this if you're working through it.",
-                                    lambda: self._clock_out(None, "lunch"), click_label="Clock out for lunch")
-            if now - current.since >= LONG_SHIFT and current.id not in self.long_shift_warned:
-                self.long_shift_warned.add(current.id)
-                self.desktop.notify("Still working?", f"Clocked in since {current.start:%H:%M}. Click to open the log.", self._open(""))
-            return
-        finished_today = [s for s in completed(all_shifts) if s.start.date() == now.date()]
-        lunches = [(s, self._lunch(s.label, now)) for s in finished_today]
-        out_for_lunch = [lunch for s, lunch in lunches if lunch and lunch[0] <= s.end < lunch[1]]
-        if out_for_lunch and now >= out_for_lunch[-1][1] and now.date() not in self.lunch_return_asked:
-            self.lunch_return_asked.add(now.date())
-            self.desktop.notify("Lunch is over", "Clocking back in?", lambda: self._clock_in("back from lunch"), click_label="Clock back in")
-            return
-        if now.hour not in REMINDER_HOURS or finished_today:
-            return
-        sent = self.clock_in_reminders.setdefault(now.date(), [])
-        if len(sent) >= REMINDERS_PER_DAY or (sent and now - sent[-1] < BETWEEN_REMINDERS):
-            return
-        sent.append(now)
-        if self.log.hours.is_workday(now):
-            self.desktop.notify("Not clocked in", "If you've started work, click to clock in now.",
-                                lambda: self._clock_in("clocked in from the reminder"), click_label="Clock in")
-        else:
-            self.desktop.notify(f"It's {now:%A}. Working today?", "Your PC is on. If you're working, click to clock in now.",
-                                lambda: self._clock_in("clocked in from the reminder"), click_label="Clock in")
+        situation = self._situation()
+        for nudge in filter(None, (kind.due(situation) for kind in self.during_the_day)):
+            self._show(nudge)
 
     def run_forever(self) -> None:
         self.on_login()
@@ -91,23 +39,28 @@ class Reminders:
             self.tick()
             sleep(60)
 
-    def _lunch(self, label: str, now: datetime) -> tuple[datetime, datetime] | None:
-        hours = self.log.hours.for_label(label)
-        return hours.lunch_on(now.date(), now.tzinfo) if hours else None
+    def _situation(self) -> Situation:
+        now = self.log.clock()
+        all_shifts = self.log.shifts()
+        finished_today = [shift for shift in completed(all_shifts) if shift.start.date() == now.date()]
+        return Situation(now, open_shift(all_shifts), finished_today, self.log.hours, self.actions)
 
-    def _open(self, section: str):
-        return lambda: self.desktop.open_page(self.page_url + (f"#{section}" if section else ""))
+    def _show(self, nudge: Nudge) -> None:
+        self.desktop.notify(nudge.summary, nudge.body, nudge.on_click, click_label=nudge.click_label)
+
+    def _open(self, section: str) -> None:
+        self.desktop.open_page(self.page_url + (f"#{section}" if section else ""))
 
     def _clock_in(self, note: str) -> None:
-        try:
-            outcome = self.clocking.clock_in(None, note)
-            self.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
-        except UserError as error:
-            self.desktop.notify("Could not clock in", str(error))
+        self._report("Could not clock in", lambda: self.clocking.clock_in(None, note))
 
     def _clock_out(self, at: str | None, note: str) -> None:
+        self._report("Could not clock out", lambda: self.clocking.clock_out(at, note))
+
+    def _report(self, failure: str, change) -> None:
         try:
-            outcome = self.clocking.clock_out(at, note)
-            self.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
+            outcome = change()
         except UserError as error:
-            self.desktop.notify("Could not clock out", str(error))
+            self.desktop.notify(failure, str(error))
+            return
+        self.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
