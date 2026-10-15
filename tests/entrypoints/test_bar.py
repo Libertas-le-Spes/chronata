@@ -23,6 +23,12 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
         self.assertEqual(self.desktop.asked[0][1], "Northwind")
         self.assertEqual(self.labels(), ["Northwind"])
 
+    def test_with_no_way_to_ask_it_opens_the_page_at_the_label_box(self):
+        self.desktop.dialogs_installed = False
+        self.click()
+        self.assertTrue(self.desktop.opened[0].endswith("#clock-in"))
+        self.assertEqual(self.labels(), [])
+
     def test_closing_the_question_clocks_nothing(self):
         self.click(None)
         self.assertEqual(self.labels(), [])

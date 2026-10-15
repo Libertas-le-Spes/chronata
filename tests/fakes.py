@@ -33,6 +33,7 @@ class FakeDesktop:
         self.notices: list[tuple[str, object]] = []
         self.opened: list[str] = []
         self.answers: list[str | None] = []
+        self.dialogs_installed = True
         self.asked: list[tuple[str, object]] = []
 
     def notify(self, summary, body="", on_click=None, click_label="Open"):
@@ -43,6 +44,9 @@ class FakeDesktop:
 
     def choose_folder(self):
         return None
+
+    def can_ask(self):
+        return self.dialogs_installed
 
     def ask(self, question, suggested):
         self.asked.append((question, suggested))

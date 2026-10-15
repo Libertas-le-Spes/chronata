@@ -53,6 +53,9 @@ def toggle(app) -> None:
 
 
 def _ask_and_clock_in(app) -> None:
+    if not app.desktop.can_ask():
+        app.desktop.open_page(page_url(DEFAULT_PORT) + "#clock-in")
+        return
     sheet = app.sheet
     now = sheet.clock()
     pc_on = sheet.pc_on_since()

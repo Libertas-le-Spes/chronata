@@ -1,7 +1,7 @@
 import webbrowser
 from typing import Callable
 
-from chronata.adapters.desktop import tk_dialogs
+from chronata.adapters.desktop.windows_forms import WindowsForms
 
 APP_ID = "Chronata.Chronata"
 APP_NAME = "Chronata"
@@ -10,6 +10,7 @@ APP_NAME = "Chronata"
 class WindowsDesktop:
     def __init__(self):
         self._toaster = None
+        self.dialogs = WindowsForms()
 
     def notify(self, summary: str, body: str = "", on_click: Callable[[], None] | None = None, click_label: str = "Open") -> None:
         toaster = self._ready_toaster()
@@ -25,14 +26,17 @@ class WindowsDesktop:
     def open_page(self, url: str) -> None:
         webbrowser.open(url)
 
+    def can_ask(self) -> bool:
+        return True
+
     def choose_folder(self) -> str | None:
-        return tk_dialogs.pick_folder("Where should Chronata save?")
+        return self.dialogs.pick_folder("Where should Chronata save?")
 
     def ask(self, question: str, suggested: str) -> str | None:
-        return tk_dialogs.ask(APP_NAME, question, suggested)
+        return self.dialogs.ask(APP_NAME, question, suggested)
 
     def choose(self, question: str, options: list[str]) -> str | None:
-        return tk_dialogs.choose(APP_NAME, question, options)
+        return self.dialogs.choose(APP_NAME, question, options)
 
     def _ready_toaster(self):
         if self._toaster is None:

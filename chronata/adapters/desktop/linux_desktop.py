@@ -4,17 +4,18 @@ import threading
 import webbrowser
 from typing import Callable
 
-from chronata.adapters.desktop import tk_dialogs
+from chronata.adapters.desktop.kdialog import KDialog
+from chronata.adapters.desktop.zenity import Zenity
 
 APP_NAME = "Chronata"
 FOLDER_TITLE = "Where should Chronata save?"
-FOLDER_PICKERS = [
-    ["zenity", "--file-selection", "--directory", f"--title={FOLDER_TITLE}"],
-    ["kdialog", "--getexistingdirectory", "--title", FOLDER_TITLE],
-]
+DIALOG_TOOLS = {"zenity": Zenity, "kdialog": KDialog}
 
 
 class LinuxDesktop:
+    def __init__(self):
+        self.dialogs = _installed_dialogs()
+
     def notify(self, summary: str, body: str = "", on_click: Callable[[], None] | None = None, click_label: str = "Open") -> None:
         if shutil.which("notify-send") is None:
             return
@@ -33,33 +34,18 @@ class LinuxDesktop:
     def open_page(self, url: str) -> None:
         webbrowser.open(url)
 
+    def can_ask(self) -> bool:
+        return self.dialogs is not None
+
     def choose_folder(self) -> str | None:
-        for picker in FOLDER_PICKERS:
-            if shutil.which(picker[0]):
-                try:
-                    chosen = subprocess.run(picker, capture_output=True, text=True, check=False, timeout=600)
-                except subprocess.TimeoutExpired:
-                    return None
-                return chosen.stdout.strip() or None
-        return tk_dialogs.pick_folder(FOLDER_TITLE)
+        return self.dialogs.pick_folder(FOLDER_TITLE) if self.dialogs else None
 
     def ask(self, question: str, suggested: str) -> str | None:
-        if shutil.which("zenity") is None:
-            return tk_dialogs.ask(APP_NAME, question, suggested)
-        answered = _zenity("--entry", f"--title={APP_NAME}", f"--text={question}", f"--entry-text={suggested}")
-        return answered.stdout.strip() if answered and answered.returncode == 0 else None
+        return self.dialogs.ask(APP_NAME, question, suggested) if self.dialogs else None
 
     def choose(self, question: str, options: list[str]) -> str | None:
-        if shutil.which("zenity") is None:
-            return tk_dialogs.choose(APP_NAME, question, options)
-        buttons = [f"--extra-button={option}" for option in [*options, tk_dialogs.CANCEL]]
-        answered = _zenity("--question", "--switch", "--no-markup", f"--title={APP_NAME}", f"--text={question}", *buttons)
-        picked = answered.stdout.strip() if answered else ""
-        return picked if picked and picked != tk_dialogs.CANCEL else None
+        return self.dialogs.choose(APP_NAME, question, options) if self.dialogs else None
 
 
-def _zenity(*arguments: str) -> subprocess.CompletedProcess | None:
-    try:
-        return subprocess.run(["zenity", *arguments], capture_output=True, text=True, check=False, timeout=600)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+def _installed_dialogs():
+    return next((tool() for name, tool in DIALOG_TOOLS.items() if shutil.which(name)), None)

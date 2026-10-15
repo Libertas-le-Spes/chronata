@@ -734,6 +734,12 @@ refresh().then(() => {
     $("#pc-breaks input")?.focus();
     return showTab("shifts");
   }
+  if (linked === "clock-in") {
+    history.replaceState(null, "", location.pathname);
+    const labelInput = $("#clock-form").elements.label;
+    if (!labelInput.hidden) { labelInput.focus(); labelInput.select(); }
+    return showTab("shifts");
+  }
   if (linked === "confirm-out") {
     history.replaceState(null, "", location.pathname);
     if (earlyOut) askBeforeClockingOut();
