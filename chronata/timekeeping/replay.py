@@ -2,7 +2,7 @@ from dataclasses import replace
 from datetime import datetime
 
 from chronata.timekeeping.record import Entry
-from chronata.timekeeping.shifts import Break, Shift
+from chronata.timekeeping.shifts import CLOCKED_OUT, PC_OFF, Break, Shift
 
 
 def shifts(entries: list[Entry]) -> list[Shift]:
@@ -19,12 +19,12 @@ def shifts(entries: list[Entry]) -> list[Shift]:
                 shift.entered_late_by = max(shift.entered_late_by, entry.recorded_at - shift.end)
             case "clock_resumed":
                 shift = found[data["shift"]]
-                gap = Break(shift.end, datetime.fromisoformat(data["at"]), "clocked out")
+                gap = Break(shift.end, datetime.fromisoformat(data["at"]), CLOCKED_OUT)
                 shift.breaks.append(gap)
                 shift.changes.append(f"break {gap.start:%H:%M:%S}–{gap.end:%H:%M:%S}, not counted as work")
                 shift.end = None
             case "pc_off_break":
-                gap = Break(datetime.fromisoformat(data["start"]), datetime.fromisoformat(data["end"]), "PC off")
+                gap = Break(datetime.fromisoformat(data["start"]), datetime.fromisoformat(data["end"]), PC_OFF)
                 shift = found[data["shift"]]
                 shift.breaks.append(gap)
                 shift.changes.append(f"PC off {gap.start:%H:%M:%S}–{gap.end:%H:%M:%S}, not counted as work")

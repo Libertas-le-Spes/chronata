@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+CLOCKED_OUT = "clocked out"
+PC_OFF = "PC off"
+
 
 @dataclass(frozen=True)
 class Break:
@@ -8,6 +11,10 @@ class Break:
     end: datetime
     cause: str
     reason: str = ""
+
+    @property
+    def unexplained_pc_off(self) -> bool:
+        return self.cause == PC_OFF and not self.reason
 
 
 @dataclass

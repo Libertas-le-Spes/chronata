@@ -25,7 +25,7 @@ def state(app, taken: Snapshot) -> dict:
                     for entry in newest_day_first],
         "unexplainedBreaks": [
             {"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()}
-            for shift in taken.shifts for gap in shift.breaks if gap.cause == "PC off" and not gap.reason
+            for shift in taken.shifts for gap in shift.breaks if gap.unexplained_pc_off
         ],
     }
 

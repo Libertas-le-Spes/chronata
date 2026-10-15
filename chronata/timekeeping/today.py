@@ -30,4 +30,4 @@ def unclocked_since(all_shifts: list[Shift], pc_on: datetime | None, now: dateti
 
 def unexplained_pc_breaks(all_shifts: list[Shift], day) -> list[tuple[Shift, Break]]:
     return [(shift, gap) for shift in all_shifts for gap in shift.breaks
-            if gap.cause == "PC off" and not gap.reason and gap.start.date() == day]
+            if gap.unexplained_pc_off and gap.start.date() == day]
