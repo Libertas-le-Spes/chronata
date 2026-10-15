@@ -1,6 +1,5 @@
 import { api } from "./api.js";
-import { askAboutNewLabel, askAboutOffDefault } from "./choices.js";
-import { askForHours } from "./hours_dialog.js";
+import { ask } from "./question.js";
 import { toast } from "./toast.js";
 
 let afterChange = async () => {};
@@ -9,16 +8,15 @@ export function whenChanged(refresh) {
   afterChange = refresh;
 }
 
-async function createLabel(label) {
-  const hours = await askForHours(label, true);
-  if (!hours) return false;
-  try {
-    await api("/api/labels/create", { name: label, shift: hours.shift, lunch: hours.lunch, noSetHours: hours.noSetHours, newLabel: true });
-    return true;
-  } catch (error) {
-    toast(error.message, "bad");
-    return false;
-  }
+function answered(body, answer) {
+  const field = "to" in body ? "to" : "label";
+  const relabelled = answer.label === null ? {} : { [field]: answer.label };
+  return { ...body, ...relabelled, answers: { ...(body.answers || {}), ...answer.answers } };
+}
+
+async function answerAndRetry(path, body, form, question) {
+  const answer = await ask(question);
+  return answer ? act(path, answered(body, answer), form) : false;
 }
 
 export async function act(path, body, form) {
@@ -30,17 +28,8 @@ export async function act(path, body, form) {
     await afterChange();
     return true;
   } catch (error) {
-    if (error.status === 409 && error.payload.needsHours) {
-      buttons.forEach((button) => (button.disabled = false));
-      return (await createLabel(error.payload.label)) ? act(path, body, form) : false;
-    }
-    if (error.status === 409 && (error.payload.nearMisses || error.payload.offDefault)) {
-      buttons.forEach((button) => (button.disabled = false));
-      const field = "label" in body ? "label" : "to";
-      const change = error.payload.offDefault ? await askAboutOffDefault(error.payload) : await askAboutNewLabel(error.payload, field);
-      if (!change) return false;
-      return act(path, { ...body, ...change }, form);
-    }
+    buttons.forEach((button) => (button.disabled = false));
+    if (error.payload?.question) return answerAndRetry(path, body, form, error.payload.question);
     toast(error.message, "bad");
     return false;
   } finally {

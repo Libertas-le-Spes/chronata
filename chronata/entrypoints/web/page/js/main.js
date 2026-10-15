@@ -45,7 +45,6 @@ function followLink() {
 
 whenChanged(refresh);
 [...sections.filter((section) => section.wire), tabs].forEach((section) => section.wire());
-document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
 document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refresh());
 setInterval(refresh, 60000);
 refresh().then(followLink);

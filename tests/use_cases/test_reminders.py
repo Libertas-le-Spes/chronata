@@ -2,6 +2,7 @@ import unittest
 
 from chronata.timekeeping.pc_sessions import Boot
 from chronata.use_cases.reminders import Reminders
+from chronata.use_cases.questions import Answers
 from tests.fakes import Fixture, at
 
 
@@ -73,11 +74,11 @@ class LunchPerLabel(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:30:00")
         self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30", "Northwind")
-        self.f.app.labels.create("Globex", "08:00 to 14:00", "")
-        self.f.app.labels.create("Late lunch", "09:00 to 18:00", "13:30 for 30 min")
+        self.f.app.labels.create("Globex", Answers(shift="08:00 to 14:00", lunch=""))
+        self.f.app.labels.create("Late lunch", Answers(shift="09:00 to 18:00", lunch="13:30 for 30 min"))
 
     def lunch_prompts(self, label: str, moment: str) -> list[str]:
-        self.f.app.clocking.clock_in(None, None, label, off_default=True)
+        self.f.app.clocking.clock_in(None, None, label, Answers(off_default=True))
         self.f.at(moment)
         Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, "http://page/").tick()
         return [summary for summary, _ in self.f.desktop.notices if summary == "Lunch time"]

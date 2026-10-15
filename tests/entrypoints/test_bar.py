@@ -2,6 +2,7 @@ import unittest
 
 from chronata.entrypoints import clock_button as bar
 from chronata.timekeeping.pc_sessions import Boot
+from chronata.use_cases.questions import Answers
 from tests.fakes import Fixture, at
 
 
@@ -9,7 +10,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
         self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
-        self.f.app.labels.create("Acme", "", "", no_set_hours=True)
+        self.f.app.labels.create("Acme", Answers(no_set_hours=True))
         self.desktop = self.f.desktop
 
     def click(self, *answers) -> None:
@@ -35,12 +36,12 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
         self.assertEqual(self.labels(), [])
 
     def test_another_label_on_a_workday_is_confirmed_first(self):
-        self.click("Acme", "Clock in on Acme")
-        self.assertIn("Northwind is your default", self.desktop.asked[1][0])
+        self.click("Acme", "Clock in on “Acme”")
+        self.assertIn("“Northwind” is your default", self.desktop.asked[1][0])
         self.assertEqual(self.labels(), ["Acme"])
 
     def test_the_confirmation_can_switch_back_to_the_default(self):
-        self.click("Acme", "Use Northwind")
+        self.click("Acme", "Use “Northwind”")
         self.assertEqual(self.labels(), ["Northwind"])
 
     def test_cancelling_the_confirmation_leaves_you_clocked_out(self):
@@ -53,7 +54,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
         self.f.at("2026-10-14T10:00:00")
         self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-15T08:00:00")
-        self.click("Northwnid", "Northwind")
+        self.click("Northwnid", "Use “Northwind”")
         self.assertEqual(self.labels(), ["Northwind", "Northwind"])
 
     def test_the_tooltip_names_the_label_you_are_working_on(self):
@@ -66,7 +67,7 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:05:00")
         self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
-        self.f.app.labels.create("Acme", "", "", no_set_hours=True)
+        self.f.app.labels.create("Acme", Answers(no_set_hours=True))
 
     def pc_on(self, since: str) -> None:
         self.f.power.boot_list = [Boot("today", at(since), self.f.now, True)]
@@ -112,7 +113,7 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
         self.f.at("2026-10-14T12:00:00")
         self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-14T18:00:00")
-        self.f.app.clocking.clock_in(None, None, "Acme", off_default=True)
+        self.f.app.clocking.clock_in(None, None, "Acme", Answers(off_default=True))
         self.f.at("2026-10-14T18:30:00")
         self.assertIn("0:30 today since 18:00:00", bar.status(self.f.app)["tooltip"])
 
@@ -123,7 +124,7 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
 
     def test_another_label_gets_both_questions(self):
         self.pc_on("2026-10-14T07:50:00")
-        self.click("Acme", "Since 07:50", "Clock in on Acme")
+        self.click("Acme", "Since 07:50", "Clock in on “Acme”")
         shift = self.f.app.log.shifts()[0]
         self.assertEqual((shift.label, shift.start), ("Acme", at("2026-10-14T07:50:00")))
 
@@ -138,7 +139,7 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
         self.f.at("2026-10-14T10:00:00")
         self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-14T11:00:00")
-        self.click("Acme", "Clock in on Acme")
+        self.click("Acme", "Clock in on “Acme”")
         self.assertEqual(self.f.app.log.shifts()[-1].start, at("2026-10-14T11:00:00"))
 
 
@@ -148,7 +149,7 @@ class ANewLabelFromTheBar(unittest.TestCase):
         self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
 
     def test_typing_a_new_label_asks_its_hours_then_clocks_in(self):
-        self.f.desktop.answers = ["Globex", "09:00 to 15:00", "", "Clock in on Globex"]
+        self.f.desktop.answers = ["Globex", "Save its hours", "09:00 to 15:00", "", "Clock in on “Globex”"]
         bar.toggle(self.f.app)
         self.assertEqual(self.f.app.log.shifts()[0].label, "Globex")
         self.assertEqual(self.f.app.log.hours.for_label("Globex").daily_hours, 6)

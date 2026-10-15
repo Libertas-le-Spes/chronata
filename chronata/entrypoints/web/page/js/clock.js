@@ -1,7 +1,7 @@
 import { act } from "./actions.js";
-import { askWhenStarted } from "./choices.js";
 import { clockTime, dayLabel, hours } from "./dates.js";
 import { $, fields } from "./dom.js";
+import { ask } from "./question.js";
 import { now, secondsSinceSync } from "./server_time.js";
 
 let current = null;
@@ -54,12 +54,44 @@ export function tick() {
   $("#timer").textContent = `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function askBeforeClockingOut(note = "") {
+export async function askBeforeClockingOut(note = "") {
   if (!earlyOut) return;
   const time = now();
-  $("#out-question").textContent = `It's ${String(time.getHours()).padStart(2, "0")}:${String(time.getMinutes()).padStart(2, "0")}, before your ${earlyOut} finish. Clocking out now ends today's work unless you clock back in, and any time away isn't counted.`;
-  $("#out-form").elements.note.value = note;
-  $("#out-dialog").showModal();
+  const answer = await ask({
+    title: "Clock out now?",
+    text: `It's ${String(time.getHours()).padStart(2, "0")}:${String(time.getMinutes()).padStart(2, "0")}, before your ${earlyOut} finish. Clocking out now ends today's work unless you clock back in, and any time away isn't counted.`,
+    cancel: "No, keep working",
+    choices: [{ caption: "Yes, clock out", style: "primary",
+      inputs: [{ name: "note", prompt: "Why, if you'd like it on record", example: "doctor's appointment, back at 15:00", value: note }] }],
+  });
+  if (answer && await act("/api/out", { note: answer.answers.note }, null)) $("#clock-form").reset();
+}
+
+async function askWhenStarted() {
+  if (!unclockedSince) return {};
+  const since = clockTime(unclockedSince).slice(0, 5);
+  const ago = hours(Math.round((now().getTime() - Date.parse(unclockedSince)) / 60000));
+  const answer = await ask({
+    title: "Since when?",
+    text: `Have you been working since the PC came on at ${since} (${ago} ago), or are you starting now?`,
+    choices: [
+      { caption: `Since ${since}`, answers: { at: unclockedSince, note: "started when the PC came on" } },
+      { caption: "From now", style: "primary", answers: {} },
+    ],
+  });
+  return answer && answer.answers;
+}
+
+async function clockIn(form, { note, at, label }) {
+  const start = at ? {} : await askWhenStarted();
+  if (!start) return false;
+  const noted = [note, start.note].filter(Boolean).join("; ");
+  return act("/api/in", { note: noted, at: at || start.at || null, label }, form);
+}
+
+function clockOut(form, { note, at }) {
+  if (earlyOut && !at) return askBeforeClockingOut(note);
+  return act("/api/out", { note, at: at || (interrupted && interrupted.pcWentOff) || null }, form);
 }
 
 export function focusLabel() {
@@ -71,22 +103,10 @@ export function wire() {
   $("#clock-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.target;
-    const { note, at, label } = fields(form);
-    if (current && earlyOut && !at) return askBeforeClockingOut(note);
-    const start = current || at ? {} : await askWhenStarted(unclockedSince);
-    if (!start) return;
-    const when = at || start.at || (interrupted && interrupted.pcWentOff) || null;
-    const noted = [note, start.note].filter(Boolean).join("; ");
-    if (await act(current ? "/api/out" : "/api/in", { note: noted, at: when, label }, form)) {
+    const done = await (current ? clockOut : clockIn)(form, fields(form));
+    if (done) {
       form.reset();
       form.querySelector("details").open = false;
-    }
-  });
-  $("#out-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (await act("/api/out", { note: fields(event.target).note }, event.target)) {
-      $("#out-dialog").close();
-      $("#clock-form").reset();
     }
   });
   setInterval(tick, 1000);

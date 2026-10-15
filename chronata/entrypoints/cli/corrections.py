@@ -1,9 +1,10 @@
+from chronata.entrypoints.cli.answers import answer_options, answers
 from chronata.use_cases.outcome import Outcome
 from chronata.wiring import App
 
 
 def add(args, app: App) -> Outcome:
-    return app.corrections.add(args.date, args.start, args.end, args.reason, args.note, args.label or "", args.new_label)
+    return app.corrections.add(args.date, args.start, args.end, args.reason, args.note, args.label or "", answers(args))
 
 
 def correct(args, app: App) -> Outcome:
@@ -26,7 +27,7 @@ def register(commands) -> None:
     command.add_argument("--reason", required=True, help="why it was not clocked at the time")
     command.add_argument("--note")
     command.add_argument("--label")
-    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    answer_options(command)
     command.set_defaults(run=add)
 
     command = commands.add_parser("correct", help="fix a shift's times; the original stays on record")

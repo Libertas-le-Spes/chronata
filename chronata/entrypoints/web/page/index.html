@@ -173,67 +173,12 @@
 
 </main>
 
-<dialog id="correct-dialog">
-  <form method="dialog" id="correct-form" class="grid-form">
-    <h2 class="wide">Correct shift</h2>
-    <p class="muted small wide">The original times stay on record next to the new ones.</p>
-    <input type="hidden" name="id">
-    <label>Started <input name="start" type="datetime-local" step="1" required></label>
-    <label>Finished <input name="end" type="datetime-local" step="1" required></label>
-    <label class="wide">Reason <input name="reason" type="text" required></label>
-    <div class="wide actions">
-      <button type="button" data-close>Cancel</button>
-      <button class="primary" type="submit">Save correction</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="out-dialog">
-  <form method="dialog" id="out-form" class="grid-form">
-    <h2 class="wide">Clock out now?</h2>
-    <p id="out-question" class="wide"></p>
-    <label class="wide">Why, if you'd like it on record <input name="note" type="text" autocomplete="off" placeholder="e.g. doctor's appointment, back at 15:00"></label>
-    <div class="wide actions">
-      <button type="button" data-close>No, keep working</button>
-      <button class="primary" type="submit">Yes, clock out</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="hours-dialog">
-  <form id="hours-form" class="grid-form">
-    <h2 id="hours-title" class="wide"></h2>
-    <p id="hours-intro" class="muted small wide"></p>
-    <label class="wide">Label <select name="label" id="hours-label"></select></label>
-    <label class="wide">When does the shift start and end? <input name="shift" type="text" autocomplete="off" placeholder="e.g. 08:00 to 17:00"></label>
-    <label class="wide">Lunch, if there is one <input name="lunch" type="text" autocomplete="off" placeholder="e.g. 12:00 for 30 min; leave empty for none"></label>
-    <label class="wide check"><input name="noSetHours" type="checkbox" value="1"> No set hours: only the time worked is counted</label>
-    <p id="hours-summary" class="muted small wide"></p>
-    <div class="wide actions">
-      <button type="button" data-close>Cancel</button>
-      <button class="primary" type="submit">Save</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="choice-dialog">
+<dialog id="question">
   <form method="dialog" class="grid-form">
-    <h2 id="choice-title" class="wide"></h2>
-    <p id="choice-text" class="wide"></p>
-    <div id="choice-buttons" class="wide actions"></div>
-  </form>
-</dialog>
-
-<dialog id="strike-dialog">
-  <form method="dialog" id="strike-form" class="grid-form">
-    <h2 class="wide">Strike out shift</h2>
-    <p class="muted small wide">It stays on record, crossed out, and no longer counts.</p>
-    <input type="hidden" name="id">
-    <label class="wide">Reason <input name="reason" type="text" required></label>
-    <div class="wide actions">
-      <button type="button" data-close>Cancel</button>
-      <button class="danger-button" type="submit">Strike out</button>
-    </div>
+    <h2 id="question-title" class="wide"></h2>
+    <p id="question-text" class="wide"></p>
+    <div id="question-inputs" class="wide grid-form"></div>
+    <div id="question-buttons" class="wide actions"></div>
   </form>
 </dialog>
 

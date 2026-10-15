@@ -3,6 +3,7 @@ from typing import Callable
 from chronata.entrypoints.web.page_state import page_state
 from chronata.presenters.readable_copy import label_folder
 from chronata.use_cases.outcome import Outcome
+from chronata.use_cases.questions import Answers
 from chronata.use_cases.verification import verify
 
 
@@ -22,29 +23,31 @@ def dialogs(app) -> dict[str, Callable[[dict], dict]]:
 
 def changes(app) -> dict[str, Callable[[dict], Outcome]]:
     return {
-        "/api/in": lambda body: app.clocking.clock_in(body.get("at"), body.get("note"), body.get("label"), bool(body.get("newLabel")), bool(body.get("offDefault"))),
+        "/api/in": lambda body: app.clocking.clock_in(body.get("at"), body.get("note"), body.get("label"), _answers(body)),
         "/api/out": lambda body: app.clocking.clock_out(body.get("at"), body.get("note")),
         "/api/add": lambda body: app.corrections.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note"),
-                                                     body.get("label", ""), bool(body.get("newLabel"))),
-        "/api/label": lambda body: app.labels.label_shift(int(body["id"]), body.get("label", ""), bool(body.get("newLabel"))),
-        "/api/default-label": lambda body: app.labels.set_default(body.get("label", ""), bool(body.get("newLabel"))),
-        "/api/labels/create": lambda body: app.labels.create(body.get("name", ""), body.get("shift", ""), body.get("lunch", ""),
-                                                             bool(body.get("noSetHours")), bool(body.get("newLabel"))),
+                                                     body.get("label", ""), _answers(body)),
+        "/api/label": lambda body: app.labels.label_shift(int(body["id"]), body.get("label", ""), _answers(body)),
+        "/api/default-label": lambda body: app.labels.set_default(body.get("label", ""), _answers(body)),
         "/api/labels/hours": lambda body: app.setup.set_hours(body.get("label", ""), body.get("shift", ""), body.get("lunch", ""), bool(body.get("noSetHours"))),
-        "/api/labels/rename": lambda body: app.labels.rename(body.get("from", ""), body.get("to", ""), bool(body.get("newLabel"))),
+        "/api/labels/rename": lambda body: app.labels.rename(body.get("from", ""), body.get("to", ""), _answers(body)),
         "/api/correct": lambda body: app.corrections.correct(int(body["id"]), body.get("start"), body.get("end"), body.get("reason")),
         "/api/strike": lambda body: app.corrections.strike(int(body["id"]), body.get("reason")),
         "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
         "/api/compensation": lambda body: app.compensations.record(
             body.get("label", ""), body.get("from"), body.get("to"), float(body.get("hours", "")), bool(body.get("timeOff")),
-            body.get("reference"), bool(body.get("newLabel"))
+            body.get("reference"), _answers(body)
         ),
         "/api/save": lambda body: app.log.save_now(),
         "/api/places/add": lambda body: app.saving.add_place(app.log, body.get("kind", ""), body.get("name", ""), body.get("target", ""),
                                                              body.get("username", ""), body.get("password", ""), body.get("folder", "")),
         "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
-        "/api/setup": lambda body: app.setup.configure(body.get("lunch", ""), body.get("shift", ""), body.get("label"), bool(body.get("newLabel"))),
+        "/api/setup": lambda body: app.setup.configure(body.get("lunch", ""), body.get("shift", ""), body.get("label"), _answers(body)),
     }
+
+
+def _answers(body: dict) -> Answers:
+    return Answers.from_dict(body.get("answers", {}))
 
 
 def _label_check(app, typed: str) -> dict:

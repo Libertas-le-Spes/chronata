@@ -2,6 +2,7 @@ import { act } from "./actions.js";
 import { api } from "./api.js";
 import { clockTime, dayLabel, longDate } from "./dates.js";
 import { $, el, fields } from "./dom.js";
+import { ask } from "./question.js";
 
 let kinds = {};
 
@@ -30,10 +31,17 @@ function placeCard(place) {
       el("div", { class: `state ${place.error ? "bad" : "good"}` },
         place.error ? `Last save failed: ${place.error}` : place.saved ? `Saved ${dayLabel(place.saved)}, ${clockTime(place.saved)}` : "Not saved yet"),
     ),
-    el("button", { type: "button", class: "link", onclick: () => {
-      if (confirm(`Stop saving to ${place.name}? Copies already there are left alone.`)) act("/api/places/remove", { id: place.id });
-    } }, "Remove"),
+    el("button", { type: "button", class: "link", onclick: () => removePlace(place) }, "Remove"),
   );
+}
+
+async function removePlace(place) {
+  const answer = await ask({
+    title: "Stop saving here?",
+    text: `Stop saving to ${place.name}? Copies already there are left alone.`,
+    choices: [{ caption: "Stop saving", style: "danger-button" }],
+  });
+  if (answer) act("/api/places/remove", { id: place.id });
 }
 
 function describeKind() {

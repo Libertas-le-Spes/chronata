@@ -1,6 +1,7 @@
 import { act } from "./actions.js";
 import { clockTime, dayLabel, hours, lateLabel, longDate, weekStart } from "./dates.js";
 import { $, el, fields } from "./dom.js";
+import { ask } from "./question.js";
 import { today } from "./server_time.js";
 
 function proofLine(piece) {
@@ -43,14 +44,10 @@ function chips(entry, day) {
 
 function tools(piece) {
   if (piece.voided) return null;
-  const labelButton = el("button", { type: "button", class: "link", onclick: () => {
-    const label = prompt("Client or project for this part of the day (leave empty to remove)", piece.label);
-    if (label !== null) act("/api/label", { id: piece.id, label });
-  } }, "Label");
   return el("span", { class: "tools" },
-    labelButton,
-    piece.end ? el("button", { type: "button", class: "link", onclick: () => openCorrect(piece) }, "Correct") : null,
-    piece.end ? el("button", { type: "button", class: "link", onclick: () => openStrike(piece) }, "Strike out") : null,
+    el("button", { type: "button", class: "link", onclick: () => relabel(piece) }, "Label"),
+    piece.end ? el("button", { type: "button", class: "link", onclick: () => correct(piece) }, "Correct") : null,
+    piece.end ? el("button", { type: "button", class: "link", onclick: () => strike(piece) }, "Strike out") : null,
   );
 }
 
@@ -86,20 +83,35 @@ function entryCard(entry, day) {
   );
 }
 
-function openCorrect(shift) {
-  const form = $("#correct-form");
-  form.elements.id.value = shift.id;
-  form.elements.start.value = shift.start.slice(0, 19);
-  form.elements.end.value = shift.end.slice(0, 19);
-  form.elements.reason.value = "";
-  $("#correct-dialog").showModal();
+async function relabel(piece) {
+  const answer = await ask({
+    title: "Label",
+    text: "Which client or project was this part of the day for? Leave it empty to remove the label.",
+    choices: [{ caption: "Save", style: "primary", inputs: [{ name: "label", prompt: "Label", value: piece.label, suggestions: "known-labels" }] }],
+  });
+  if (answer) act("/api/label", { id: piece.id, label: answer.answers.label });
 }
 
-function openStrike(shift) {
-  const form = $("#strike-form");
-  form.elements.id.value = shift.id;
-  form.elements.reason.value = "";
-  $("#strike-dialog").showModal();
+async function correct(piece) {
+  const answer = await ask({
+    title: "Correct shift",
+    text: "The original times stay on record next to the new ones.",
+    choices: [{ caption: "Save correction", style: "primary", inputs: [
+      { name: "start", prompt: "Started", type: "datetime-local", value: piece.start.slice(0, 19), required: true },
+      { name: "end", prompt: "Finished", type: "datetime-local", value: piece.end.slice(0, 19), required: true },
+      { name: "reason", prompt: "Reason", required: true },
+    ] }],
+  });
+  if (answer) act("/api/correct", { id: piece.id, ...answer.answers });
+}
+
+async function strike(piece) {
+  const answer = await ask({
+    title: "Strike out shift",
+    text: "It stays on record, crossed out, and no longer counts.",
+    choices: [{ caption: "Strike out", style: "danger-button", inputs: [{ name: "reason", prompt: "Reason", required: true }] }],
+  });
+  if (answer) act("/api/strike", { id: piece.id, reason: answer.answers.reason });
 }
 
 function byWeek(entries) {
@@ -141,10 +153,4 @@ export function wire() {
       event.target.elements.date.value = today();
     }
   });
-  for (const [formId, dialogId, path] of [["#correct-form", "#correct-dialog", "/api/correct"], ["#strike-form", "#strike-dialog", "/api/strike"]]) {
-    $(formId).addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (await act(path, fields(event.target), event.target)) $(dialogId).close();
-    });
-  }
 }

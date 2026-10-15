@@ -2,8 +2,10 @@ import argparse
 import sys
 
 from chronata.entrypoints.cli import clocking, compensation, corrections, desktop, labels, places, proof, reports, setup
+from chronata.entrypoints.cli.answers import how_to_answer
 from chronata.timekeeping.record import TamperedRecord
-from chronata.use_cases.outcome import LabelNeedsHours, OffDefaultLabel, Outcome, UnconfirmedLabel, UserError
+from chronata.use_cases.outcome import UserError
+from chronata.use_cases.questions import Question
 from chronata.wiring import open_app
 
 COMMAND_GROUPS = [clocking, corrections, labels, compensation, reports, proof, places, setup, desktop]
@@ -21,19 +23,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         outcome = args.run(args, open_app())
-    except UnconfirmedLabel as error:
-        print(f"chronata: {error} Add --new-label to confirm.", file=sys.stderr)
-        return 1
-    except LabelNeedsHours as error:
-        print(f"chronata: {error}: chronata label-add '{error.label}' --shift '08:00 to 17:00' (or --no-set-hours)", file=sys.stderr)
-        return 1
-    except OffDefaultLabel as error:
-        print(f"chronata: {error} Add --off-default to confirm.", file=sys.stderr)
+    except Question as question:
+        print(f"chronata: {how_to_answer(question)}", file=sys.stderr)
         return 1
     except (UserError, TamperedRecord, FileNotFoundError) as error:
         print(f"chronata: {error}", file=sys.stderr)
         return 1
-    if isinstance(outcome, Outcome):
+    if outcome is not None:
         print(outcome.message)
         if outcome.warning:
             print(outcome.warning, file=sys.stderr)

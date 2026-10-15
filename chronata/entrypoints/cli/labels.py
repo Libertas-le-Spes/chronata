@@ -1,13 +1,13 @@
 from chronata.presenters.readable_copy import label_folder
 from chronata.timekeeping.durations import hours
-from chronata.entrypoints.cli.setup import hours_options
+from chronata.entrypoints.cli.answers import answer_options, answers
 from chronata.timekeeping.labels import hours_by_label
 from chronata.use_cases.outcome import Outcome
 from chronata.wiring import App
 
 
 def label(args, app: App) -> Outcome:
-    return app.labels.label_shift(args.id, args.label, args.new_label)
+    return app.labels.label_shift(args.id, args.label, answers(args))
 
 
 def list_labels(args, app: App) -> None:
@@ -22,16 +22,16 @@ def list_labels(args, app: App) -> None:
 
 
 def add_label(args, app: App) -> Outcome:
-    return app.labels.create(args.label, args.shift or "", args.lunch or "", args.no_set_hours, args.new_label)
+    return app.labels.create(args.label, answers(args))
 
 
 def rename_label(args, app: App) -> Outcome:
-    return app.labels.rename(args.old, args.new, args.new_label)
+    return app.labels.rename(args.old, args.new, answers(args))
 
 
 def default_label(args, app: App) -> Outcome | None:
     if args.label is not None:
-        return app.labels.set_default(args.label, args.new_label)
+        return app.labels.set_default(args.label, answers(args))
     default = app.log.hours.default_label
     print(default or "no default label; set one with: chronata default-label NAME")
     return None
@@ -41,7 +41,7 @@ def register(commands) -> None:
     command = commands.add_parser("label", help="set or change a shift's client or project")
     command.add_argument("id", type=int)
     command.add_argument("label", help="the label, or '' to remove it")
-    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    answer_options(command)
     command.set_defaults(run=label)
 
     command = commands.add_parser("labels", help="every label with its folder and hours")
@@ -49,17 +49,16 @@ def register(commands) -> None:
 
     command = commands.add_parser("label-add", help="add a client or project with its own hours")
     command.add_argument("label")
-    hours_options(command)
-    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    answer_options(command)
     command.set_defaults(run=add_label)
 
     command = commands.add_parser("label-rename", help="rename a label on every shift; renaming onto an existing label merges them")
     command.add_argument("old")
     command.add_argument("new")
-    command.add_argument("--new-label", action="store_true", help="confirm a new name that looks like an existing label")
+    answer_options(command)
     command.set_defaults(run=rename_label)
 
     command = commands.add_parser("default-label", help="show or set your main client or project; on workdays clocking in on another asks first")
     command.add_argument("label", nargs="?", help="the label, or '' to have no default")
-    command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    answer_options(command)
     command.set_defaults(run=default_label)

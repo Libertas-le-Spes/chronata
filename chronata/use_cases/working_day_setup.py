@@ -2,6 +2,7 @@ from chronata.use_cases import typed_input
 from chronata.use_cases.labelling import Labelling, describe_hours
 from chronata.use_cases.log import Log, one_writer_at_a_time
 from chronata.use_cases.outcome import Outcome, UserError
+from chronata.use_cases.questions import Answers
 
 
 class WorkingDaySetup:
@@ -10,9 +11,9 @@ class WorkingDaySetup:
         self.labels = labels
 
     @one_writer_at_a_time
-    def configure(self, lunch_answer: str, shift_answer: str, default_label: str | None = None, new_label: bool = False) -> Outcome:
+    def configure(self, lunch_answer: str, shift_answer: str, default_label: str | None = None, answers: Answers = Answers()) -> Outcome:
         hours = typed_input.hours(shift_answer, lunch_answer)
-        chosen = None if default_label is None else self.labels.settle(default_label, new_label, self.labels.in_use(self.log.shifts()))
+        chosen = None if default_label is None else self.labels.settle(default_label, self.labels.in_use(self.log.shifts()), answers)
         changed = None if chosen is None else self.labels.adopt_default(chosen)
         label = self.log.hours.default_label
         self.log.label_hours.save_hours(label, hours)
@@ -22,7 +23,7 @@ class WorkingDaySetup:
     @one_writer_at_a_time
     def set_hours(self, label: str, shift_answer: str, lunch_answer: str, no_set_hours: bool = False) -> Outcome:
         known = self.labels.in_use(self.log.shifts())
-        chosen = self.labels.settle(label, False, known)
+        chosen = self.labels.settle(label, known, Answers())
         if chosen not in known:
             raise UserError(f"there is no label '{label.strip()}'; add it first")
         hours = None if no_set_hours else typed_input.hours(shift_answer, lunch_answer)

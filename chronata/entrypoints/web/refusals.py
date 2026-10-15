@@ -1,19 +1,18 @@
-from chronata.timekeeping.record import TamperedRecord
-from chronata.use_cases.outcome import LabelNeedsHours, OffDefaultLabel, UnconfirmedLabel, UserError
+from dataclasses import asdict
 
-ASKS_FOR_CONFIRMATION = 409
+from chronata.timekeeping.record import TamperedRecord
+from chronata.use_cases.outcome import UserError
+from chronata.use_cases.questions import Question
+
+ASKS_FOR_AN_ANSWER = 409
 REFUSED = 400
+
+REPLIES = [
+    (Question, ASKS_FOR_AN_ANSWER, lambda error: {"error": str(error), "question": {"text": error.text, "choices": [asdict(c) for c in error.choices]}}),
+    ((UserError, TamperedRecord), REFUSED, lambda error: {"error": str(error)}),
+    ((KeyError, ValueError), REFUSED, lambda error: {"error": "some fields are missing or not numbers"}),
+]
 
 
 def refusal(error: Exception) -> tuple[int, dict] | None:
-    if isinstance(error, UnconfirmedLabel):
-        return ASKS_FOR_CONFIRMATION, {"error": str(error), "label": error.label, "nearMisses": list(error.near_misses)}
-    if isinstance(error, LabelNeedsHours):
-        return ASKS_FOR_CONFIRMATION, {"error": str(error), "label": error.label, "needsHours": True}
-    if isinstance(error, OffDefaultLabel):
-        return ASKS_FOR_CONFIRMATION, {"error": str(error), "label": error.label, "defaultLabel": error.default_label, "offDefault": True}
-    if isinstance(error, (UserError, TamperedRecord)):
-        return REFUSED, {"error": str(error)}
-    if isinstance(error, (KeyError, ValueError)):
-        return REFUSED, {"error": "some fields are missing or not numbers"}
-    return None
+    return next(((status, reply(error)) for kinds, status, reply in REPLIES if isinstance(error, kinds)), None)

@@ -1,3 +1,4 @@
+from chronata.entrypoints.cli.answers import hours_options
 from chronata.use_cases import typed_input
 from chronata.use_cases.labelling import describe_hours
 from chronata.use_cases.outcome import Outcome
@@ -24,12 +25,6 @@ def label_hours(args, app: App) -> Outcome | None:
         default = " (default)" if label == label_hours.default_label else ""
         print(f"{label + default:24} {describe_hours(label_hours.for_label(label))}")
     return None
-
-
-def hours_options(command) -> None:
-    command.add_argument("--shift", help="when the shift starts and ends, e.g. '08:00 to 17:00'")
-    command.add_argument("--lunch", help="when lunch is and how long, e.g. '12:00 for 30 min'; leave out for no lunch")
-    command.add_argument("--no-set-hours", action="store_true", help="no shift times: only the time worked is counted")
 
 
 def register(commands) -> None:

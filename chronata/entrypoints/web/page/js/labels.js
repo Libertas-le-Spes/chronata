@@ -4,6 +4,7 @@ import { clockedIn, shiftOpen } from "./clock.js";
 import { changeHours } from "./hours.js";
 import { hours } from "./dates.js";
 import { $, el } from "./dom.js";
+import { ask } from "./question.js";
 
 let hintTimer;
 let hints = [];
@@ -27,12 +28,24 @@ function watchLabel(input) {
   return describe;
 }
 
-function renameLabel(old, known) {
-  const to = prompt(`New name for “${old}”. Every shift labelled ${old} moves with it.`, old);
-  if (to === null || !to.trim() || to.trim() === old) return;
-  const existing = known.find((name) => name.toLowerCase() === to.trim().toLowerCase() && name !== old);
-  if (existing && !confirm(`“${existing}” already exists. Merge ${old} into ${existing}? Both folders become one.`)) return;
-  act("/api/labels/rename", { from: old, to: to.trim() });
+async function confirmedMerge(old, to, known) {
+  const existing = known.find((name) => name.toLowerCase() === to.toLowerCase() && name !== old);
+  if (!existing) return true;
+  return Boolean(await ask({
+    title: "Merge labels?",
+    text: `“${existing}” already exists. Merge ${old} into ${existing}? Both folders become one.`,
+    choices: [{ caption: `Merge into “${existing}”`, style: "primary" }],
+  }));
+}
+
+async function renameLabel(old, known) {
+  const answer = await ask({
+    title: "Rename label",
+    text: `Every shift labelled ${old} moves with it.`,
+    choices: [{ caption: "Rename", style: "primary", inputs: [{ name: "to", prompt: "New name", value: old, required: true }] }],
+  });
+  const to = answer ? answer.answers.to.trim() : "";
+  if (to && to !== old && await confirmedMerge(old, to, known)) act("/api/labels/rename", { from: old, to });
 }
 
 function hoursOf(label, state) {

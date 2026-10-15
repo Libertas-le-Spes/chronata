@@ -1,6 +1,6 @@
 import unittest
 
-from chronata.use_cases.outcome import LabelNeedsHours
+from chronata.use_cases.questions import Answers, LabelNeedsHours
 from tests.fakes import Fixture
 
 
@@ -8,7 +8,7 @@ class RecordingCompensation(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T17:00:00")
         self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
-        self.f.app.labels.create("Acme", "", "", no_set_hours=True)
+        self.f.app.labels.create("Acme", Answers(no_set_hours=True))
 
     def recorded(self) -> list[dict]:
         return [entry.data for entry in self.f.app.log.record.entries() if entry.kind == "compensation"]
