@@ -1,17 +1,14 @@
 import json
+import re
 import secrets
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import re
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qsl, urlparse
 
-from chronata.entrypoints.web.page_state import page_state
-from chronata.timekeeping.record import TamperedRecord
-from chronata.presenters.readable_copy import label_folder
-from chronata.use_cases.outcome import OffDefaultLabel, UnconfirmedLabel, UserError
-from chronata.use_cases.verification import verify
+from chronata.entrypoints.web import requests
+from chronata.entrypoints.web.refusals import refusal
 
 PAGES = Path(__file__).parent / "page"
 DEFAULT_PORT = 47630
@@ -44,29 +41,6 @@ def serve_in_background(app, port: int) -> bool:
     return True
 
 
-def _actions(app) -> dict:
-    return {
-        "/api/in": lambda body: app.clocking.clock_in(body.get("at"), body.get("note"), body.get("label"), bool(body.get("newLabel")), bool(body.get("offDefault"))),
-        "/api/out": lambda body: app.clocking.clock_out(body.get("at"), body.get("note")),
-        "/api/add": lambda body: app.corrections.add(body.get("date"), body.get("start"), body.get("end"), body.get("reason"), body.get("note"),
-                                           body.get("label", ""), bool(body.get("newLabel"))),
-        "/api/label": lambda body: app.labels.label_shift(int(body["id"]), body.get("label", ""), bool(body.get("newLabel"))),
-        "/api/default-label": lambda body: app.labels.set_default(body.get("label", ""), bool(body.get("newLabel"))),
-        "/api/labels/rename": lambda body: app.labels.rename(body.get("from", ""), body.get("to", ""), bool(body.get("newLabel"))),
-        "/api/correct": lambda body: app.corrections.correct(int(body["id"]), body.get("start"), body.get("end"), body.get("reason")),
-        "/api/strike": lambda body: app.corrections.strike(int(body["id"]), body.get("reason")),
-        "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
-        "/api/paid": lambda body: app.payments.record(
-            body.get("from"), body.get("to"), float(body.get("hours", "")), bool(body.get("timeOff")), body.get("reference")
-        ),
-        "/api/save": lambda body: app.log.save_now(),
-        "/api/places/add": lambda body: app.saving.add_place(app.log, body.get("kind", ""), body.get("name", ""), body.get("target", ""),
-                                                         body.get("username", ""), body.get("password", ""), body.get("folder", "")),
-        "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
-        "/api/setup": lambda body: app.setup.configure(body.get("lunch", ""), body.get("shift", ""), body.get("label"), bool(body.get("newLabel"))),
-    }
-
-
 def _bind(app, port: int) -> HTTPServer | None:
     try:
         return HTTPServer(("127.0.0.1", port), _handler(app, port, secrets.token_urlsafe(32)))
@@ -76,7 +50,7 @@ def _bind(app, port: int) -> HTTPServer | None:
 
 def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
     allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
-    routes = _actions(app)
+    reads, dialogs, changes = requests.reads(app), requests.dialogs(app), requests.changes(app)
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -90,36 +64,26 @@ def _handler(app, port: int, token: str) -> type[BaseHTTPRequestHandler]:
                 return self._send(200, f"{CONTENT_TYPES[kind]}; charset=utf-8", (PAGES / self.path.lstrip("/")).read_bytes())
             if not self._trusted():
                 return self._json(403, {"error": "forbidden"})
-            if self.path == "/api/state":
-                return self._json(200, page_state(app))
-            if self.path.startswith("/api/label-check?"):
-                typed = parse_qs(urlparse(self.path).query).get("text", [""])[0]
-                choice = app.labels.check(typed)
-                return self._json(200, {"label": choice.label, "exists": choice.exists, "folder": label_folder(choice.label) if choice.label else "",
-                                        "nearMisses": list(choice.near_misses)})
-            if self.path == "/api/verify":
-                return self._json(200, {"problems": verify(app.log.record, app.timestamper, app.history).problems})
+            address = urlparse(self.path)
+            if address.path in reads:
+                return self._json(200, reads[address.path](dict(parse_qsl(address.query))))
             return self._json(404, {"error": "not found"})
 
         def do_POST(self):
             if not self._trusted():
                 return self._json(403, {"error": "forbidden"})
-            if self.path == "/api/choose-folder":
-                return self._json(200, {"path": app.desktop.choose_folder()})
-            action = routes.get(self.path)
-            if action is None:
+            if self.path not in dialogs and self.path not in changes:
                 return self._json(404, {"error": "not found"})
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-                outcome = action(body)
-            except UnconfirmedLabel as error:
-                return self._json(409, {"error": str(error), "label": error.label, "nearMisses": list(error.near_misses)})
-            except OffDefaultLabel as error:
-                return self._json(409, {"error": str(error), "label": error.label, "defaultLabel": error.default_label, "offDefault": True})
-            except (UserError, TamperedRecord) as error:
-                return self._json(400, {"error": str(error)})
-            except (KeyError, ValueError):
-                return self._json(400, {"error": "some fields are missing or not numbers"})
+                if self.path in dialogs:
+                    return self._json(200, dialogs[self.path](body))
+                outcome = changes[self.path](body)
+            except Exception as error:
+                refused = refusal(error)
+                if refused is None:
+                    raise
+                return self._json(*refused)
             return self._json(200, {"message": outcome.message, "warning": outcome.warning})
 
         def _trusted(self) -> bool:
