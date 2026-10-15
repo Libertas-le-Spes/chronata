@@ -3,17 +3,23 @@ from datetime import date
 from chronata.presenters.text.text_report import entry_lines, report_lines
 from chronata.timekeeping.shifts.day_entries import day_entries
 from chronata.timekeeping.shifts.durations import hours
-from chronata.timekeeping.shifts.shifts import open_shift
+from chronata.timekeeping.shifts.today import day_so_far
 from chronata.wiring import App
 
 
 def status(args, app: App) -> None:
     now = app.log.clock()
-    current = open_shift(app.log.shifts())
-    print(f"clocked in since {current.start:%Y-%m-%d %H:%M:%S}, {hours(current.worked(now))} so far" if current else "not clocked in")
+    print(_today(day_so_far(app.log.shifts(), now)))
     this_week = [week for week in app.log.weeks() if week.start <= now.date() <= week.end]
     if this_week:
         print(f"this week: worked {hours(this_week[0].worked)}, overtime {hours(this_week[0].overtime)}")
+
+
+def _today(so_far) -> str:
+    if so_far is None:
+        return "not clocked in"
+    started, worked = so_far
+    return f"clocked in, {hours(worked)} today since {started:%Y-%m-%d %H:%M:%S}"
 
 
 def list_shifts(args, app: App) -> None:

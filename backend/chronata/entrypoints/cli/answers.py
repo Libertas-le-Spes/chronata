@@ -10,6 +10,11 @@ def hours_options(command) -> None:
 def answer_options(command) -> None:
     hours_options(command)
     command.add_argument("--new-label", action="store_true", help="confirm a new label that looks like an existing one")
+    command.set_defaults(off_default=False)
+
+
+def clock_in_options(command) -> None:
+    answer_options(command)
     command.add_argument("--off-default", action="store_true", help="confirm working on a label other than the default on a workday")
 
 

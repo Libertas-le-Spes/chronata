@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 from chronata.adapters.places.kinds.folder_place import FolderPlace, ObsidianVault
+from chronata.adapters.places.kinds.git_folder_place import GitRepositoryFolder
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.places.place_kind import SavedPlace
 from chronata.adapters.places.transport.git_folder import GitFolders
@@ -113,6 +114,12 @@ class FoldersInAGitRepository(unittest.TestCase):
     def test_a_folder_chronata_did_not_make_is_left_alone(self):
         with self.assertRaisesRegex(SaveError, "was not made by Chronata"):
             self.folders.prepare("p2", str(self.remote), "Portfolio")
+
+    def test_a_refused_folder_leaves_no_copy_behind(self):
+        book = PlaceBook(Path(tempfile.mkdtemp()), [GitRepositoryFolder(self.folders)])
+        with self.assertRaises(SaveError):
+            book.add("git-folder", "", str(self.remote), folder="Portfolio")
+        self.assertEqual((list(self.folders.copies.iterdir()), book.places()), ([], []))
 
 
 class FakeWebDav(BaseHTTPRequestHandler):

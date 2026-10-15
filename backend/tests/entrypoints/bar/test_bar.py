@@ -25,6 +25,10 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
         self.assertEqual(self.desktop.asked[0][1], "Northwind")
         self.assertEqual(self.labels(), ["Northwind"])
 
+    def test_the_notification_keeps_the_label_as_it_is_written(self):
+        self.click("Northwind")
+        self.assertEqual(self.desktop.notices[-1][0], "In 2026-10-14 08:05:00 on Northwind")
+
     def test_with_no_way_to_ask_it_opens_the_page_at_the_label_box(self):
         self.desktop.dialogs_installed = False
         self.click()

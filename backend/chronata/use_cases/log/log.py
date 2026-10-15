@@ -79,5 +79,5 @@ class Log:
     def save_now(self) -> Outcome:
         with self.lock():
             warning = self.published()
-        return Outcome("saved" if warning is None else "saved, with problems", warning)
+        return Outcome("saved", warning)
 

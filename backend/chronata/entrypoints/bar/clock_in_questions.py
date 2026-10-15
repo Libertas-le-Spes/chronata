@@ -53,4 +53,4 @@ def _clock_in_on(app, label: str, at: str | None = None, note: str | None = None
     except UserError as error:
         app.desktop.notify("Could not clock in", str(error))
         return
-    app.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
+    app.desktop.notify(outcome.headline, outcome.warning or "")

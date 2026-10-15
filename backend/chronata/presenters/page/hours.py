@@ -18,7 +18,7 @@ def _setup(label_hours: LabelHours) -> dict:
         "needed": not label_hours.configured,
         "lunch": _lunch(main) if main else "",
         "shift": _shift(main) if main else typed_input.DEFAULT_SHIFT,
-        "lunchQuestion": typed_input.LUNCH_QUESTION,
+        "lunchQuestion": f"{typed_input.LUNCH_QUESTION} (leave empty for no lunch)",
         "shiftQuestion": typed_input.SHIFT_QUESTION,
         "defaultLabel": label_hours.default_label,
         "defaultLabelQuestion": typed_input.DEFAULT_LABEL_QUESTION,

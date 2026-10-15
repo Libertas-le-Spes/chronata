@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta
 from chronata.timekeeping.hours.working_day import Lunch, WorkingDay, check_fits
 from chronata.use_cases.log.outcome import UserError
 
-LUNCH_QUESTION = "When is lunch, and how long is it? (leave empty for no lunch)"
+LUNCH_QUESTION = "When is lunch, and how long is it?"
 SHIFT_QUESTION = "When does your shift start and end?"
 DEFAULT_LABEL_QUESTION = "Which client or project is your main one, if any?"
 DEFAULT_SHIFT = "08:00 to 17:00"

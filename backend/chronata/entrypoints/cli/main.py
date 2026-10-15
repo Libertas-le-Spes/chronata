@@ -29,6 +29,9 @@ def main(argv: list[str] | None = None) -> int:
     except (UserError, TamperedRecord, FileNotFoundError) as error:
         print(f"chronata: {error}", file=sys.stderr)
         return 1
+    except (EOFError, KeyboardInterrupt):
+        print("\nchronata: cancelled, nothing changed", file=sys.stderr)
+        return 1
     if outcome is not None:
         print(outcome.message)
         if outcome.warning:

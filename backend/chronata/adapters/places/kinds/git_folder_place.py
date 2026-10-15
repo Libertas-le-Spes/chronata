@@ -2,7 +2,7 @@ from dataclasses import replace
 
 from chronata.adapters.places.place_kind import SavedPlace
 from chronata.adapters.places.transport.git_folder import GitFolders, checked_folder
-from chronata.use_cases.log.ports import PlaceKindDescription
+from chronata.use_cases.log.ports import PlaceKindDescription, SaveError
 
 
 class GitRepositoryFolder:
@@ -21,7 +21,11 @@ class GitRepositoryFolder:
         return replace(place, folder=checked_folder(place.folder))
 
     def added(self, place: SavedPlace) -> None:
-        self.folders.prepare(place.id, place.target, place.folder)
+        try:
+            self.folders.prepare(place.id, place.target, place.folder)
+        except SaveError:
+            self.folders.forget(place.id)
+            raise
 
     def removed(self, place: SavedPlace) -> None:
         self.folders.forget(place.id)

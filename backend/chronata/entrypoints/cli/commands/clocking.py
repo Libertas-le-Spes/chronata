@@ -1,4 +1,4 @@
-from chronata.entrypoints.cli.answers import answer_options, answers
+from chronata.entrypoints.cli.answers import answers, clock_in_options
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
 
@@ -15,7 +15,7 @@ def register(commands) -> None:
     command = commands.add_parser("in", help="clock in now, or carry on today's shift")
     command.add_argument("--at", help="when you actually started, if you forgot (e.g. 08:04)")
     command.add_argument("--label", help="client or project, e.g. 'Acme website'; each label gets its own folder")
-    answer_options(command)
+    clock_in_options(command)
     command.add_argument("--note")
     command.set_defaults(run=clock_in)
 

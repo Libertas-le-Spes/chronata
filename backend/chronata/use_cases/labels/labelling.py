@@ -23,19 +23,25 @@ class Labelling:
     @one_writer_at_a_time
     def rename(self, old: str, new: str, answers: Answers = Answers()) -> Outcome:
         all_shifts = self.log.shifts()
-        current = _existing(old, all_shifts)
+        current = self._existing(old, all_shifts)
         target = self._new_name(new, current, all_shifts, answers)
         affected = [shift for shift in all_shifts if shift.label == current]
         now = self.log.clock()
         for shift in affected:
             self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current}"), now)
-        merged = target in known_labels(all_shifts)
+        merged = target in self.in_use(all_shifts)
         message = (f"merged {current} into {target}" if merged else f"renamed label {current} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
         return self.log.commit(message + self._carry_hours_and_default(current, target))
 
+    def _existing(self, old: str, all_shifts: list[Shift]) -> str:
+        current = choose(old, self.in_use(all_shifts))
+        if not current.label or not current.exists:
+            raise UserError(f"there is no label '{old.strip()}'")
+        return current.label
+
     def _new_name(self, new: str, current: str, all_shifts: list[Shift], answers: Answers) -> str:
-        others = [shift for shift in all_shifts if shift.label != current]
-        target = self.settle(new, known_labels(others), answers) if _key_differs(new, current) else tidy(new)
+        others = [label for label in self.in_use(all_shifts) if label != current]
+        target = self.settle(new, others, answers) if _key_differs(new, current) else tidy(new)
         if not target:
             raise UserError("give the new name for the label")
         if target == current:
@@ -104,13 +110,6 @@ def describe_hours(hours: WorkingDay | None) -> str:
         return "no set hours"
     lunch = f"lunch at {hours.lunch.start:%H:%M} for {hours.lunch.minutes} min" if hours.lunch else "no lunch"
     return f"shift {hours.shift_start:%H:%M}–{hours.shift_end:%H:%M}, {lunch}"
-
-
-def _existing(old: str, all_shifts: list[Shift]) -> str:
-    current = choose(old, known_labels(all_shifts))
-    if not current.label or not current.exists:
-        raise UserError(f"there is no label '{old.strip()}'")
-    return current.label
 
 
 def _looks_like_another(choice: LabelChoice, answers: Answers) -> bool:

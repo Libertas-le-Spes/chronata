@@ -13,7 +13,7 @@ def configure(args, app: App) -> Outcome:
     print("Press Enter to keep what is in brackets.")
     label_answer = input(f"{typed_input.DEFAULT_LABEL_QUESTION} [{label_hours.default_label or 'none'}] ").strip() or None
     shift_answer = input(f"{typed_input.SHIFT_QUESTION} [{shift_now}] ").strip() or shift_now
-    lunch_answer = input(f"{typed_input.LUNCH_QUESTION} [{lunch_now}] ").strip() or lunch_now
+    lunch_answer = input(f"{typed_input.LUNCH_QUESTION} (type none for no lunch) [{lunch_now}] ").strip() or lunch_now
     return app.setup.configure(lunch_answer, shift_answer, label_answer)
 
 

@@ -63,4 +63,4 @@ class Reminders:
         except UserError as error:
             self.desktop.notify(failure, str(error))
             return
-        self.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
+        self.desktop.notify(outcome.headline, outcome.warning or "")

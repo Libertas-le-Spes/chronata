@@ -42,6 +42,15 @@ class Labels(unittest.TestCase):
         self.assertEqual(self.labels_of_shifts(), ["Northwind", "Northwind"])
         self.assertTrue(outcome.message.startswith("merged Acme into Northwind"))
 
+    def test_renaming_onto_a_label_with_no_shifts_yet_merges_into_its_spelling(self):
+        outcome = self.f.app.labels.rename("Northwind", "acme")
+        self.assertEqual(self.labels_of_shifts(), ["Acme"])
+        self.assertTrue(outcome.message.startswith("merged Northwind into Acme"))
+
+    def test_a_label_with_no_shifts_yet_can_be_renamed(self):
+        self.f.app.labels.rename("Acme", "Acme Ltd")
+        self.assertEqual(self.f.app.log.hours.labels(), ["Northwind", "Acme Ltd"])
+
     def test_the_readable_folder_follows_a_rename(self):
         self.f.app.labels.rename("Northwind", "Northwind Ltd")
         self.assertTrue((self.f.data / "Northwind Ltd" / "Days" / "2026-10-13.md").exists())

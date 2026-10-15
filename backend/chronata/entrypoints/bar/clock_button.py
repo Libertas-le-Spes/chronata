@@ -59,4 +59,4 @@ def toggle(app) -> None:
     except UserError as error:
         app.desktop.notify("Could not clock out", str(error))
         return
-    app.desktop.notify(outcome.message.capitalize(), outcome.warning or "")
+    app.desktop.notify(outcome.headline, outcome.warning or "")
