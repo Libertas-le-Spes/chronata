@@ -24,7 +24,7 @@ class GitFolders:
         self.copies = copies
 
     def prepare(self, place_id: str, address: str, folder: str) -> None:
-        target = self._fresh_copy(place_id, address) / folder
+        target = self._fresh_copy(place_id, address, folder) / folder
         if target.exists() and not (target / WRITTEN_LIST).exists():
             raise SaveError(f"'{folder}' already exists in that repository and was not made by Chronata, so it is left alone; choose another folder")
 
@@ -45,15 +45,20 @@ class GitFolders:
     def forget(self, place_id: str) -> None:
         shutil.rmtree(self.copies / place_id, ignore_errors=True)
 
-    def _fresh_copy(self, place_id: str, address: str) -> Path:
+    def _fresh_copy(self, place_id: str, address: str, folder: str) -> Path:
         copy = self.copies / place_id
         if not (copy / ".git").exists():
-            self.copies.mkdir(parents=True, exist_ok=True)
-            cloned = self._git(self.copies, "clone", "-q", address, place_id, timeout=120)
-            if cloned.returncode != 0:
-                raise SaveError(f"could not reach {address}: {cloned.stderr.strip()}")
+            self._partial_copy(place_id, address)
+        self._git(copy, "sparse-checkout", "set", folder)
+        self._git(copy, "checkout", "-q")
         self._sync(copy)
         return copy
+
+    def _partial_copy(self, place_id: str, address: str) -> None:
+        self.copies.mkdir(parents=True, exist_ok=True)
+        cloned = self._git(self.copies, "clone", "-q", "--filter=blob:none", "--no-checkout", address, place_id, timeout=120)
+        if cloned.returncode != 0:
+            raise SaveError(f"could not reach {address}: {cloned.stderr.strip()}")
 
     def _sync(self, copy: Path) -> None:
         pulled = self._git(copy, "pull", "-q", "--rebase", timeout=60)

@@ -99,6 +99,17 @@ class FoldersInAGitRepository(unittest.TestCase):
         self.assertEqual(git("show", "main:Portfolio/later.md", cwd=self.remote), "written in Obsidian\n")
         self.assertEqual(git("show", "main:Work Logs/README.md", cwd=self.remote), "second")
 
+    def test_the_copy_holds_only_the_chosen_folder(self):
+        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"logs"})
+        copy = self.folders.copies / "p1"
+        self.assertEqual(((copy / "Work Logs" / "README.md").exists(), (copy / "Portfolio").exists()), (True, False))
+
+    def test_a_full_copy_made_before_is_narrowed_to_the_folder(self):
+        git("clone", "-q", str(self.remote), "p1", cwd=self.folders.copies)
+        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"logs"})
+        self.assertFalse((self.folders.copies / "p1" / "Portfolio").exists())
+        self.assertEqual(git("show", "main:Portfolio/note.md", cwd=self.remote), "my own note\n")
+
     def test_a_folder_chronata_did_not_make_is_left_alone(self):
         with self.assertRaisesRegex(SaveError, "was not made by Chronata"):
             self.folders.prepare("p2", str(self.remote), "Portfolio")
