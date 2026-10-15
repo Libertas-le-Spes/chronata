@@ -6,9 +6,10 @@ from chronata.timekeeping.pay import Reconciliation, reconcile
 from chronata.timekeeping.pc_sessions import PcSession, pc_sessions
 from chronata.timekeeping.replay import shifts
 from chronata.timekeeping.shifts import Shift, completed
-from chronata.timekeeping.working_day import Week, WorkingDay, weeks
+from chronata.timekeeping.label_hours import LabelHours
+from chronata.timekeeping.overtime import Week, combined, weeks_by_label
 from chronata.use_cases.outcome import Outcome, UserError
-from chronata.use_cases.ports import Clock, History, RecordStore, WorkingDayStore, WriteLock
+from chronata.use_cases.ports import Clock, History, LabelHoursStore, RecordStore, WriteLock
 
 
 def one_writer_at_a_time(operation):
@@ -20,24 +21,29 @@ def one_writer_at_a_time(operation):
 
 
 class Log:
-    def __init__(self, record: RecordStore, history: History, working_days: WorkingDayStore, lock: WriteLock, clock: Clock,
+    def __init__(self, record: RecordStore, history: History, label_hours: LabelHoursStore, lock: WriteLock, clock: Clock,
                  publish: Callable[["Log"], str | None] | None = None):
         self.record = record
         self.history = history
-        self.working_days = working_days
+        self.label_hours = label_hours
         self.lock = lock
         self.clock = clock
         self.publish = publish
 
     @property
-    def working_day(self) -> WorkingDay:
-        return self.working_days.load()
+    def hours(self) -> LabelHours:
+        return self.label_hours.load()
 
     def shifts(self) -> list[Shift]:
         return shifts(self.record.entries())
 
     def weeks(self) -> list[Week]:
-        return weeks(completed(self.shifts()), self.working_day)
+        hours = self.hours
+        return combined(weeks_by_label(completed(self.shifts()), hours), hours.default_label)
+
+    def main_weeks(self) -> list[Week]:
+        hours = self.hours
+        return weeks_by_label(completed(self.shifts()), hours).get(hours.default_label, [])
 
     def reconciliation(self, selected_weeks: list[Week]) -> Reconciliation:
         return reconcile(self.record.entries(), selected_weeks)

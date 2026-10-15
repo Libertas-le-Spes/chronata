@@ -6,7 +6,7 @@ from chronata.timekeeping.durations import hours
 from chronata.timekeeping.pay import Reconciliation
 from chronata.timekeeping.pc_sessions import PcSession
 from chronata.timekeeping.stamps import Stamp
-from chronata.timekeeping.working_day import Day, Week
+from chronata.timekeeping.overtime import Day, Week
 
 
 def entry_lines(entries: list[DayEntry], sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> list[str]:

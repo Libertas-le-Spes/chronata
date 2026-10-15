@@ -5,8 +5,8 @@ from pathlib import Path
 from chronata.adapters import locations, this_machine
 from chronata.adapters.files import data_folder
 from chronata.adapters.files.data_folder import DataFolder, find_saved_copy
+from chronata.adapters.files.label_hours_file import LabelHoursFile
 from chronata.adapters.files.ledger_file import LedgerFile
-from chronata.adapters.files.working_day_file import WorkingDayFile
 from chronata.adapters.files.write_lock import write_lock
 from chronata.adapters.history.optional_history import OptionalHistory
 from chronata.adapters.places.git_folder import GitFolders
@@ -55,10 +55,10 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     save_record = SaveRecord(settings / "saves.json")
     places = PlaceBook(settings, GitRemotes(folder.directory), GitFolders(locations.repository_copies_folder(folder.directory)), save_record)
     history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
-    log = Log(LedgerFile(folder.ledger), history, WorkingDayFile(folder.working_day), write_lock(locations.lock_file(folder.directory)), clock)
+    log = Log(LedgerFile(folder.ledger), history, LabelHoursFile(folder.rules), write_lock(locations.lock_file(folder.directory)), clock)
 
     def readable_copy(current: Log, now: datetime) -> dict[str, bytes]:
-        return readable_files(current.shifts(), current.weeks(), current.pc_sessions(), timestamper.stamps(), current.entry_count(), now)
+        return readable_files(current.shifts(), current.hours, current.pc_sessions(), timestamper.stamps(), current.entry_count(), now)
 
     saving = Saving(places, save_record, timestamper, history, folder.sealed_files, readable_copy, folder.keep_readable)
     log.publish = saving

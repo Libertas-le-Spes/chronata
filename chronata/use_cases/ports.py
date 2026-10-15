@@ -1,10 +1,11 @@
 from contextlib import AbstractContextManager
-from datetime import datetime, time
+from datetime import datetime
 from typing import Callable, Protocol
 
 from chronata.timekeeping.pc_sessions import Boot
 from chronata.timekeeping.record import Entry
 from chronata.timekeeping.stamps import Stamp
+from chronata.timekeeping.label_hours import LabelHours
 from chronata.timekeeping.working_day import WorkingDay
 
 
@@ -26,10 +27,11 @@ class History(Protocol):
     def rewrites(self) -> list[str]: ...
 
 
-class WorkingDayStore(Protocol):
-    def load(self) -> WorkingDay: ...
-    def save(self, shift_start: time, shift_end: time, lunch_start: time, lunch_minutes: int) -> None: ...
+class LabelHoursStore(Protocol):
+    def load(self) -> LabelHours: ...
+    def save_hours(self, label: str, hours: WorkingDay | None) -> None: ...
     def save_default_label(self, label: str) -> None: ...
+    def rename(self, old: str, new: str) -> None: ...
 
 
 class PowerHistory(Protocol):

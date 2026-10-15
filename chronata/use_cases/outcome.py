@@ -13,6 +13,12 @@ class UnconfirmedLabel(UserError):
         super().__init__(f"'{label}' would start a new label and folder. Did you mean {options}? Use that, or confirm '{label}' as new.")
 
 
+class LabelNeedsHours(UserError):
+    def __init__(self, label: str):
+        self.label = label
+        super().__init__(f"'{label}' is a new label; give it its hours first, or say it has no set hours")
+
+
 class OffDefaultLabel(UserError):
     def __init__(self, label: str, default_label: str):
         self.label = label

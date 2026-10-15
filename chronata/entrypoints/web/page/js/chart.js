@@ -49,8 +49,10 @@ function drawWeek(week, targetMinutes) {
     layers.push(svg("line", { class: "grid", x1: left, x2: width - right, y1: y(tick), y2: y(tick) }));
     layers.push(svg("text", { x: left - 8, y: y(tick) + 4, "text-anchor": "end" }, `${tick / 60}h`));
   }
-  layers.push(svg("line", { class: "target", x1: left, x2: width - right, y1: y(targetMinutes), y2: y(targetMinutes) }));
-  layers.push(svg("text", { x: width - right, y: y(targetMinutes) - 5, "text-anchor": "end" }, `full day ${hours(targetMinutes)}`));
+  if (targetMinutes) {
+    layers.push(svg("line", { class: "target", x1: left, x2: width - right, y1: y(targetMinutes), y2: y(targetMinutes) }));
+    layers.push(svg("text", { x: width - right, y: y(targetMinutes) - 5, "text-anchor": "end" }, `full day ${hours(targetMinutes)}`));
+  }
 
   week.days.forEach((day, index) => {
     const centre = left + band * index + band / 2;

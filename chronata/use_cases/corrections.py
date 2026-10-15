@@ -17,7 +17,7 @@ class Corrections:
         ends = typed_input.end_after(begins, end, now)
         if ends > now:
             raise UserError("that shift has not ended yet; clock in instead")
-        label = self.labels.settle(label, new_label, self.labels.in_use(self.log.shifts()))
+        label = self.labels.settle(label, new_label, self.labels.in_use(self.log.shifts()), needs_hours=True)
         data = with_note({"start": begins.isoformat(), "end": ends.isoformat(), "reason": typed_input.required(reason), **with_label(label)}, note)
         return self.log.write("shift_added", data, f"added {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}, worked {hours(ends - begins)}", now)
 

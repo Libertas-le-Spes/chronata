@@ -1,20 +1,35 @@
 import re
 from datetime import date, datetime, time, timedelta
 
+from chronata.timekeeping.working_day import Lunch, WorkingDay, check_fits
 from chronata.use_cases.outcome import UserError
 
-LUNCH_QUESTION = "When is lunch, and how long is it?"
+LUNCH_QUESTION = "When is lunch, and how long is it? (leave empty for no lunch)"
 SHIFT_QUESTION = "When does your shift start and end?"
 DEFAULT_LABEL_QUESTION = "Which client or project is your main one, if any?"
-DEFAULT_LUNCH = "12:00 for 60 min"
 DEFAULT_SHIFT = "08:00 to 17:00"
 
 CLOCK = re.compile(r"(\d{1,2})(?:[:h.](\d{2}))?\s*(am|pm)?", re.IGNORECASE)
 LENGTH = re.compile(r"(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)?\s*(?:(\d+)\s*(?:m|min|mins|minutes)?)?\s*$", re.IGNORECASE)
 
 
-def lunch(answer: str) -> tuple[time, int]:
-    text = answer.strip() or DEFAULT_LUNCH
+NO_LUNCH = {"", "none", "no", "no lunch", "-"}
+
+
+def hours(shift_answer: str, lunch_answer: str) -> WorkingDay:
+    shift_start, shift_end = shift(shift_answer)
+    taken = lunch(lunch_answer)
+    try:
+        check_fits(shift_start, shift_end, taken)
+    except ValueError as error:
+        raise UserError(str(error))
+    return WorkingDay(shift_start, shift_end, taken)
+
+
+def lunch(answer: str) -> Lunch | None:
+    text = answer.strip()
+    if text.lower() in NO_LUNCH:
+        return None
     found = CLOCK.match(text)
     if not found:
         raise UserError(f"'{text}' needs a time and a length, like 12:00 for 60 min")
@@ -26,7 +41,7 @@ def lunch(answer: str) -> tuple[time, int]:
     minutes = round(amount * 60) + int(extra or 0) if unit.startswith("h") else round(amount)
     if not 0 <= minutes <= 240:
         raise UserError("lunch has to be between 0 and 4 hours")
-    return _clock(found), minutes
+    return Lunch(_clock(found), minutes) if minutes else None
 
 
 def shift(answer: str) -> tuple[time, time]:

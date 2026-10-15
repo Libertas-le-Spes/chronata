@@ -1,18 +1,20 @@
 import unittest
 from datetime import time
 
+from chronata.timekeeping.working_day import Lunch
 from chronata.use_cases import typed_input
 from chronata.use_cases.outcome import UserError
 
 
 class SetupAnswers(unittest.TestCase):
-    def test_blank_answers_take_the_defaults(self):
-        self.assertEqual(typed_input.lunch(""), (time(12), 60))
+    def test_a_blank_shift_takes_the_default_and_a_blank_lunch_means_none(self):
         self.assertEqual(typed_input.shift(""), (time(8), time(17)))
+        for none in ("", "none", "No lunch", "0:00 for 0 min"):
+            self.assertIsNone(typed_input.lunch(none), none)
 
     def test_the_ways_people_write_times(self):
-        self.assertEqual(typed_input.lunch("12h30 for 45 min"), (time(12, 30), 45))
-        self.assertEqual(typed_input.lunch("13:00 1h30"), (time(13), 90))
+        self.assertEqual(typed_input.lunch("12h30 for 45 min"), Lunch(time(12, 30), 45))
+        self.assertEqual(typed_input.lunch("13:00 1h30"), Lunch(time(13), 90))
         self.assertEqual(typed_input.shift("08h00 to 17h00"), (time(8), time(17)))
         self.assertEqual(typed_input.shift("9am-5pm"), (time(9), time(17)))
 

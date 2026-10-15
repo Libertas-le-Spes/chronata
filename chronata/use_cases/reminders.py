@@ -29,8 +29,8 @@ class Reminders:
 
     def on_login(self) -> None:
         self.pc.record_sessions()
-        if not self.log.working_day.configured:
-            self.desktop.notify("Set your working day", "Two questions: when lunch is, and your shift hours. Click to answer.",
+        if not self.log.hours.configured:
+            self.desktop.notify("Set your working day", "Your shift hours, and lunch if you take one. Click to answer.",
                                 self._open("setup"), click_label="Set up")
         for _, gap in unexplained_pc_breaks(self.log.shifts(), self.log.clock().date()):
             self.desktop.notify(f"Your PC was off {gap.start:%H:%M}–{gap.end:%H:%M}",
@@ -55,9 +55,9 @@ class Reminders:
         now = self.log.clock()
         all_shifts = self.log.shifts()
         current = open_shift(all_shifts)
-        lunch_starts, lunch_ends = self.log.working_day.lunch_on(now.date(), now.tzinfo)
         if current:
-            if lunch_starts <= now < lunch_ends and now.date() not in self.lunch_asked:
+            lunch = self._lunch(current.label, now)
+            if lunch and lunch[0] <= now < lunch[1] and now.date() not in self.lunch_asked:
                 self.lunch_asked.add(now.date())
                 self.desktop.notify("Lunch time", "Clocking out for lunch? Ignore this if you're working through it.",
                                     lambda: self._clock_out(None, "lunch"), click_label="Clock out for lunch")
@@ -66,8 +66,9 @@ class Reminders:
                 self.desktop.notify("Still working?", f"Clocked in since {current.start:%H:%M}. Click to open the log.", self._open(""))
             return
         finished_today = [s for s in completed(all_shifts) if s.start.date() == now.date()]
-        out_for_lunch = any(lunch_starts <= s.end < lunch_ends for s in finished_today)
-        if out_for_lunch and now >= lunch_ends and now.date() not in self.lunch_return_asked:
+        lunches = [(s, self._lunch(s.label, now)) for s in finished_today]
+        out_for_lunch = [lunch for s, lunch in lunches if lunch and lunch[0] <= s.end < lunch[1]]
+        if out_for_lunch and now >= out_for_lunch[-1][1] and now.date() not in self.lunch_return_asked:
             self.lunch_return_asked.add(now.date())
             self.desktop.notify("Lunch is over", "Clocking back in?", lambda: self._clock_in("back from lunch"), click_label="Clock back in")
             return
@@ -77,7 +78,7 @@ class Reminders:
         if len(sent) >= REMINDERS_PER_DAY or (sent and now - sent[-1] < BETWEEN_REMINDERS):
             return
         sent.append(now)
-        if now.weekday() in self.log.working_day.workdays:
+        if self.log.hours.is_workday(now):
             self.desktop.notify("Not clocked in", "If you've started work, click to clock in now.",
                                 lambda: self._clock_in("clocked in from the reminder"), click_label="Clock in")
         else:
@@ -89,6 +90,10 @@ class Reminders:
         while True:
             self.tick()
             sleep(60)
+
+    def _lunch(self, label: str, now: datetime) -> tuple[datetime, datetime] | None:
+        hours = self.log.hours.for_label(label)
+        return hours.lunch_on(now.date(), now.tzinfo) if hours else None
 
     def _open(self, section: str):
         return lambda: self.desktop.open_page(self.page_url + (f"#{section}" if section else ""))

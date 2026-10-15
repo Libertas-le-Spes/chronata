@@ -69,5 +69,25 @@ class PcOffPrompt(unittest.TestCase):
         self.assertEqual(f.desktop.opened, ["http://page/#explain-break"])
 
 
+class LunchPerLabel(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:30:00")
+        self.f.app.setup.configure("12:00 for 60 min", "08:30 to 17:30", "Northwind")
+        self.f.app.labels.create("Globex", "08:00 to 14:00", "")
+        self.f.app.labels.create("Late lunch", "09:00 to 18:00", "13:30 for 30 min")
+
+    def lunch_prompts(self, label: str, moment: str) -> list[str]:
+        self.f.app.clocking.clock_in(None, None, label, off_default=True)
+        self.f.at(moment)
+        Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, "http://page/").tick()
+        return [summary for summary, _ in self.f.desktop.notices if summary == "Lunch time"]
+
+    def test_a_label_without_lunch_is_never_asked(self):
+        self.assertEqual(self.lunch_prompts("Globex", "2026-10-14T12:00:30"), [])
+
+    def test_a_label_is_asked_at_its_own_lunch_time(self):
+        self.assertEqual(self.lunch_prompts("Late lunch", "2026-10-14T13:30:30"), ["Lunch time"])
+
+
 if __name__ == "__main__":
     unittest.main()

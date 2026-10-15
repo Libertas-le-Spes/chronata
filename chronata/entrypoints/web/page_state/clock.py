@@ -6,6 +6,7 @@ def state(app, taken: Snapshot) -> dict:
     current, interrupted, now = taken.current, taken.interrupted, taken.now
     today = day_so_far(taken.shifts, now)
     this_boot = app.pc.this_boot()
+    shift_hours = taken.hours.for_label(current.label) if current else None
     unclocked = app.clocking.unclocked_since()
     return {
         "now": now.isoformat(),
@@ -17,6 +18,6 @@ def state(app, taken: Snapshot) -> dict:
         } if interrupted else None,
         "pcOnSince": this_boot.on.isoformat() if this_boot else None,
         "unclockedSince": unclocked.isoformat() if unclocked else None,
-        "beforeEndOfWorkday": taken.working_day.before_end_of_workday(now),
-        "shiftEnd": f"{taken.working_day.shift_end:%H:%M}",
+        "beforeEndOfWorkday": bool(current) and taken.hours.before_end_of_workday(current.label, now),
+        "shiftEnd": f"{shift_hours.shift_end:%H:%M}" if shift_hours else None,
     }

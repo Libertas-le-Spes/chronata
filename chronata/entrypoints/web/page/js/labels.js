@@ -1,6 +1,7 @@
 import { act } from "./actions.js";
 import { api } from "./api.js";
 import { clockedIn, shiftOpen } from "./clock.js";
+import { changeHours } from "./hours.js";
 import { hours } from "./dates.js";
 import { $, el } from "./dom.js";
 
@@ -34,14 +35,23 @@ function renameLabel(old, known) {
   act("/api/labels/rename", { from: old, to: to.trim() });
 }
 
+function hoursOf(label, state) {
+  const found = state.labelHours.find((hours) => hours.label === label);
+  if (!found) return "not set";
+  if (!found.setHours) return "no set hours";
+  return found.lunch ? `${found.shift}, lunch ${found.lunch}` : `${found.shift}, no lunch`;
+}
+
 function labelRow(row, state) {
   const isDefault = row.label === state.defaultLabel;
   return el("tr", {},
     el("td", {}, row.label, isDefault ? el("span", { class: "chip label" }, "default") : null,
       row.openNow ? el("span", { class: "chip live" }, " open") : null),
+    el("td", { class: "muted" }, hoursOf(row.label, state)),
     el("td", { class: "muted" }, `${row.folder}/`),
     el("td", { class: "number" }, hours(row.week)), el("td", { class: "number" }, hours(row.all)),
     el("td", { class: "row-actions" },
+      el("button", { type: "button", class: "link", onclick: () => changeHours(row.label) }, "Hours"),
       el("button", { type: "button", class: "link", onclick: () => renameLabel(row.label, state.labels) }, "Rename"),
       el("button", { type: "button", class: "link", onclick: () => act("/api/default-label", { label: isDefault ? "" : row.label }) },
         isDefault ? "No default" : "Make default")),
@@ -59,7 +69,7 @@ export function render(state) {
   $("#by-label").replaceChildren(...(rows.length ? [el("div", { class: "card" },
     el("h3", {}, "Labels"),
     el("table", { class: "label-table" },
-      el("tr", {}, el("th", {}, "Label"), el("th", {}, "Folder"), el("th", { class: "number" }, "This week"), el("th", { class: "number" }, "All time"), el("th", {}, "")),
+      el("tr", {}, el("th", {}, "Label"), el("th", {}, "Hours"), el("th", {}, "Folder"), el("th", { class: "number" }, "This week"), el("th", { class: "number" }, "All time"), el("th", {}, "")),
       ...rows.map((row) => labelRow(row, state)),
     ),
   )] : []));

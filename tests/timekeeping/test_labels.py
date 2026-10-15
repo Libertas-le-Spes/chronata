@@ -2,7 +2,7 @@ import unittest
 
 from datetime import timedelta
 
-from chronata.timekeeping.labels import choose, hours_by_label
+from chronata.timekeeping.labels import choose, hours_by_label, worked_by_label
 from chronata.timekeeping.shifts import Shift
 from tests.fakes import at
 
@@ -31,6 +31,15 @@ class HoursPerLabel(unittest.TestCase):
                   Shift(2, at("2026-10-14T08:00:00"), None, timedelta(), "Northwind")]
         row = hours_by_label(shifts, at("2026-10-14T10:30:00"))[0]
         self.assertEqual((row.label, row.all_time, row.open_now), ("Northwind", timedelta(hours=6, minutes=30), True))
+
+
+class TimePerLabel(unittest.TestCase):
+    def test_hours_are_totalled_per_label(self):
+        def shift(day: str, start: str, end: str, label: str) -> Shift:
+            return Shift(1, at(f"{day}T{start}"), at(f"{day}T{end}"), timedelta(), label)
+        totals = worked_by_label([shift("2026-10-05", "08:00", "12:00", "Acme"), shift("2026-10-05", "13:00", "15:00", "Globex"),
+                                  shift("2026-10-06", "08:00", "09:00", "Acme")])
+        self.assertEqual(totals, {"Acme": timedelta(hours=5), "Globex": timedelta(hours=2)})
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from chronata.entrypoints.web.page_state.snapshot import Snapshot
 from chronata.presenters.explanation import LATE_ENOUGH_TO_FLAG
 from chronata.timekeeping.day_entries import DayEntry, day_entries, pc_share
 from chronata.timekeeping.durations import minutes
+from chronata.timekeeping.overtime import Day, days_so_far
 from chronata.timekeeping.pc_sessions import PcSession, support
 from chronata.timekeeping.shifts import Shift
 from chronata.timekeeping.stamps import Stamp
@@ -12,6 +13,7 @@ from chronata.timekeeping.start_proof import start_proof
 
 def state(app, taken: Snapshot) -> dict:
     stamps = app.timestamper.stamps()
+    days = days_so_far(taken.shifts, taken.hours, taken.now)
     newest_day_first = sorted(day_entries(taken.shifts), key=lambda e: (-e.day.toordinal(), e.start))
     return {
         "weeks": [
@@ -19,11 +21,8 @@ def state(app, taken: Snapshot) -> dict:
              "overtime": minutes(week.overtime), "running": week.end >= taken.now.date()}
             for week in reversed(taken.weeks)
         ],
-        "entries": [_entry(entry, taken.sessions, stamps, taken.now) for entry in newest_day_first],
-        "days": {
-            day.date.isoformat(): {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()}
-            for week in taken.weeks for day in week.days if day.late > timedelta() or day.short > timedelta()
-        },
+        "entries": [_entry(entry, days.get((entry.day, entry.label or taken.hours.default_label)), taken.sessions, stamps, taken.now)
+                    for entry in newest_day_first],
         "unexplainedBreaks": [
             {"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()}
             for shift in taken.shifts for gap in shift.breaks if gap.cause == "PC off" and not gap.reason
@@ -31,7 +30,8 @@ def state(app, taken: Snapshot) -> dict:
     }
 
 
-def _entry(entry: DayEntry, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
+def _entry(entry: DayEntry, day: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
+    flagged = day is not None and (day.late > timedelta() or day.short > timedelta())
     return {
         "day": entry.day.isoformat(),
         "label": entry.label,
@@ -40,6 +40,7 @@ def _entry(entry: DayEntry, sessions: list[PcSession], stamps: list[Stamp], now:
         "worked": minutes(entry.worked(now)),
         "voided": entry.voided,
         "pcShare": pc_share(entry, sessions, now),
+        "punctuality": {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "lastOut": day.last_out.isoformat()} if flagged else None,
         "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
     }
 

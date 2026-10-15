@@ -41,3 +41,5 @@ button:disabled { opacity: 0.6; cursor: progress; }
 .small-button { padding: 4px 12px; font-size: 0.85rem; }
 .with-button { display: flex; gap: 8px; }
 .with-button input { flex: 1; }
+.grid-form label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
+input[type="checkbox"] { width: auto; }

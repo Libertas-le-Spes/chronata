@@ -1,11 +1,24 @@
 import { api } from "./api.js";
 import { askAboutNewLabel, askAboutOffDefault } from "./choices.js";
+import { askForHours } from "./hours_dialog.js";
 import { toast } from "./toast.js";
 
 let afterChange = async () => {};
 
 export function whenChanged(refresh) {
   afterChange = refresh;
+}
+
+async function createLabel(label) {
+  const hours = await askForHours(label, true);
+  if (!hours) return false;
+  try {
+    await api("/api/labels/create", { name: label, shift: hours.shift, lunch: hours.lunch, noSetHours: hours.noSetHours, newLabel: true });
+    return true;
+  } catch (error) {
+    toast(error.message, "bad");
+    return false;
+  }
 }
 
 export async function act(path, body, form) {
@@ -17,6 +30,10 @@ export async function act(path, body, form) {
     await afterChange();
     return true;
   } catch (error) {
+    if (error.status === 409 && error.payload.needsHours) {
+      buttons.forEach((button) => (button.disabled = false));
+      return (await createLabel(error.payload.label)) ? act(path, body, form) : false;
+    }
     if (error.status === 409 && (error.payload.nearMisses || error.payload.offDefault)) {
       buttons.forEach((button) => (button.disabled = false));
       const field = "label" in body ? "label" : "to";

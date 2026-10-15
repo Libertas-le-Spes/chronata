@@ -4,10 +4,11 @@ from datetime import date, datetime, time, timedelta
 from chronata.timekeeping.pay import reconcile
 from chronata.timekeeping.record import Entry
 from chronata.timekeeping.shifts import Shift
-from chronata.timekeeping.working_day import WorkingDay, weeks
+from chronata.timekeeping.overtime import weeks
+from chronata.timekeeping.working_day import WorkingDay
 from tests.fakes import SAST, at
 
-NO_LUNCH = WorkingDay(time(8), time(16), time(12), 0, frozenset(range(5)), 40, True)
+NO_LUNCH = WorkingDay(time(8), time(16))
 
 
 def overtime_on(*days: tuple[str, str, str]):

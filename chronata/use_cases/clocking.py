@@ -24,15 +24,15 @@ class Clocking:
         if current:
             raise UserError(f"already clocked in since {current.start:%Y-%m-%d %H:%M:%S}")
         start = typed_input.moment(at, now.date(), now) if at else now
-        working_day = self.log.working_day
-        chosen = working_day.default_label if label is None else self.labels.settle(label, new_label, self.labels.in_use(all_shifts))
+        label_hours = self.log.hours
+        chosen = label_hours.default_label if label is None else self.labels.settle(label, new_label, self.labels.in_use(all_shifts), needs_hours=True)
         earlier_today = resumable(all_shifts, start)
         if earlier_today and start > earlier_today.end and (label is None or earlier_today.label == chosen):
             data = with_note({"shift": earlier_today.id, "at": start.isoformat(), "boot": self.pc.current_boot_id()}, note)
             message = f"back on today's shift at {start:%H:%M:%S} after a {hours(start - earlier_today.end)} break"
             return self.log.write("clock_resumed", data, message, now)
-        if working_day.strays_from_default(chosen, start) and not off_default:
-            raise OffDefaultLabel(chosen, working_day.default_label)
+        if label_hours.strays_from_default(chosen, start) and not off_default:
+            raise OffDefaultLabel(chosen, label_hours.default_label)
         data = with_note({"at": start.isoformat(), "boot": self.pc.current_boot_id(), **with_label(chosen)}, note)
         return self.log.write("clock_in", data, f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {chosen}" if chosen else ""), now)
 

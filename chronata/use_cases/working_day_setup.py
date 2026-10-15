@@ -1,9 +1,5 @@
-from datetime import timedelta
-
-from chronata.timekeeping.durations import hours
-from chronata.timekeeping.working_day import check_fits
 from chronata.use_cases import typed_input
-from chronata.use_cases.labelling import Labelling
+from chronata.use_cases.labelling import Labelling, describe_hours
 from chronata.use_cases.log import Log, one_writer_at_a_time
 from chronata.use_cases.outcome import Outcome, UserError
 
@@ -15,17 +11,20 @@ class WorkingDaySetup:
 
     @one_writer_at_a_time
     def configure(self, lunch_answer: str, shift_answer: str, default_label: str | None = None, new_label: bool = False) -> Outcome:
-        lunch_start, lunch_minutes = typed_input.lunch(lunch_answer)
-        shift_start, shift_end = typed_input.shift(shift_answer)
-        try:
-            check_fits(shift_start, shift_end, lunch_start, lunch_minutes)
-        except ValueError as error:
-            raise UserError(str(error))
+        hours = typed_input.hours(shift_answer, lunch_answer)
         chosen = None if default_label is None else self.labels.settle(default_label, new_label, self.labels.in_use(self.log.shifts()))
-        self.log.working_days.save(shift_start, shift_end, lunch_start, lunch_minutes)
-        message = (
-            f"set shift {shift_start:%H:%M}–{shift_end:%H:%M} with lunch at {lunch_start:%H:%M} for {lunch_minutes} min, "
-            f"so a full day is {hours(timedelta(hours=self.log.working_day.daily_hours))}"
-        )
         changed = None if chosen is None else self.labels.adopt_default(chosen)
+        label = self.log.hours.default_label
+        self.log.label_hours.save_hours(label, hours)
+        message = f"set {label or 'your'} hours: {describe_hours(hours)}, so a full day is {hours.daily_hours:g} h"
         return self.log.commit(message + (f"; {changed}" if changed else ""))
+
+    @one_writer_at_a_time
+    def set_hours(self, label: str, shift_answer: str, lunch_answer: str, no_set_hours: bool = False) -> Outcome:
+        known = self.labels.in_use(self.log.shifts())
+        chosen = self.labels.settle(label, False, known)
+        if chosen not in known:
+            raise UserError(f"there is no label '{label.strip()}'; add it first")
+        hours = None if no_set_hours else typed_input.hours(shift_answer, lunch_answer)
+        self.log.label_hours.save_hours(chosen, hours)
+        return self.log.commit(f"set {chosen} hours: {describe_hours(hours)}")

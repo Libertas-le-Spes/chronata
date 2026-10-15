@@ -3,7 +3,7 @@ from chronata.timekeeping.durations import minutes
 
 
 def state(app, taken: Snapshot) -> dict:
-    reconciliation = app.log.reconciliation(taken.weeks)
+    reconciliation = app.log.reconciliation(app.log.main_weeks())
     return {
         "periods": [
             {"start": period.start.isoformat(), "end": period.end.isoformat(), "owed": minutes(period.owed),

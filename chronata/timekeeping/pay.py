@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from chronata.timekeeping.record import Entry
-from chronata.timekeeping.working_day import NONE, Day, Week
+from chronata.timekeeping.overtime import NONE, Day, Week
 
 
 @dataclass(frozen=True)

@@ -98,15 +98,6 @@ function openStrike(shift) {
   $("#strike-dialog").showModal();
 }
 
-function firstEntryOfEachDay(state) {
-  const firstOfDay = new Map();
-  for (const [date, day] of Object.entries(state.days)) {
-    const earliest = state.entries.filter((e) => e.day === date && !e.voided).sort((a, b) => a.start.localeCompare(b.start))[0];
-    if (earliest) firstOfDay.set(earliest, day);
-  }
-  return firstOfDay;
-}
-
 function byWeek(entries) {
   const groups = new Map();
   for (const entry of entries) {
@@ -126,7 +117,6 @@ export function render(state) {
     return;
   }
   const weeks = new Map(state.weeks.map((week) => [week.start, week]));
-  const firstOfDay = firstEntryOfEachDay(state);
   container.replaceChildren(...[...byWeek(state.entries)].map(([start, entries]) => {
     const week = weeks.get(start);
     return el("section", { class: "week" },
@@ -134,7 +124,7 @@ export function render(state) {
         el("h3", {}, `Week of ${longDate(start)}`),
         week ? el("span", { class: "sum" }, el("strong", {}, hours(week.worked)), " worked · ", el("strong", {}, hours(week.overtime)), week.running ? " overtime so far" : " overtime") : null,
       ),
-      el("div", { class: "shift-list" }, entries.map((entry) => entryCard(entry, firstOfDay.get(entry)))),
+      el("div", { class: "shift-list" }, entries.map((entry) => entryCard(entry, entry.punctuality))),
     );
   }));
 }

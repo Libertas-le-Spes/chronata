@@ -9,6 +9,8 @@ class SameDayShifts(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:03:00")
         self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00")
+        for label in ("Acme", "Globex"):
+            self.f.app.labels.create(label, "", "", no_set_hours=True)
         self.f.app.clocking.clock_in(None, None, "Acme")
 
     def test_clocking_back_in_the_same_day_continues_the_shift_without_counting_the_break(self):
@@ -40,6 +42,7 @@ class ClockingInOnTheDefault(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:00:00")
         self.f.app.setup.configure("12:00 for 60 min", "08:00 to 17:00", "Northwind")
+        self.f.app.labels.create("Acme", "", "", no_set_hours=True)
 
     def test_on_a_workday_another_label_asks_first_and_records_nothing(self):
         with self.assertRaises(OffDefaultLabel) as raised:

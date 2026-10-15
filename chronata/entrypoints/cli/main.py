@@ -3,7 +3,7 @@ import sys
 
 from chronata.entrypoints.cli import clocking, corrections, desktop, labels, pay, places, proof, reports, setup
 from chronata.timekeeping.record import TamperedRecord
-from chronata.use_cases.outcome import OffDefaultLabel, Outcome, UnconfirmedLabel, UserError
+from chronata.use_cases.outcome import LabelNeedsHours, OffDefaultLabel, Outcome, UnconfirmedLabel, UserError
 from chronata.wiring import open_app
 
 COMMAND_GROUPS = [clocking, corrections, labels, pay, reports, proof, places, setup, desktop]
@@ -23,6 +23,9 @@ def main(argv: list[str] | None = None) -> int:
         outcome = args.run(args, open_app())
     except UnconfirmedLabel as error:
         print(f"chronata: {error} Add --new-label to confirm.", file=sys.stderr)
+        return 1
+    except LabelNeedsHours as error:
+        print(f"chronata: {error}: chronata label-add '{error.label}' --shift '08:00 to 17:00' (or --no-set-hours)", file=sys.stderr)
         return 1
     except OffDefaultLabel as error:
         print(f"chronata: {error} Add --off-default to confirm.", file=sys.stderr)

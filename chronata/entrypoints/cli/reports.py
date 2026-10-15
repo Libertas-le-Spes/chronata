@@ -23,7 +23,7 @@ def list_shifts(args, app: App) -> None:
 
 
 def report(args, app: App) -> None:
-    selected = [week for week in app.log.weeks() if _within(week.start, args)]
+    selected = [week for week in app.log.main_weeks() if _within(week.start, args)]
     chosen = [s for s in completed(app.log.shifts()) if _within(s.start.date(), args)]
     print("\n".join(report_lines(selected, app.log.reconciliation(selected), app.log.clock().date(), worked_by_label(chosen))))
 

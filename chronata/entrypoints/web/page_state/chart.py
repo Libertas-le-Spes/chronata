@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
 from chronata.timekeeping.durations import minutes
 from chronata.timekeeping.shifts import Shift, completed
-from chronata.timekeeping.working_day import Week, weeks
+from chronata.timekeeping.overtime import Week, combined, weeks_by_label
 
 WEEKS_SHOWN = 8
 
@@ -13,10 +13,11 @@ def state(app, taken: Snapshot) -> dict:
     running = None if taken.interrupted else taken.current
     now = taken.now
     counted = completed(taken.shifts) + ([replace(running, end=now)] if running else [])
-    recent: dict[date, Week | None] = {week.start: week for week in weeks(counted, taken.working_day)[-WEEKS_SHOWN:]}
+    all_weeks = combined(weeks_by_label(counted, taken.hours), taken.hours.default_label)
+    recent: dict[date, Week | None] = {week.start: week for week in all_weeks[-WEEKS_SHOWN:]}
     recent.setdefault(now.date() - timedelta(days=now.weekday()), None)
     return {"chart": {
-        "targetMinutes": round(taken.working_day.daily_hours * 60),
+        "targetMinutes": round(taken.hours.main.daily_hours * 60) if taken.hours.main else 0,
         "weeks": [
             {"start": start.isoformat(), "days": [_day(start + timedelta(days=i), week, now, running) for i in range(7)]}
             for start, week in sorted(recent.items())

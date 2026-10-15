@@ -15,7 +15,9 @@ def day_so_far(all_shifts: list[Shift], now: datetime) -> tuple[datetime, timede
     current = open_shift(all_shifts)
     if current is None:
         return None
-    today = [shift for shift in all_shifts if not shift.voided and shift.start.date() == now.date() and shift is not current] + [current]
+    same_label_today = [shift for shift in all_shifts
+                        if not shift.voided and shift.start.date() == now.date() and shift.label == current.label and shift is not current]
+    today = same_label_today + [current]
     return min(shift.start for shift in today), sum((shift.worked(shift.end or now) for shift in today), timedelta())
 
 
