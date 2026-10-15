@@ -12,7 +12,7 @@ LATE_ENOUGH_TO_FLAG = timedelta(minutes=15)
 def piece_lines(piece: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> list[str]:
     proof = start_proof(piece, sessions, stamps)
     span = f"{piece.start:%H:%M:%S}–{piece.end:%H:%M:%S} ({hours(piece.worked(piece.end))})" if piece.end else f"{piece.start:%H:%M:%S}–now"
-    lines = [f"shift {piece.id}, {span}" + (", struck out" if piece.voided else ""), started(proof, piece.start)]
+    lines = [f"shift {piece.id}, {span}" + (", marked as a mistake" if piece.voided else ""), started(proof, piece.start)]
     if piece.entered_late_by > LATE_ENOUGH_TO_FLAG:
         lines.append("written down later, from the PC-on time" if proof.from_pc_on else f"entered {_ago(piece.entered_late_by)} after the fact")
     lines.append(pc_support(piece, sessions, now))

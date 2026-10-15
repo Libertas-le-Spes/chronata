@@ -109,7 +109,7 @@ def _row(entry: DayEntry, sessions: list[PcSession], now: datetime) -> str:
 
 def _status(entry: DayEntry) -> str:
     if entry.voided:
-        return "struck out"
+        return "marked as a mistake"
     return "still open" if entry.end is None else ""
 
 

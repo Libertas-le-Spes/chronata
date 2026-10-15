@@ -68,7 +68,7 @@ class LabellingAShift(unittest.TestCase):
     def test_a_label_change_stays_on_the_record(self):
         self.f.at("2026-10-14T12:00:00")
         self.f.app.clocking.clock_out(None, None)
-        self.f.app.labels.label_shift(self.f.app.log.shifts()[0].id, "Globex")
+        self.f.app.labels.label_shifts([self.f.app.log.shifts()[0].id], "Globex")
         shift = self.f.app.log.shifts()[0]
         self.assertEqual(shift.label, "Globex")
         self.assertIn("label changed from Acme to Globex", shift.changes[-1])

@@ -20,7 +20,7 @@ export function shiftOpen() {
 export function render(state) {
   current = state.open;
   interrupted = state.interrupted;
-  earlyOut = current && !interrupted && state.beforeEndOfWorkday ? state.shiftEnd : null;
+  earlyOut = clockedIn() && state.beforeEndOfWorkday ? state.shiftEnd : null;
   unclockedSince = state.unclockedSince;
   $(".clock").classList.toggle("live", clockedIn());
   $(".clock").classList.toggle("interrupted", Boolean(interrupted));

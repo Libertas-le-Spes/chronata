@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from chronata.presenters.page.day_lines import DayRecords, day_lines
 from chronata.presenters.page.facts import PageFacts
 from chronata.presenters.page.values import iso
 from chronata.presenters.text.explanation import LATE_ENOUGH_TO_FLAG
@@ -22,7 +23,7 @@ def state(facts: PageFacts) -> dict:
              "overtime": minutes(week.overtime), "running": week.end >= facts.now.date()}
             for week in reversed(facts.weeks)
         ],
-        "entries": [_entry(entry, days.get((entry.day, entry.label or facts.hours.default_label)), facts.sessions, stamps, facts.now)
+        "entries": [_entry(entry, days.get((entry.day, entry.label or facts.hours.default_label)), DayRecords(facts.sessions, stamps, facts.now))
                     for entry in newest_day_first],
         "unexplainedBreaks": [
             {"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()}
@@ -31,7 +32,8 @@ def state(facts: PageFacts) -> dict:
     }
 
 
-def _entry(entry: DayEntry, day: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
+def _entry(entry: DayEntry, day: Day | None, records: DayRecords) -> dict:
+    sessions, stamps, now = records.sessions, records.stamps, records.now
     return {
         "day": entry.day.isoformat(),
         "label": entry.label,
@@ -41,6 +43,8 @@ def _entry(entry: DayEntry, day: Day | None, sessions: list[PcSession], stamps: 
         "voided": entry.voided,
         "pcShare": pc_share(entry, sessions, now),
         "punctuality": _punctuality(day),
+        "ids": [piece.id for piece in entry.counted],
+        "lines": day_lines(entry, records),
         "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
     }
 
@@ -53,28 +57,9 @@ def _punctuality(day: Day | None) -> dict | None:
 
 def _piece(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
     return {
-        "id": shift.id,
-        "label": shift.label,
-        "start": shift.start.isoformat(),
-        "end": iso(shift.end),
-        "since": shift.since.isoformat(),
-        "worked": minutes(shift.worked(now)),
-        "voided": shift.voided,
         "lateBy": minutes(shift.entered_late_by) if shift.entered_late_by > LATE_ENOUGH_TO_FLAG else None,
-        "notes": shift.notes,
-        "changes": shift.changes,
-        "proof": _proof(shift, sessions, stamps),
-        "pc": _pc(shift, sessions, now),
+        "voided": shift.voided,
+        "corrections": len(shift.corrections),
+        "fromPcOn": start_proof(shift, sessions, stamps).from_pc_on,
+        "beforeRecords": support(shift.start, shift.end, sessions, now).before_records,
     }
-
-
-def _proof(shift: Shift, sessions: list[PcSession], stamps: list[Stamp]) -> dict:
-    proof = start_proof(shift, sessions, stamps)
-    return {"fromPcOn": proof.from_pc_on, "entry": proof.entry,
-            "stamps": [{"authority": s.authority_name, "time": s.time.astimezone(shift.start.tzinfo).isoformat()} for s in proof.stamps]}
-
-
-def _pc(shift: Shift, sessions: list[PcSession], now: datetime) -> dict:
-    backing = support(shift.start, shift.end, sessions, now)
-    return {"share": round(backing.share, 3), "beforeRecords": backing.before_records,
-            "sessions": [{"on": s.on.isoformat(), "off": iso(s.off), "exact": s.exact} for s in backing.sessions]}

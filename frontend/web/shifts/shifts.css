@@ -34,9 +34,9 @@
 .shift .span { color: var(--muted); }
 .explanation { margin-top: 6px; }
 .explanation summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; }
-.piece { margin-top: 8px; }
-.piece-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; }
-.piece.voided .piece-head span:first-child { text-decoration: line-through; color: var(--muted); }
+.trail.day li.line { display: grid; grid-template-columns: 9.5rem 8rem 1fr auto; column-gap: 12px; align-items: baseline; }
+.trail li.line .what { color: var(--text); font-weight: 600; }
+.day-tools { display: flex; justify-content: flex-end; gap: 12px; margin-top: 6px; font-size: 0.85rem; }
 .shift .worked { font-weight: 600; text-align: right; min-width: 3.5rem; }
 .shift.voided .when, .shift.voided .span, .shift.voided .worked { text-decoration: line-through; color: var(--muted); }
 
@@ -49,4 +49,6 @@
   .shift-row { grid-template-columns: 1fr auto; }
   .shift-row .span { grid-column: 1; grid-row: 2; }
   .shift-row .tools { grid-column: 2; grid-row: 2; }
+  .trail.day li.line { grid-template-columns: 1fr auto; }
+  .trail.day li.line .detail { grid-column: 1 / -1; }
 }

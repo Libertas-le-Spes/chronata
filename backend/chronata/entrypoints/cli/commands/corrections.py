@@ -8,11 +8,11 @@ def add(args, app: App) -> Outcome:
 
 
 def correct(args, app: App) -> Outcome:
-    return app.corrections.correct(args.id, args.start, args.end, args.reason)
+    return app.corrections.correct([args.id], args.start, args.end, args.reason)
 
 
-def strike(args, app: App) -> Outcome:
-    return app.corrections.strike(args.id, args.reason)
+def mistake(args, app: App) -> Outcome:
+    return app.corrections.mark_mistake([args.id], args.reason)
 
 
 def explain(args, app: App) -> Outcome:
@@ -37,10 +37,10 @@ def register(commands) -> None:
     command.add_argument("--reason", required=True)
     command.set_defaults(run=correct)
 
-    command = commands.add_parser("strike", help="strike out a shift entered by mistake; it stays on record")
+    command = commands.add_parser("mistake", help="mark a shift as a mistake: it stops counting, and stays on record with your reason")
     command.add_argument("id", type=int)
     command.add_argument("--reason", required=True)
-    command.set_defaults(run=strike)
+    command.set_defaults(run=mistake)
 
     command = commands.add_parser("explain", help="say why the PC was off during a shift")
     command.add_argument("id", type=int)

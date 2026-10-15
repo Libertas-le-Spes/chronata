@@ -13,7 +13,7 @@ def entry_lines(entries: list[DayEntry], sessions: list[PcSession], stamps: list
     lines = [f"{'date':10}  {'start':8}  {'end':8}  {'worked':>6}  label"]
     for entry in entries:
         end = f"{entry.end:%H:%M:%S}" if entry.end else "--:--:--"
-        flags = [entry.label or "(no label)"] + (["OPEN"] if entry.end is None else []) + (["STRUCK OUT"] if entry.voided else [])
+        flags = [entry.label or "(no label)"] + (["OPEN"] if entry.end is None else []) + (["MARKED AS A MISTAKE"] if entry.voided else [])
         lines.append(f"{entry.start:%Y-%m-%d}  {entry.start:%H:%M:%S}  {end}  {hours(entry.worked(now)):>6}  {', '.join(flags)}")
         for piece in entry.pieces:
             heading, *details = piece_lines(piece, sessions, stamps, now)

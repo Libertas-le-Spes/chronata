@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import ClassVar
 
 from chronata.timekeeping.record.record import Entry
-from chronata.timekeeping.shifts.shifts import Break, PC_OFF, Shift
+from chronata.timekeeping.shifts.shifts import Break, Happening, PC_OFF, Shift
 
 
 @dataclass(frozen=True)
@@ -35,3 +35,4 @@ class PcOffBreak:
         shift = found[entry.data["shift"]]
         shift.breaks.append(gap)
         shift.changes.append(f"PC off {gap.start:%H:%M:%S}–{gap.end:%H:%M:%S}, not counted as work")
+        shift.happenings.append(Happening(gap.start, "PC off", f"{gap.start:%H:%M:%S} – {gap.end:%H:%M:%S}, not counted"))

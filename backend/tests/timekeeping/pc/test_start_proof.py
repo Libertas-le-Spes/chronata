@@ -26,6 +26,11 @@ class WhatProvesTheStart(unittest.TestCase):
         self.assertEqual((proof.from_pc_on, proof.entry), (True, 65))
         self.assertEqual(started(proof, shift.start), "started when the PC came on at 08:41:52 · independently timestamped by DigiCert 08:45:18, FreeTSA 08:45:19")
 
+    def test_a_corrected_start_still_shows_it_began_when_the_pc_came_on(self):
+        shift = Shift(67, at("2026-10-15T08:41:52"), at("2026-10-15T09:04:59"), timedelta(minutes=32), "Northwind")
+        shift.start = at("2026-10-15T08:30:00")
+        self.assertEqual(start_proof(shift, SESSIONS, STAMPS).from_pc_on, True)
+
     def test_a_clock_in_is_proven_by_the_first_stamps_covering_its_own_entry(self):
         shift = Shift(66, at("2026-10-15T09:04:59"), None, timedelta(), "Northwind")
         self.assertEqual(started(start_proof(shift, SESSIONS, STAMPS), shift.start), "start logged in entry 66 · independently timestamped by DigiCert 09:08:15")

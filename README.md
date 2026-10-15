@@ -6,7 +6,7 @@ A timesheet is only worth something if the person reading it can trust it was wr
 
 Because the proof travels with the log, it can be saved anywhere: an Obsidian vault, a plain folder, a git host or a WebDAV server. Each copy checks out on its own with `chronata verify --folder <copy>`.
 
-Mistakes are corrected or struck out, never deleted, because a visible correction is more credible than a clean record.
+Mistakes are corrected or marked as mistakes, never deleted, because a visible correction is more credible than a clean record.
 
 The PC's on and off times are sealed alongside your shifts as corroboration. A PC being on is not work, so it never counts by itself. But a click on a clock-in button proves no more than the PC coming on, so when you were working from the moment the PC came on, the day can start there, proven by the timestamp the PC-on record was sealed with seconds after boot rather than by when you remembered to click.
 

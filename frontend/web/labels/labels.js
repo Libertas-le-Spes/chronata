@@ -45,7 +45,8 @@ async function renameLabel(old, known) {
     choices: [{ caption: "Rename", style: "primary", inputs: [{ name: "to", prompt: "New name", value: old, required: true }] }],
   });
   const to = answer ? answer.answers.to.trim() : "";
-  if (to && to !== old && await confirmedMerge(old, to, known)) act("/api/labels/rename", { from: old, to });
+  if (!to || to === old) return;
+  if (await confirmedMerge(old, to, known)) act("/api/labels/rename", { from: old, to });
 }
 
 function hoursOf(label, state) {
@@ -71,12 +72,16 @@ function labelRow(row, state) {
   );
 }
 
+function untouched(input) {
+  return document.activeElement !== input && !input.value;
+}
+
 export function render(state) {
   $("#known-labels").replaceChildren(...state.labels.map((label) => el("option", { value: label })));
   const labelInput = $("#clock-form").elements.label;
   labelInput.hidden = clockedIn();
   $("#clock-form .label-hint").hidden = labelInput.hidden;
-  if (!shiftOpen() && document.activeElement !== labelInput && !labelInput.value) labelInput.value = state.suggestedLabel;
+  if (!shiftOpen() && untouched(labelInput)) labelInput.value = state.suggestedLabel;
   hints.forEach((describe) => describe().catch(() => {}));
   const rows = state.labelSummary.filter((row) => row.label);
   $("#by-label").replaceChildren(...(rows.length ? [el("div", { class: "card" },

@@ -24,10 +24,10 @@ class OneEntryPerDayAndLabel(unittest.TestCase):
         entries = day_entries([shift(1, "2026-10-15T08:00:00", "2026-10-15T12:00:00"), shift(2, "2026-10-15T18:00:00", "2026-10-15T20:00:00", "Acme")])
         self.assertEqual([(e.label, e.worked(at("2026-10-15T21:00:00"))) for e in entries], [("Northwind", timedelta(hours=4)), ("Acme", timedelta(hours=2))])
 
-    def test_a_struck_out_piece_stays_in_the_entry_but_is_not_counted(self):
-        struck = shift(2, "2026-10-15T13:00:00", "2026-10-15T14:00:00")
-        struck.voided = True
-        today = day_entries([shift(1, "2026-10-15T08:00:00", "2026-10-15T12:00:00"), struck])[0]
+    def test_a_piece_marked_as_a_mistake_stays_in_the_entry_but_is_not_counted(self):
+        mistake = shift(2, "2026-10-15T13:00:00", "2026-10-15T14:00:00")
+        mistake.voided = True
+        today = day_entries([shift(1, "2026-10-15T08:00:00", "2026-10-15T12:00:00"), mistake])[0]
         self.assertEqual((len(today.pieces), today.worked(at("2026-10-15T15:00:00")), today.end), (2, timedelta(hours=4), at("2026-10-15T12:00:00")))
 
 

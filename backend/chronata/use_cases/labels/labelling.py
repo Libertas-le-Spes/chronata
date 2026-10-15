@@ -1,7 +1,7 @@
 from chronata.timekeeping.entries.labels import ShiftLabelled
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.labels.labels import LabelChoice, choose, known_labels, suggested, tidy
-from chronata.timekeeping.shifts.shifts import Shift
+from chronata.timekeeping.shifts.shifts import Shift, named
 from chronata.use_cases.log.log import Log, one_writer_at_a_time
 from chronata.use_cases.log.outcome import Outcome, UserError
 from chronata.use_cases.questions import typed_input
@@ -13,12 +13,16 @@ class Labelling:
         self.log = log
 
     @one_writer_at_a_time
-    def label_shift(self, shift_id: int, label: str, answers: Answers = Answers()) -> Outcome:
-        shift = self.log.shift(shift_id)
+    def label_shifts(self, shift_ids: list[int], label: str, answers: Answers = Answers()) -> Outcome:
+        chosen_shifts = self.log.shifts_with(shift_ids)
         label = self.settle(label, self.in_use(self.log.shifts()), answers, needs_hours=True)
-        if shift.label == label:
-            raise UserError(f"shift {shift_id} is already labelled {label or 'with nothing'}")
-        return self.log.write(ShiftLabelled(shift.id, label), f"labelled shift {shift.id} {label or '(no label)'}", self.log.clock())
+        changing = [shift for shift in chosen_shifts if shift.label != label]
+        if not changing:
+            raise UserError(f"{named(chosen_shifts)} already labelled {label or 'with nothing'}")
+        now = self.log.clock()
+        for shift in changing:
+            self.log.append(ShiftLabelled(shift.id, label), now)
+        return self.log.commit(f"labelled {named(changing)} {label or '(no label)'}")
 
     @one_writer_at_a_time
     def rename(self, old: str, new: str, answers: Answers = Answers()) -> Outcome:

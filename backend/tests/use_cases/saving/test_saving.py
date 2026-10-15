@@ -30,7 +30,7 @@ class SavingEverywhere(unittest.TestCase):
 
     def test_relabelling_moves_the_note_and_removes_the_old_one(self):
         unlabelled = next(s for s in self.f.app.log.shifts() if not s.label)
-        self.f.app.labels.label_shift(unlabelled.id, "Northwind")
+        self.f.app.labels.label_shifts([unlabelled.id], "Northwind")
         self.assertTrue((self.folder / "Northwind" / "Days" / "2026-10-14.md").exists())
         self.assertFalse((self.folder / "No label").exists())
 

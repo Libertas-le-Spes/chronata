@@ -7,7 +7,7 @@ from chronata.wiring import App
 
 
 def label(args, app: App) -> Outcome:
-    return app.labels.label_shift(args.id, args.label, answers(args))
+    return app.labels.label_shifts([args.id], args.label, answers(args))
 
 
 def list_labels(args, app: App) -> None:

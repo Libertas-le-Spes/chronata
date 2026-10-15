@@ -17,6 +17,19 @@ class Break:
         return self.cause == PC_OFF and not self.reason
 
 
+@dataclass(frozen=True)
+class Happening:
+    at: datetime
+    what: str
+    detail: str = ""
+
+
+@dataclass(frozen=True)
+class Correction:
+    at: datetime
+    reason: str
+
+
 @dataclass
 class Shift:
     id: int
@@ -28,6 +41,13 @@ class Shift:
     notes: list[str] = field(default_factory=list)
     changes: list[str] = field(default_factory=list)
     voided: bool = False
+    added_later: bool = False
+    first_start: datetime | None = None
+    happenings: list[Happening] = field(default_factory=list)
+    corrections: list[Correction] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.first_start = self.first_start or self.start
 
     @property
     def since(self) -> datetime:
@@ -48,6 +68,10 @@ class Shift:
 
 def open_shift(all_shifts: list[Shift]) -> Shift | None:
     return next((shift for shift in all_shifts if shift.end is None and not shift.voided), None)
+
+
+def named(shifts: list[Shift]) -> str:
+    return f"shift {shifts[0].id}" if len(shifts) == 1 else f"shifts {', '.join(str(shift.id) for shift in shifts)}"
 
 
 def completed(all_shifts: list[Shift]) -> list[Shift]:

@@ -13,7 +13,7 @@ class StartProof:
 
 
 def start_proof(shift: Shift, sessions: list[PcSession], stamps: list[Stamp]) -> StartProof:
-    pc_on = next((session for session in sessions if session.on == shift.start), None)
+    pc_on = next((session for session in sessions if session.on == shift.first_start), None)
     entry = pc_on.first_entry if pc_on else shift.id
     return StartProof(pc_on is not None, entry, earliest_covering(stamps, entry))
 

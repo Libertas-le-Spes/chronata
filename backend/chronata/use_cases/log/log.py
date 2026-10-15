@@ -62,6 +62,12 @@ class Log:
             raise UserError(f"there is no shift {shift_id}")
         return found
 
+    def shifts_with(self, shift_ids: list[int]) -> list[Shift]:
+        found = [self.shift(shift_id) for shift_id in dict.fromkeys(shift_ids)]
+        if not found:
+            raise UserError("choose a shift")
+        return sorted(found, key=lambda shift: shift.start)
+
     def write(self, entry: NewEntry, message: str, now: datetime) -> Outcome:
         self.append(entry, now)
         return self.commit(message)

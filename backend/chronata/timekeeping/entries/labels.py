@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from chronata.timekeeping.record.record import Entry
-from chronata.timekeeping.shifts.shifts import Shift
+from chronata.timekeeping.shifts.shifts import Happening, Shift
 
 
 @dataclass(frozen=True)
@@ -20,4 +20,5 @@ class ShiftLabelled:
         shift = found[entry.data["shift"]]
         if shift.label:
             shift.changes.append(f"{entry.recorded_at:%Y-%m-%d %H:%M} label changed from {shift.label} to {entry.data['label'] or 'none'}")
+            shift.happenings.append(Happening(entry.recorded_at, "Label changed", f"from {shift.label} to {entry.data['label'] or 'none'}"))
         shift.label = entry.data["label"]
