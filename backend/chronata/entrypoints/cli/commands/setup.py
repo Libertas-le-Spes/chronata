@@ -1,30 +1,35 @@
-from chronata.entrypoints.cli.answers import hours_options
+from chronata.entrypoints.cli.answers import hours_from, hours_options
+from chronata.entrypoints.cli.hours_prompt import ask_hours
 from chronata.use_cases.labels.labelling import describe_hours
-from chronata.use_cases.log.outcome import Outcome
+from chronata.use_cases.log.outcome import Outcome, UserError
 from chronata.use_cases.questions import typed_input
 from chronata.wiring import App
 
 
 def configure(args, app: App) -> Outcome:
     label_hours = app.log.hours
-    day = label_hours.main
-    lunch_now = f"{day.lunch.start:%H:%M} for {day.lunch.minutes} min" if day and day.lunch else "none"
-    shift_now = f"{day.shift_start:%H:%M} to {day.shift_end:%H:%M}" if day else typed_input.DEFAULT_SHIFT
-    print("Press Enter to keep what is in brackets.")
+    print("Type times as numbers, like 830 or 1730. Press Enter to keep what is in brackets.")
     label_answer = input(f"{typed_input.DEFAULT_LABEL_QUESTION} [{label_hours.default_label or 'none'}] ").strip() or None
-    shift_answer = input(f"{typed_input.SHIFT_QUESTION} [{shift_now}] ").strip() or shift_now
-    lunch_answer = input(f"{typed_input.LUNCH_QUESTION} (type none for no lunch) [{lunch_now}] ").strip() or lunch_now
+    shift_answer, lunch_answer = ask_hours(input, label_hours.main)
     return app.setup.configure(lunch_answer, shift_answer, label_answer)
 
 
 def label_hours(args, app: App) -> Outcome | None:
     if args.label is not None:
-        return app.setup.set_hours(args.label, args.shift or "", args.lunch or "", args.no_set_hours)
+        return _change_hours(args, app)
     label_hours = app.log.hours
     for label in label_hours.labels():
         default = " (default)" if label == label_hours.default_label else ""
         print(f"{label + default:24} {describe_hours(label_hours.for_label(label))}")
     return None
+
+
+def _change_hours(args, app: App) -> Outcome:
+    choice = app.labels.check(args.label)
+    if not choice.exists:
+        raise UserError(f"there is no label '{args.label.strip()}'; add it first")
+    shift, lunch = hours_from(args, app.log.hours.for_label(choice.label))
+    return app.setup.set_hours(choice.label, shift, lunch, args.no_set_hours)
 
 
 def register(commands) -> None:

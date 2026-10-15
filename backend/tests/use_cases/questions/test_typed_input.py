@@ -18,6 +18,21 @@ class SetupAnswers(unittest.TestCase):
         self.assertEqual(typed_input.shift("08h00 to 17h00"), (time(8), time(17)))
         self.assertEqual(typed_input.shift("9am-5pm"), (time(9), time(17)))
 
+    def test_times_typed_as_numbers(self):
+        for typed, meant in (("8", time(8)), ("830", time(8, 30)), ("0830", time(8, 30)), ("17", time(17)), ("1730", time(17, 30)), (" 0 ", time(0))):
+            self.assertEqual(typed_input.clock_number(typed), meant, typed)
+
+    def test_anything_but_a_number_of_the_day_is_refused(self):
+        for bad in ("", "8:30", "8h", "2400", "1260", "12345", "-5"):
+            with self.assertRaises(UserError, msg=bad):
+                typed_input.clock_number(bad)
+
+    def test_lunch_minutes_are_a_plain_number(self):
+        self.assertEqual(typed_input.minutes_number(" 45 "), 45)
+        for bad in ("0", "241", "45 min", "", "1.5"):
+            with self.assertRaises(UserError, msg=bad):
+                typed_input.minutes_number(bad)
+
     def test_nonsense_is_refused_with_a_reason(self):
         for bad in ("12:00", "lunch"):
             with self.assertRaises(UserError):

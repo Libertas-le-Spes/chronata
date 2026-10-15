@@ -14,6 +14,8 @@ LENGTH = re.compile(r"(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|m|min|mins|minutes)
 
 
 NO_LUNCH = {"", "none", "no", "no lunch", "-"}
+DIGITS = re.compile(r"\d{1,4}")
+LONGEST_LUNCH = 240
 
 
 def hours(shift_answer: str, lunch_answer: str) -> WorkingDay:
@@ -44,7 +46,7 @@ def _lunch_minutes(text: str, after_the_time: str) -> int:
         raise UserError(f"'{text}' needs a length after the time, like 12:00 for 60 min or 12h00 1h")
     amount, unit, extra = float(length.group(1)), (length.group(2) or "min").lower(), length.group(3)
     minutes = round(amount * 60) + int(extra or 0) if unit.startswith("h") else round(amount)
-    if not 0 <= minutes <= 240:
+    if not 0 <= minutes <= LONGEST_LUNCH:
         raise UserError("lunch has to be between 0 and 4 hours")
     return minutes
 
@@ -55,6 +57,23 @@ def shift(answer: str) -> tuple[time, time]:
     if len(found) != 2:
         raise UserError(f"'{text}' needs a start and an end, like 08:00 to 17:00")
     return _clock(found[0]), _clock(found[1])
+
+
+def clock_number(text: str) -> time:
+    digits = text.strip()
+    if not DIGITS.fullmatch(digits):
+        raise UserError(f"'{digits}' is not a time; type numbers only, like 830 or 1730")
+    hour, minute = (int(digits[:-2]), int(digits[-2:])) if len(digits) > 2 else (int(digits), 0)
+    if hour > 23 or minute > 59:
+        raise UserError(f"'{digits}' is not a time of day; type it like 830 or 1730")
+    return time(hour, minute)
+
+
+def minutes_number(text: str) -> int:
+    digits = text.strip()
+    if not DIGITS.fullmatch(digits) or not 0 < int(digits) <= LONGEST_LUNCH:
+        raise UserError(f"'{digits}' is not a number of minutes from 1 to {LONGEST_LUNCH}")
+    return int(digits)
 
 
 def day(text: str | None) -> date:

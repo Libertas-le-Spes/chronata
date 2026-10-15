@@ -1,3 +1,5 @@
+from chronata.entrypoints.cli.hours_prompt import ask_hours
+from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.use_cases.questions.questions import Answers, Choice, Question
 
 
@@ -16,6 +18,12 @@ def answer_options(command) -> None:
 def clock_in_options(command) -> None:
     answer_options(command)
     command.add_argument("--off-default", action="store_true", help="confirm working on a label other than the default on a workday")
+
+
+def hours_from(args, current: WorkingDay | None) -> tuple[str, str]:
+    if any((args.shift, args.lunch, args.no_set_hours)):
+        return args.shift or "", args.lunch or ""
+    return ask_hours(input, current)
 
 
 def answers(args) -> Answers:
