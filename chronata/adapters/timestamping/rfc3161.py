@@ -6,6 +6,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from chronata.adapters.timestamping import der
 from chronata.timekeeping.stamps import Stamp
 
 AUTHORITIES = {
@@ -72,11 +73,11 @@ class Rfc3161Timestamper:
 
 
 def _ask(url: str, digest: bytes) -> bytes:
-    query = _tlv(0x30, b"".join([
-        _tlv(0x02, b"\x01"),
-        _tlv(0x30, _tlv(0x30, SHA256 + b"\x05\x00") + _tlv(0x04, digest)),
-        _tlv(0x02, _integer(secrets.randbits(63))),
-        _tlv(0x01, b"\xff"),
+    query = der.tlv(0x30, b"".join([
+        der.tlv(0x02, b"\x01"),
+        der.tlv(0x30, der.tlv(0x30, SHA256 + b"\x05\x00") + der.tlv(0x04, digest)),
+        der.tlv(0x02, der.integer(secrets.randbits(63))),
+        der.tlv(0x01, b"\xff"),
     ]))
     request = urllib.request.Request(url, data=query, headers={"Content-Type": "application/timestamp-query"})
     with urllib.request.urlopen(request, timeout=10) as response:
@@ -84,9 +85,9 @@ def _ask(url: str, digest: bytes) -> bytes:
 
 
 def _granted_time(reply: bytes, digest: bytes | None) -> datetime:
-    tag, body, _ = _read(reply, 0)
-    status_tag, status, _ = _read(body, 0)
-    _, code, _ = _read(status, 0)
+    tag, body, _ = der.read(reply, 0)
+    status_tag, status, _ = der.read(body, 0)
+    _, code, _ = der.read(status, 0)
     if tag != 0x30 or status_tag != 0x30 or int.from_bytes(code, "big") not in (0, 1):
         raise ValueError("the timestamp authority refused the request")
     info = _find_token_info(reply)
@@ -99,56 +100,13 @@ def _granted_time(reply: bytes, digest: bytes | None) -> datetime:
 
 
 def _find_token_info(data: bytes) -> tuple[bytes, bytes] | None:
-    for tag, body in _walk(data):
+    for tag, body in der.walk(data):
         if tag != 0x30:
             continue
-        children = _children(body)
+        children = der.children(body)
         if (len(children) >= 5 and children[0][0] == 0x02 and children[1][0] == 0x06
                 and children[2][0] == 0x30 and children[4][0] == 0x18):
-            imprint = _children(children[2][1])
+            imprint = der.children(children[2][1])
             if len(imprint) == 2 and imprint[1][0] == 0x04:
                 return imprint[1][1], children[4][1]
     return None
-
-
-def _walk(data: bytes):
-    for tag, body in _children(data):
-        yield tag, body
-        if tag & 0x20 or tag == 0x04:
-            yield from _walk(body)
-
-
-def _children(data: bytes) -> list[tuple[int, bytes]]:
-    found, offset = [], 0
-    try:
-        while offset < len(data):
-            tag, body, offset = _read(data, offset)
-            found.append((tag, body))
-    except ValueError:
-        return []
-    return found
-
-
-def _read(data: bytes, offset: int) -> tuple[int, bytes, int]:
-    if offset + 2 > len(data):
-        raise ValueError("truncated")
-    tag, length, offset = data[offset], data[offset + 1], offset + 2
-    if length & 0x80:
-        count = length & 0x7F
-        if count == 0 or count > 4 or offset + count > len(data):
-            raise ValueError("bad length")
-        length, offset = int.from_bytes(data[offset:offset + count], "big"), offset + count
-    if offset + length > len(data):
-        raise ValueError("truncated")
-    return tag, data[offset:offset + length], offset + length
-
-
-def _integer(value: int) -> bytes:
-    return value.to_bytes(value.bit_length() // 8 + 1, "big")
-
-
-def _tlv(tag: int, body: bytes) -> bytes:
-    if len(body) < 0x80:
-        return bytes([tag, len(body)]) + body
-    size = len(body).to_bytes((len(body).bit_length() + 7) // 8, "big")
-    return bytes([tag, 0x80 | len(size)]) + size + body
