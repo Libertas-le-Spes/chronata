@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
+from chronata.entrypoints.web.page_state.values import iso
 from chronata.presenters.explanation import LATE_ENOUGH_TO_FLAG
 from chronata.timekeeping.day_entries import DayEntry, day_entries, pc_share
 from chronata.timekeeping.durations import minutes
@@ -31,42 +32,49 @@ def state(app, taken: Snapshot) -> dict:
 
 
 def _entry(entry: DayEntry, day: Day | None, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
-    flagged = day is not None and (day.late > timedelta() or day.short > timedelta())
     return {
         "day": entry.day.isoformat(),
         "label": entry.label,
         "start": entry.start.isoformat(),
-        "end": entry.end.isoformat() if entry.end else None,
+        "end": iso(entry.end),
         "worked": minutes(entry.worked(now)),
         "voided": entry.voided,
         "pcShare": pc_share(entry, sessions, now),
-        "punctuality": {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "running": day.running, "lastOut": day.last_out.isoformat()} if flagged else None,
+        "punctuality": _punctuality(day),
         "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
     }
 
 
+def _punctuality(day: Day | None) -> dict | None:
+    if day is None or not day.worth_noting:
+        return None
+    return {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "running": day.running, "lastOut": day.last_out.isoformat()}
+
+
 def _piece(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:
-    backing = support(shift.start, shift.end, sessions, now)
-    proof = start_proof(shift, sessions, stamps)
     return {
         "id": shift.id,
         "label": shift.label,
         "start": shift.start.isoformat(),
-        "end": shift.end.isoformat() if shift.end else None,
+        "end": iso(shift.end),
         "since": shift.since.isoformat(),
         "worked": minutes(shift.worked(now)),
         "voided": shift.voided,
         "lateBy": minutes(shift.entered_late_by) if shift.entered_late_by > LATE_ENOUGH_TO_FLAG else None,
         "notes": shift.notes,
         "changes": shift.changes,
-        "proof": {
-            "fromPcOn": proof.from_pc_on,
-            "entry": proof.entry,
-            "stamps": [{"authority": s.authority_name, "time": s.time.astimezone(shift.start.tzinfo).isoformat()} for s in proof.stamps],
-        },
-        "pc": {
-            "share": round(backing.share, 3),
-            "beforeRecords": backing.before_records,
-            "sessions": [{"on": s.on.isoformat(), "off": s.off.isoformat() if s.off else None, "exact": s.exact} for s in backing.sessions],
-        },
+        "proof": _proof(shift, sessions, stamps),
+        "pc": _pc(shift, sessions, now),
     }
+
+
+def _proof(shift: Shift, sessions: list[PcSession], stamps: list[Stamp]) -> dict:
+    proof = start_proof(shift, sessions, stamps)
+    return {"fromPcOn": proof.from_pc_on, "entry": proof.entry,
+            "stamps": [{"authority": s.authority_name, "time": s.time.astimezone(shift.start.tzinfo).isoformat()} for s in proof.stamps]}
+
+
+def _pc(shift: Shift, sessions: list[PcSession], now: datetime) -> dict:
+    backing = support(shift.start, shift.end, sessions, now)
+    return {"share": round(backing.share, 3), "beforeRecords": backing.before_records,
+            "sessions": [{"on": s.on.isoformat(), "off": iso(s.off), "exact": s.exact} for s in backing.sessions]}

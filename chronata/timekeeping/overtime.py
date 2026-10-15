@@ -24,6 +24,10 @@ class Day:
     def made_up(self) -> bool:
         return self.late > NONE and self.short == NONE
 
+    @property
+    def worth_noting(self) -> bool:
+        return self.late > NONE or self.short > NONE
+
 
 @dataclass(frozen=True)
 class Week:

@@ -1,23 +1,40 @@
-from chronata.timekeeping.today import day_so_far
+from datetime import datetime
+
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
+from chronata.entrypoints.web.page_state.values import iso
+from chronata.timekeeping.shifts import Shift
+from chronata.timekeeping.today import day_so_far
+from chronata.use_cases.pc_records import Interrupted
 
 
 def state(app, taken: Snapshot) -> dict:
-    current, interrupted, now = taken.current, taken.interrupted, taken.now
-    today = day_so_far(taken.shifts, now)
+    current, now = taken.current, taken.now
     this_boot = app.pc.this_boot()
-    shift_hours = taken.hours.for_label(current.label) if current else None
-    unclocked = app.clocking.unclocked_since()
     return {
         "now": now.isoformat(),
-        "open": {"id": current.id, "label": current.label, "start": current.start.isoformat(), "dayStart": today[0].isoformat(),
-                 "workedSeconds": round(today[1].total_seconds())} if current else None,
-        "interrupted": {
-            "start": interrupted.shift.start.isoformat(),
-            "pcWentOff": interrupted.pc_went_off.isoformat() if interrupted.pc_went_off else None,
-        } if interrupted else None,
-        "pcOnSince": this_boot.on.isoformat() if this_boot else None,
-        "unclockedSince": unclocked.isoformat() if unclocked else None,
+        "open": _open(current, taken.shifts, now),
+        "interrupted": _interrupted(taken.interrupted),
+        "pcOnSince": iso(this_boot.on if this_boot else None),
+        "unclockedSince": iso(app.clocking.unclocked_since()),
         "beforeEndOfWorkday": bool(current) and taken.hours.before_end_of_workday(current.label, now),
-        "shiftEnd": f"{shift_hours.shift_end:%H:%M}" if shift_hours else None,
+        "shiftEnd": _shift_end(taken, current),
     }
+
+
+def _open(current: Shift | None, all_shifts: list[Shift], now: datetime) -> dict | None:
+    if current is None:
+        return None
+    started, worked = day_so_far(all_shifts, now)
+    return {"id": current.id, "label": current.label, "start": current.start.isoformat(), "dayStart": started.isoformat(),
+            "workedSeconds": round(worked.total_seconds())}
+
+
+def _interrupted(interrupted: Interrupted | None) -> dict | None:
+    if interrupted is None:
+        return None
+    return {"start": interrupted.shift.start.isoformat(), "pcWentOff": iso(interrupted.pc_went_off)}
+
+
+def _shift_end(taken: Snapshot, current: Shift | None) -> str | None:
+    hours = taken.hours.for_label(current.label) if current else None
+    return f"{hours.shift_end:%H:%M}" if hours else None

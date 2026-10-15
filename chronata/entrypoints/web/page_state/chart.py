@@ -25,13 +25,8 @@ def state(app, taken: Snapshot) -> dict:
 
 def _day(day: date, week: Week | None, now: datetime, running: Shift | None) -> dict:
     found = next((d for d in week.days if d.date == day), None) if week else None
-    return {
-        "date": day.isoformat(),
-        "normal": minutes(found.worked - found.overtime) if found else 0,
-        "overtime": minutes(found.overtime) if found else 0,
-        "late": minutes(found.late) if found else 0,
-        "short": minutes(found.short) if found else 0,
-        "madeUp": bool(found and found.made_up),
-        "soFar": bool(running) and day == now.date(),
-        "future": day > now.date(),
-    }
+    when = {"date": day.isoformat(), "soFar": bool(running) and day == now.date(), "future": day > now.date()}
+    if found is None:
+        return {**when, "normal": 0, "overtime": 0, "late": 0, "short": 0, "madeUp": False}
+    return {**when, "normal": minutes(found.worked - found.overtime), "overtime": minutes(found.overtime),
+            "late": minutes(found.late), "short": minutes(found.short), "madeUp": found.made_up}
