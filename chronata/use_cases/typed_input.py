@@ -33,7 +33,12 @@ def lunch(answer: str) -> Lunch | None:
     found = CLOCK.match(text)
     if not found:
         raise UserError(f"'{text}' needs a time and a length, like 12:00 for 60 min")
-    rest = re.sub(r"^\s*(for|,|-)?\s*", "", text[found.end():])
+    minutes = _lunch_minutes(text, text[found.end():])
+    return Lunch(_clock(found), minutes) if minutes else None
+
+
+def _lunch_minutes(text: str, after_the_time: str) -> int:
+    rest = re.sub(r"^\s*(for|,|-)?\s*", "", after_the_time)
     length = LENGTH.match(rest)
     if not rest or not length:
         raise UserError(f"'{text}' needs a length after the time, like 12:00 for 60 min or 12h00 1h")
@@ -41,7 +46,7 @@ def lunch(answer: str) -> Lunch | None:
     minutes = round(amount * 60) + int(extra or 0) if unit.startswith("h") else round(amount)
     if not 0 <= minutes <= 240:
         raise UserError("lunch has to be between 0 and 4 hours")
-    return Lunch(_clock(found), minutes) if minutes else None
+    return minutes
 
 
 def shift(answer: str) -> tuple[time, time]:

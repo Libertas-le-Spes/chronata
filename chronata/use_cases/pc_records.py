@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from chronata.timekeeping.entries.pc import PcOffBreak, PowerSession
-from chronata.timekeeping.pc_sessions import PcSession, session_at
+from chronata.timekeeping.pc_sessions import Boot, PcSession, session_at
 from chronata.timekeeping.shifts import Shift, open_shift
 from chronata.use_cases.log import Log, one_writer_at_a_time
 from chronata.use_cases.outcome import Outcome
@@ -31,35 +31,23 @@ class PcRecords:
         return self.power.current_boot_id()
 
     def interrupted(self) -> Interrupted | None:
-        current = open_shift(self.log.shifts())
-        this_boot = self.this_boot()
-        if current is None or this_boot is None or current.since >= this_boot.on:
+        carried_over = self._open_from_before_this_boot()
+        if carried_over is None:
             return None
+        current, this_boot = carried_over
         went_off = self._went_off(current)
-        if went_off and went_off.date() == this_boot.on.date():
-            return None
-        return Interrupted(current, went_off)
+        return None if _same_day(went_off, this_boot.on) else Interrupted(current, went_off)
 
     @one_writer_at_a_time
     def record_sessions(self) -> Outcome | None:
         recorded = {session.boot: session for session in self.log.pc_sessions()}
         now = self.log.clock()
-        written = 0
-        for boot in self.power.boots():
-            known = recorded.get(boot.id)
-            if boot.current and known is None:
-                self.log.append(PowerSession(boot.id, boot.on, None), now)
-                written += 1
-            elif not boot.current and (known is None or known.off is None):
-                self.log.append(PowerSession(boot.id, boot.on, boot.last_seen, boot.off_is_exact), now)
-                written += 1
-        break_message = self._pc_off_break(now)
-        if not written and not break_message:
-            return None
-        return self.log.commit("; ".join(part for part in (
-            f"recorded PC on/off times for {written} power session{'s' if written != 1 else ''}" if written else "",
-            break_message or "",
-        ) if part))
+        sessions = [session for boot in self.power.boots() if (session := _still_to_record(boot, recorded.get(boot.id)))]
+        for session in sessions:
+            self.log.append(session, now)
+        written = [f"recorded PC on/off times for {len(sessions)} power session{'s' if len(sessions) != 1 else ''}"] if sessions else []
+        parts = written + [part for part in [self._pc_off_break(now)] if part]
+        return self.log.commit("; ".join(parts)) if parts else None
 
     @one_writer_at_a_time
     def record_shutdown(self) -> Outcome:
@@ -71,13 +59,32 @@ class PcRecords:
         started_in = session_at(self.log.pc_sessions(), shift.since)
         return started_in.off if started_in else None
 
-    def _pc_off_break(self, now: datetime) -> str | None:
+    def _open_from_before_this_boot(self) -> tuple[Shift, PcSession] | None:
         current = open_shift(self.log.shifts())
         this_boot = self.this_boot()
-        if current is None or this_boot is None or current.since >= this_boot.on:
+        if current is None or this_boot is None:
             return None
+        return (current, this_boot) if current.since < this_boot.on else None
+
+    def _pc_off_break(self, now: datetime) -> str | None:
+        carried_over = self._open_from_before_this_boot()
+        if carried_over is None:
+            return None
+        current, this_boot = carried_over
         went_off = self._went_off(current)
-        if went_off is None or went_off.date() != this_boot.on.date():
+        if not _same_day(went_off, this_boot.on):
             return None
         self.log.append(PcOffBreak(current.id, went_off, this_boot.on), now)
         return f"PC was off {went_off:%H:%M:%S}–{this_boot.on:%H:%M:%S}; not counted as work"
+
+
+def _same_day(went_off: datetime | None, came_on: datetime) -> bool:
+    return went_off is not None and went_off.date() == came_on.date()
+
+
+def _still_to_record(boot: Boot, known: PcSession | None) -> PowerSession | None:
+    if boot.current:
+        return PowerSession(boot.id, boot.on, None) if known is None else None
+    if known is not None and known.off is not None:
+        return None
+    return PowerSession(boot.id, boot.on, boot.last_seen, boot.off_is_exact)

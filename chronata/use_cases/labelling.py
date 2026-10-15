@@ -23,27 +23,31 @@ class Labelling:
     @one_writer_at_a_time
     def rename(self, old: str, new: str, answers: Answers = Answers()) -> Outcome:
         all_shifts = self.log.shifts()
-        known = known_labels(all_shifts)
-        current = choose(old, known)
-        if not current.label or not current.exists:
-            raise UserError(f"there is no label '{old.strip()}'")
-        others = [shift for shift in all_shifts if shift.label != current.label]
-        target = self.settle(new, known_labels(others), answers) if _key_differs(new, current.label) else tidy(new)
-        if not target:
-            raise UserError("give the new name for the label")
-        if target == current.label:
-            raise UserError(f"the label is already called {target}")
-        affected = [shift for shift in all_shifts if shift.label == current.label]
+        current = _existing(old, all_shifts)
+        target = self._new_name(new, current, all_shifts, answers)
+        affected = [shift for shift in all_shifts if shift.label == current]
         now = self.log.clock()
         for shift in affected:
-            self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current.label}"), now)
-        merged = target in known
-        message = (f"merged {current.label} into {target}" if merged else f"renamed label {current.label} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
-        self.log.label_hours.rename(current.label, target)
-        if self.log.hours.default_label == current.label:
-            self.log.label_hours.save_default_label(target)
-            message += f"; {target} is now the default"
-        return self.log.commit(message)
+            self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current}"), now)
+        merged = target in known_labels(all_shifts)
+        message = (f"merged {current} into {target}" if merged else f"renamed label {current} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
+        return self.log.commit(message + self._carry_hours_and_default(current, target))
+
+    def _new_name(self, new: str, current: str, all_shifts: list[Shift], answers: Answers) -> str:
+        others = [shift for shift in all_shifts if shift.label != current]
+        target = self.settle(new, known_labels(others), answers) if _key_differs(new, current) else tidy(new)
+        if not target:
+            raise UserError("give the new name for the label")
+        if target == current:
+            raise UserError(f"the label is already called {target}")
+        return target
+
+    def _carry_hours_and_default(self, current: str, target: str) -> str:
+        self.log.label_hours.rename(current, target)
+        if self.log.hours.default_label != current:
+            return ""
+        self.log.label_hours.save_default_label(target)
+        return f"; {target} is now the default"
 
     @one_writer_at_a_time
     def set_default(self, label: str, answers: Answers = Answers()) -> Outcome:
@@ -81,7 +85,7 @@ class Labelling:
 
     def settle(self, typed: str | None, known: list[str], answers: Answers, needs_hours: bool = False) -> str:
         choice = choose(typed or "", known)
-        if not choice.exists and choice.near_misses and not answers.new_label:
+        if _looks_like_another(choice, answers):
             raise UnconfirmedLabel(choice.label, choice.near_misses)
         if needs_hours and not choice.exists:
             if not answers.gave_hours:
@@ -100,6 +104,19 @@ def describe_hours(hours: WorkingDay | None) -> str:
         return "no set hours"
     lunch = f"lunch at {hours.lunch.start:%H:%M} for {hours.lunch.minutes} min" if hours.lunch else "no lunch"
     return f"shift {hours.shift_start:%H:%M}–{hours.shift_end:%H:%M}, {lunch}"
+
+
+def _existing(old: str, all_shifts: list[Shift]) -> str:
+    current = choose(old, known_labels(all_shifts))
+    if not current.label or not current.exists:
+        raise UserError(f"there is no label '{old.strip()}'")
+    return current.label
+
+
+def _looks_like_another(choice: LabelChoice, answers: Answers) -> bool:
+    if choice.exists or answers.new_label:
+        return False
+    return bool(choice.near_misses)
 
 
 def _key_differs(typed: str, label: str) -> bool:
