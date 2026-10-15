@@ -1,7 +1,7 @@
 import webbrowser
 from typing import Callable
 
-from chronata.adapters.desktop.folder_picker import pick_with_tk
+from chronata.adapters.desktop import tk_dialogs
 
 APP_ID = "Chronata.Chronata"
 APP_NAME = "Chronata"
@@ -26,7 +26,13 @@ class WindowsDesktop:
         webbrowser.open(url)
 
     def choose_folder(self) -> str | None:
-        return pick_with_tk()
+        return tk_dialogs.pick_folder("Where should Chronata save?")
+
+    def ask(self, question: str, suggested: str) -> str | None:
+        return tk_dialogs.ask(APP_NAME, question, suggested)
+
+    def choose(self, question: str, options: list[str]) -> str | None:
+        return tk_dialogs.choose(APP_NAME, question, options)
 
     def _ready_toaster(self):
         if self._toaster is None:

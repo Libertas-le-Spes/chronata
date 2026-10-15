@@ -2,15 +2,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from chronata.adapters import locations
+from chronata.adapters import locations, this_machine
 from chronata.adapters.files import data_folder
 from chronata.adapters.files.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.files.ledger_file import LedgerFile
 from chronata.adapters.files.working_day_file import WorkingDayFile
 from chronata.adapters.files.write_lock import write_lock
 from chronata.adapters.history.optional_history import OptionalHistory
-from chronata.adapters.linux.desktop import LinuxDesktop
-from chronata.adapters.linux.power_journal import PowerJournal
 from chronata.adapters.places.git_folder import GitFolders
 from chronata.adapters.places.git_push import GitRemotes
 from chronata.adapters.places.place_book import PlaceBook
@@ -38,7 +36,7 @@ def local_now() -> datetime:
 def open_app(data: Path | None = None, config: Path | None = None, clock: Clock = local_now,
              power: PowerHistory | None = None, timestamper: Timestamper | None = None, desktop: Desktop | None = None) -> App:
     folder = DataFolder(data or locations.log_folder())
-    power = power or PowerJournal()
+    power = power or this_machine.power_history()
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
     places = PlaceBook(config or locations.settings_folder(), GitRemotes(folder.directory), GitFolders(locations.repository_copies_folder(folder.directory)))
     history = OptionalHistory(folder.directory, data_folder.LEDGER, lambda: any(p.kind == "git" for p in places.places()))
@@ -49,7 +47,7 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
 
     saving = Saving(places, timestamper, history, folder.sealed_files, readable_copy, folder.keep_readable)
     sheet.publish = saving
-    return App(sheet, saving, history, timestamper, desktop or LinuxDesktop(), power)
+    return App(sheet, saving, history, timestamper, desktop or this_machine.desktop(), power)
 
 
 def open_saved_copy(folder: Path) -> tuple[LedgerFile, Rfc3161Timestamper]:
