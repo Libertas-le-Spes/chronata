@@ -20,13 +20,16 @@ function pcChip(entry) {
   return el("span", { class: "chip warn" }, `PC on for ${Math.round(entry.pcShare * 100)}%`);
 }
 
+function punctualityText(day) {
+  if (!day.late) return `${hours(day.short)} short of a full day`;
+  if (day.madeUp) return `Late ${hours(day.late)} · made up, left ${clockTime(day.lastOut).slice(0, 5)}`;
+  return day.short ? `Late ${hours(day.late)} · ${hours(day.short)} short` : `Late ${hours(day.late)}`;
+}
+
 function chips(entry, day) {
   const found = [];
   if (entry.label) found.push(el("span", { class: "chip label" }, entry.label));
-  if (day) found.push(el("span", { class: `chip ${day.madeUp ? "live" : "warn"}` },
-    !day.late ? `${hours(day.short)} short of a full day`
-      : day.madeUp ? `Late ${hours(day.late)} · made up, left ${clockTime(day.lastOut).slice(0, 5)}`
-      : `Late ${hours(day.late)} · ${hours(day.short)} short`));
+  if (day) found.push(el("span", { class: `chip ${day.madeUp ? "live" : "warn"}` }, punctualityText(day)));
   if (!entry.end) found.push(el("span", { class: "chip live" }, "Open"));
   if (entry.voided) found.push(el("span", { class: "chip" }, "Struck out"));
   const enteredLate = entry.pieces.filter((piece) => piece.lateBy != null && !piece.proof.fromPcOn);

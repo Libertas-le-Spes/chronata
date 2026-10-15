@@ -1,7 +1,7 @@
-from chronata.entrypoints.web.page_state import chart, clock, hours, labels, pay, safekeeping, shifts
+from chronata.entrypoints.web.page_state import chart, clock, compensation, hours, labels, safekeeping, shifts
 from chronata.entrypoints.web.page_state.snapshot import Snapshot
 
-SECTIONS = [clock, shifts, labels, chart, pay, safekeeping, hours]
+SECTIONS = [clock, shifts, labels, chart, compensation, safekeeping, hours]
 
 
 def page_state(app) -> dict:

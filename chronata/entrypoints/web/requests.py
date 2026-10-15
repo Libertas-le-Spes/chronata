@@ -35,8 +35,9 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/correct": lambda body: app.corrections.correct(int(body["id"]), body.get("start"), body.get("end"), body.get("reason")),
         "/api/strike": lambda body: app.corrections.strike(int(body["id"]), body.get("reason")),
         "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
-        "/api/paid": lambda body: app.payments.record(
-            body.get("from"), body.get("to"), float(body.get("hours", "")), bool(body.get("timeOff")), body.get("reference")
+        "/api/compensation": lambda body: app.compensations.record(
+            body.get("label", ""), body.get("from"), body.get("to"), float(body.get("hours", "")), bool(body.get("timeOff")),
+            body.get("reference"), bool(body.get("newLabel"))
         ),
         "/api/save": lambda body: app.log.save_now(),
         "/api/places/add": lambda body: app.saving.add_place(app.log, body.get("kind", ""), body.get("name", ""), body.get("target", ""),

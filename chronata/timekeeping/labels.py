@@ -1,4 +1,3 @@
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from difflib import get_close_matches
@@ -36,13 +35,6 @@ def hours_by_label(all_shifts: list[Shift], now: datetime) -> list[LabelHours]:
             open_now.add(shift.label)
     return [LabelHours(label, week.get(label, timedelta()), worked, label in open_now)
             for label, worked in sorted(total.items(), key=lambda item: item[1], reverse=True)]
-
-
-def worked_by_label(finished_shifts: list[Shift]) -> dict[str, timedelta]:
-    totals: dict[str, timedelta] = defaultdict(timedelta)
-    for shift in finished_shifts:
-        totals[shift.label] += shift.worked(shift.end)
-    return dict(sorted(totals.items(), key=lambda item: item[1], reverse=True))
 
 
 def known_labels(all_shifts: list[Shift]) -> list[str]:

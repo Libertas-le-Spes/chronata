@@ -18,10 +18,10 @@ from chronata.presenters.readable_copy import readable_files
 from chronata.use_cases.ports import Clock, Desktop, History, PowerHistory, Timestamper
 from chronata.use_cases.saving import Saving
 from chronata.use_cases.clocking import Clocking
+from chronata.use_cases.compensations import Compensations
 from chronata.use_cases.corrections import Corrections
 from chronata.use_cases.labelling import Labelling
 from chronata.use_cases.log import Log
-from chronata.use_cases.payments import Payments
 from chronata.use_cases.pc_records import PcRecords
 from chronata.use_cases.working_day_setup import WorkingDaySetup
 
@@ -33,7 +33,7 @@ class App:
     labels: Labelling
     corrections: Corrections
     pc: PcRecords
-    payments: Payments
+    compensations: Compensations
     setup: WorkingDaySetup
     saving: Saving
     history: History
@@ -64,7 +64,7 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     log.publish = saving
     labels = Labelling(log)
     pc = PcRecords(log, power)
-    return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), pc, Payments(log), WorkingDaySetup(log, labels),
+    return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), pc, Compensations(log, labels), WorkingDaySetup(log, labels),
                saving, history, timestamper, desktop or this_machine.desktop(), power)
 
 

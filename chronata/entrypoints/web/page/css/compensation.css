@@ -19,6 +19,7 @@
 .tile.danger.has-value { background: var(--danger-bg); border-color: transparent; }
 .tile.danger.has-value .value { color: var(--danger); }
 
+.compensation-label { margin-bottom: 20px; }
 .period { margin-bottom: 12px; }
 .period-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 

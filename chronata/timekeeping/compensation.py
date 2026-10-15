@@ -42,6 +42,19 @@ class Reconciliation:
         return sum((day.overtime for day in self.unmatched), NONE)
 
 
+def reconcile_by_label(entries: list[Entry], weeks_per_label: dict[str, list[Week]], default_label: str) -> dict[str, Reconciliation]:
+    records: dict[str, list[Entry]] = defaultdict(list)
+    for entry in entries:
+        if entry.kind == "compensation":
+            records[entry.data.get("label") or default_label].append(entry)
+    labels = sorted(set(weeks_per_label) | set(records), key=lambda label: (label != default_label, label.casefold()))
+    return {label: reconcile(records[label], weeks_per_label.get(label, [])) for label in labels}
+
+
+def all_labels(by_label: dict[str, Reconciliation]) -> Reconciliation:
+    return Reconciliation([p for r in by_label.values() for p in r.periods], [d for r in by_label.values() for d in r.unmatched])
+
+
 def reconcile(entries: list[Entry], all_weeks: list[Week]) -> Reconciliation:
     days = [day for week in all_weeks for day in week.days if day.overtime > NONE]
     grouped: dict[tuple[date, date], list[dict]] = defaultdict(list)

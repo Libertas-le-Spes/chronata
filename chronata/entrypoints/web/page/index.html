@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="/css/shifts.css">
 <link rel="stylesheet" href="/css/labels.css">
 <link rel="stylesheet" href="/css/chart.css">
-<link rel="stylesheet" href="/css/pay.css">
+<link rel="stylesheet" href="/css/compensation.css">
 <link rel="stylesheet" href="/css/places.css">
 <link rel="stylesheet" href="/css/setup.css">
 <script type="module" src="/js/main.js"></script>
@@ -72,12 +72,12 @@
     <div class="tile"><span class="label">Overtime worked</span><span id="t-owed" class="value">–</span></div>
     <div class="tile"><span class="label">Compensated</span><span id="t-compensated" class="value">–</span></div>
     <div class="tile danger"><span class="label">Uncompensated</span><span id="t-shortfall" class="value">–</span></div>
-    <div class="tile"><span class="label">No payslip recorded yet</span><span id="t-unmatched" class="value">–</span></div>
+    <div class="tile"><span class="label">No compensation recorded yet</span><span id="t-unmatched" class="value">–</span></div>
   </section>
 
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="shifts" aria-selected="true">Shifts</button>
-    <button type="button" role="tab" data-tab="pay" aria-selected="false">Payslips</button>
+    <button type="button" role="tab" data-tab="compensation" aria-selected="false">Compensation</button>
     <button type="button" role="tab" data-tab="add" aria-selected="false">Add a missed shift</button>
     <button type="button" role="tab" data-tab="places" aria-selected="false">Saving</button>
   </nav>
@@ -105,14 +105,15 @@
     <div id="shifts"></div>
   </section>
 
-  <section id="tab-pay" class="tab" hidden>
+  <section id="tab-compensation" class="tab" hidden>
     <div class="card">
-      <h2>Record a payslip</h2>
-      <p class="muted">Enter what the payslip actually paid for overtime, even if that is 0. A 0 is the evidence that matters most.</p>
-      <form id="paid-form" class="grid-form">
-        <label>Pay period from <input name="from" type="date" required></label>
+      <h2>Record compensation</h2>
+      <p class="muted">Enter what was actually paid or given as time off for the overtime, even if that is 0. A 0 is the evidence that matters most.</p>
+      <form id="compensation-form" class="grid-form">
+        <label class="wide">Label <input name="label" type="text" list="known-labels" autocomplete="off" placeholder="The client or project the overtime was for"></label>
+        <label>Period from <input name="from" type="date" required></label>
         <label>to <input name="to" type="date" required></label>
-        <label>Overtime hours paid <input name="hours" type="number" min="0" step="0.01" required value="0"></label>
+        <label>Overtime hours compensated <input name="hours" type="number" min="0" step="0.01" required value="0"></label>
         <label>Given as
           <select name="timeOff">
             <option value="">Pay</option>
@@ -120,11 +121,10 @@
           </select>
         </label>
         <label class="wide">Reference <input name="reference" type="text" placeholder="e.g. payslip October 2026"></label>
-        <button class="primary wide" type="submit">Record payslip</button>
+        <button class="primary wide" type="submit">Record compensation</button>
       </form>
     </div>
-    <div id="unmatched"></div>
-    <div id="periods"></div>
+    <div id="compensation-labels"></div>
   </section>
 
   <section id="tab-add" class="tab" hidden>

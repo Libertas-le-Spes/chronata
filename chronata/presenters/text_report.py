@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from chronata.presenters.explanation import piece_lines
 from chronata.timekeeping.day_entries import DayEntry
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.pay import Reconciliation
+from chronata.timekeeping.compensation import Reconciliation, all_labels
 from chronata.timekeeping.pc_sessions import PcSession
 from chronata.timekeeping.stamps import Stamp
 from chronata.timekeeping.overtime import Day, Week
@@ -23,6 +23,8 @@ def entry_lines(entries: list[DayEntry], sessions: list[PcSession], stamps: list
 
 
 def punctuality(day: Day) -> str | None:
+    if day.running:
+        return f"arrived {hours(day.late)} late" if day.late > timedelta() else None
     if day.late <= timedelta():
         return f"{hours(day.short)} short of a full day" if day.short > timedelta() else None
     if day.made_up:
@@ -30,37 +32,39 @@ def punctuality(day: Day) -> str | None:
     return f"arrived {hours(day.late)} late, {hours(day.short)} short of a full day"
 
 
-def report_lines(all_weeks: list[Week], reconciliation: Reconciliation, today: date, by_label: dict[str, timedelta]) -> list[str]:
-    lines = ["Weeks worked", f"  {'week of':10}  {'worked':>7}  {'overtime':>8}"]
-    for week in all_weeks:
-        running = "  (week still running)" if week.end >= today else ""
-        lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime):>8}{running}")
-        lines += [f"    {day.date:%a %d %b}: {note}" for day in week.days if (note := punctuality(day))]
+def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str, Reconciliation], today: date) -> list[str]:
+    lines = []
+    for label, reconciliation in compensation.items():
+        lines += [f"{label or '(no label)'}", f"  {'week of':10}  {'worked':>7}  {'overtime':>8}"]
+        for week in weeks_per_label.get(label, []):
+            running = "  (week still running)" if week.end >= today else ""
+            lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime):>8}{running}")
+            lines += [f"    {day.date:%a %d %b}: {note}" for day in week.days if (note := punctuality(day))]
+        lines += _compensation_lines(label, reconciliation) + [""]
+    everything = all_labels(compensation)
+    return lines + [
+        "All labels",
+        f"  Overtime worked:                  {hours(everything.owed):>8}",
+        f"  Compensated (pay or time off):    {hours(everything.compensated):>8}",
+        f"  No compensation recorded yet:     {hours(everything.unmatched_overtime):>8}",
+        f"  Uncompensated so far:             {hours(everything.shortfall):>8}",
+    ]
 
-    if any(by_label):
-        lines += ["", "By label"]
-        lines += [f"  {label or '(no label)':24} {hours(worked):>8}" for label, worked in by_label.items()]
 
-    lines += ["", "Pay periods you recorded from payslips"]
+def _compensation_lines(label: str, reconciliation: Reconciliation) -> list[str]:
+    if not reconciliation.periods and not reconciliation.unmatched:
+        return []
+    lines = ["  Compensation recorded"]
     if not reconciliation.periods:
-        lines.append("  none yet; add one with: chronata paid FROM TO HOURS")
+        lines.append(f"    none yet; add it with: chronata compensation FROM TO HOURS{f' --label {label!r}' if label else ''}")
     for period in reconciliation.periods:
         lines.append(
-            f"  {period.start} to {period.end}: overtime worked {hours(period.owed)}, "
+            f"    {period.start} to {period.end}: overtime worked {hours(period.owed)}, "
             f"paid {hours(period.paid)}, time off {hours(period.time_off)}, "
             f"UNCOMPENSATED {hours(period.shortfall)}"
             + (f"  [{'; '.join(period.references)}]" if period.references else "")
         )
-
     if reconciliation.unmatched:
-        lines += ["", "Overtime on days no payslip covers yet"]
-        lines += [f"  {day.date:%Y-%m-%d %a}: {hours(day.overtime)}" for day in reconciliation.unmatched]
-
-    lines += [
-        "",
-        f"Overtime worked:            {hours(reconciliation.owed):>8}",
-        f"Compensated (pay or leave): {hours(reconciliation.compensated):>8}",
-        f"Not yet matched to payslip: {hours(reconciliation.unmatched_overtime):>8}",
-        f"Uncompensated so far:       {hours(reconciliation.shortfall):>8}",
-    ]
+        lines.append("  Overtime on days no compensation covers yet")
+        lines += [f"    {day.date:%Y-%m-%d %a}: {hours(day.overtime)}" for day in reconciliation.unmatched]
     return lines

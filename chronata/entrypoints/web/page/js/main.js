@@ -2,10 +2,10 @@ import { whenChanged } from "./actions.js";
 import { api } from "./api.js";
 import * as chart from "./chart.js";
 import * as clock from "./clock.js";
+import * as compensation from "./compensation.js";
 import * as hours from "./hours.js";
 import * as integrity from "./integrity.js";
 import * as labels from "./labels.js";
-import * as pay from "./pay.js";
 import * as pcBreaks from "./pc_breaks.js";
 import * as places from "./places.js";
 import { syncWith } from "./server_time.js";
@@ -14,7 +14,7 @@ import * as shifts from "./shifts.js";
 import * as tabs from "./tabs.js";
 import { toast } from "./toast.js";
 
-const sections = [clock, integrity, pay, shifts, chart, pcBreaks, hours, labels, places, setup];
+const sections = [clock, integrity, compensation, shifts, chart, pcBreaks, hours, labels, places, setup];
 
 async function refresh() {
   try {

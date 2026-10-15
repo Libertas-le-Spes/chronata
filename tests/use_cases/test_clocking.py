@@ -77,5 +77,17 @@ class ClockingInOnTheDefault(unittest.TestCase):
         self.assertEqual(self.f.app.log.shifts()[0].label, "Acme")
 
 
+
+class ADayStillRunning(unittest.TestCase):
+    def test_is_neither_short_nor_made_up_while_you_are_still_working(self):
+        f = Fixture("2026-10-14T10:00:00")
+        f.app.setup.configure("", "08:00 to 16:00")
+        f.app.corrections.add("2026-10-14", "08:15", "08:45", "written later", None)
+        f.app.corrections.add("2026-10-14", "09:00", "09:30", "written later", None)
+        f.app.clocking.clock_in(None, None)
+        today = f.app.log.weeks()[0].days[0]
+        self.assertEqual((today.late, today.short, today.made_up), (timedelta(minutes=15), timedelta(), False))
+
+
 if __name__ == "__main__":
     unittest.main()

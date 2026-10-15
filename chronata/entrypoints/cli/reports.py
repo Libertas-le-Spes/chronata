@@ -3,8 +3,7 @@ from datetime import date
 from chronata.presenters.text_report import entry_lines, report_lines
 from chronata.timekeeping.day_entries import day_entries
 from chronata.timekeeping.durations import hours
-from chronata.timekeeping.shifts import completed, open_shift
-from chronata.timekeeping.labels import worked_by_label
+from chronata.timekeeping.shifts import open_shift
 from chronata.wiring import App
 
 
@@ -23,9 +22,8 @@ def list_shifts(args, app: App) -> None:
 
 
 def report(args, app: App) -> None:
-    selected = [week for week in app.log.main_weeks() if _within(week.start, args)]
-    chosen = [s for s in completed(app.log.shifts()) if _within(s.start.date(), args)]
-    print("\n".join(report_lines(selected, app.log.reconciliation(selected), app.log.clock().date(), worked_by_label(chosen))))
+    per_label = {label: [week for week in label_weeks if _within(week.start, args)] for label, label_weeks in app.log.weeks_per_label().items()}
+    print("\n".join(report_lines(per_label, app.log.compensation(per_label), app.log.clock().date())))
 
 
 def _within(day: date, args) -> bool:

@@ -18,10 +18,11 @@ class Day:
     last_out: datetime
     late: timedelta
     short: timedelta
+    running: bool = False
 
     @property
     def made_up(self) -> bool:
-        return self.late > NONE and self.short == NONE
+        return self.late > NONE and self.short == NONE and not self.running
 
 
 @dataclass(frozen=True)
@@ -52,17 +53,19 @@ def weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, running:
     return [Week(start, _days(worked_days, working_day, running)) for start, worked_days in sorted(per_week.items())]
 
 
-def weeks_by_label(finished_shifts: list[Shift], hours: LabelHours, running: date | None = None) -> dict[str, list[Week]]:
+def weeks_by_label(finished_shifts: list[Shift], hours: LabelHours, running: Shift | None = None) -> dict[str, list[Week]]:
     grouped: dict[str, list[Shift]] = defaultdict(list)
     for shift in finished_shifts:
         grouped[shift.label or hours.default_label].append(shift)
-    return {label: weeks(label_shifts, hours.for_label(label), running) for label, label_shifts in grouped.items()}
+    running_label = (running.label or hours.default_label) if running else None
+    return {label: weeks(label_shifts, hours.for_label(label), running.start.date() if label == running_label else None)
+            for label, label_shifts in grouped.items()}
 
 
 def days_so_far(all_shifts: list[Shift], hours: LabelHours, now: datetime) -> dict[tuple[date, str], Day]:
     running = open_shift(all_shifts)
     counted = completed(all_shifts) + ([replace(running, end=now)] if running else [])
-    by_label = weeks_by_label(counted, hours, running.start.date() if running else None)
+    by_label = weeks_by_label(counted, hours, running)
     return {(day.date, label): day for label, label_weeks in by_label.items() for week in label_weeks for day in week.days}
 
 
@@ -83,6 +86,7 @@ def combined(by_label: dict[str, list[Week]], main_label: str) -> list[Week]:
             max(d.last_out for _, d in found),
             main.late if main else NONE,
             main.short if main else NONE,
+            any(d.running for _, d in found),
         ))
     return [Week(start, tuple(days)) for start, days in sorted(merged.items())]
 
@@ -105,7 +109,7 @@ def _days(worked_days: list[tuple[date, list[Shift]]], working_day: WorkingDay |
         short = max(full_day - worked, NONE) if workday and day != running else NONE
         if late == NONE and short <= working_day.early_leave_grace:
             short = NONE
-        days.append(Day(day, worked, worked - ordinary, first_in, last_out, late, short))
+        days.append(Day(day, worked, worked - ordinary, first_in, last_out, late, short, day == running))
     return tuple(days)
 
 

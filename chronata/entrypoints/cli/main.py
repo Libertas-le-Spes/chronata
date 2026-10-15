@@ -1,12 +1,12 @@
 import argparse
 import sys
 
-from chronata.entrypoints.cli import clocking, corrections, desktop, labels, pay, places, proof, reports, setup
+from chronata.entrypoints.cli import clocking, compensation, corrections, desktop, labels, places, proof, reports, setup
 from chronata.timekeeping.record import TamperedRecord
 from chronata.use_cases.outcome import LabelNeedsHours, OffDefaultLabel, Outcome, UnconfirmedLabel, UserError
 from chronata.wiring import open_app
 
-COMMAND_GROUPS = [clocking, corrections, labels, pay, reports, proof, places, setup, desktop]
+COMMAND_GROUPS = [clocking, corrections, labels, compensation, reports, proof, places, setup, desktop]
 
 
 def parser() -> argparse.ArgumentParser:
