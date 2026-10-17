@@ -22,7 +22,7 @@ Add the plugin for the clock on the bar, then run its `install.sh` once for the 
 
 ```sh
 omarchy plugin add https://github.com/Libertas-le-Spes/chronata.git --enable --yes
-omarchy bar put kayu.chronata --section right
+omarchy bar move kayu.chronata --section right
 ~/.config/omarchy/plugins/kayu.chronata/install.sh
 chronata setup
 ```
