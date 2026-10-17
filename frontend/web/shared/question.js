@@ -37,6 +37,11 @@ export function ask(question) {
       el("button", { type: "button", onclick: () => dialog.close() }, question.cancel || "Cancel"),
       ...question.choices.map((choice) => el("button", { type: "button", class: choice.style || null, onclick: choose(choice) }, choice.caption)),
     );
+    const preferred = question.choices.find((choice) => choice.style === "primary") ?? (question.choices.length === 1 ? question.choices[0] : null);
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      if (preferred) choose(preferred)();
+    };
     dialog.onclose = () => resolve(answer);
     dialog.showModal();
     form.querySelector("input")?.focus();
