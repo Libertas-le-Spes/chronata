@@ -90,6 +90,26 @@ mention_missing_tools() {
     command -v git >/dev/null 2>&1 || say "missing:  git, needed only to save the log to a git repository"
 }
 
+remove_install() {
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl --user disable --now chronata.service >/dev/null 2>&1 || true
+    fi
+    rm -f "$config_home/systemd/user/chronata.service" "$config_home/autostart/chronata.desktop" "$data_home/applications/chronata.desktop"
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl --user daemon-reload >/dev/null 2>&1 || true
+    fi
+    if [ "$(readlink "$command_path" 2>/dev/null)" = "$here/backend/bin/chronata" ]; then
+        rm -f "$command_path"
+    fi
+    say "removed:  the chronata command, the launcher and the background service"
+    say "kept:     your log and settings, in $data_home/chronata and $config_home/chronata"
+}
+
+if [ "${1:-}" = "--remove" ]; then
+    remove_install
+    exit 0
+fi
+
 require_python
 link_command
 add_launcher

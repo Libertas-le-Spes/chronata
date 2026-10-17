@@ -1,20 +1,18 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Ui
 
-Item {
+BarWidget {
   id: root
-
-  property var bar
-  property string moduleName
-  property var settings
 
   property string status: "out"
   property string elapsed: ""
   property string tooltip: ""
   property var palette: ({})
 
-  readonly property string command: settings && settings.command ? String(settings.command) : "chronata"
+  readonly property string ownCommand: decodeURIComponent(Qt.resolvedUrl("../../backend/bin/chronata").toString().replace(/^file:\/\//, ""))
+  readonly property string command: String(setting("command", ownCommand))
   readonly property color statusColor: status === "in" ? (palette.blue || "#89b4fa")
     : status === "interrupted" ? (palette.yellow || "#f9e2af")
     : (palette.red || "#f38ba8")
