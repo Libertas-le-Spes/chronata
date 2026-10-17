@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "kayu.chronata",
+  "name": "Chronata",
+  "version": "1.0.0",
+  "author": "kayu",
+  "description": "Clock in and out from the bar onto a sealed, timestamped record of the time you work, with overtime per client",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "frontend/omarchy-bar/chronata.qml"
+  },
+  "barWidget": {
+    "displayName": "Chronata",
+    "description": "Whether you are clocked in and for how long; click to clock in or out, right-click for the full log",
+    "category": "Productivity",
+    "allowMultiple": false
+  },
+  "license": "MIT"
+}

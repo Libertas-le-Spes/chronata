@@ -14,4 +14,44 @@ Overtime is owed by whoever it was worked for. So each client or project keeps i
 
 ## Install
 
-On Linux, run `./install.sh` from a clone. It needs Python 3.10 or newer and installs nothing else: it links the `chronata` command, adds Chronata to the applications menu and starts it in the background at every login. Then run `chronata setup`.
+Chronata needs Python 3.10 or newer and installs nothing else. `install.sh` links the `chronata` command, adds Chronata to the applications menu and starts it in the background at every login, for the page, the PC on and off records and the reminders. It never asks for sudo.
+
+### Omarchy
+
+Add the plugin for the clock on the bar, then run its `install.sh` once for the background part, which Omarchy plugins cannot start themselves:
+
+```sh
+omarchy plugin add https://github.com/Libertas-le-Spes/chronata.git --enable --yes
+omarchy bar put kayu.chronata --section right
+~/.config/omarchy/plugins/kayu.chronata/install.sh
+chronata setup
+```
+
+Click the clock to clock in or out; right-click it for the full log.
+
+To update, then restart the bar and the background part, which only load new code when they start:
+
+```sh
+omarchy plugin update kayu.chronata --yes
+omarchy-restart-shell
+systemctl --user restart chronata
+```
+
+To remove it:
+
+```sh
+~/.config/omarchy/plugins/kayu.chronata/install.sh --remove
+omarchy plugin remove kayu.chronata --yes
+```
+
+### Any other Linux desktop
+
+```sh
+git clone https://github.com/Libertas-le-Spes/chronata.git ~/.local/share/libertas-le-spes/chronata
+~/.local/share/libertas-le-spes/chronata/install.sh
+chronata setup
+```
+
+`install.sh --remove` undoes it.
+
+Removing Chronata never deletes your log or settings; they stay in `~/.local/share/chronata` and `~/.config/chronata`.
