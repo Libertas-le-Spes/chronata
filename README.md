@@ -18,7 +18,7 @@ Overtime is owed by whoever it was worked for. So each client or project keeps i
 
 ## Install
 
-Chronata needs Python 3.10 or newer and installs nothing else. `install.sh` links the `chronata` command, adds Chronata to the applications menu and starts it in the background at every login, for the page, the PC on and off records and the reminders. It never asks for sudo.
+Chronata needs Python 3.10 or newer, with nothing extra from pip, and the programs under [Needs](#needs). `install.sh` links the `chronata` command, adds Chronata to the applications menu and starts it in the background at every login, for the page, the PC on and off records and the reminders. It never asks for sudo.
 
 ### Omarchy
 
@@ -59,3 +59,18 @@ chronata setup
 `install.sh --remove` undoes it.
 
 Removing Chronata never deletes your log or settings; they stay in `~/.local/share/chronata` and `~/.config/chronata`.
+
+## Needs
+
+Python 3.10 or newer. Chronata also uses these programs where they exist. Omarchy comes with all of them except `zenity`, which it can do without:
+
+| Program | For | Without it |
+|---|---|---|
+| `journalctl`, or `last` on systems without systemd | the PC's on and off times | no PC records |
+| `systemctl` | running in the background and noticing a shutdown | `install.sh` starts Chronata from the desktop's autostart instead |
+| `notify-send` | reminder pop-ups | no pop-ups |
+| `zenity` or `kdialog` | questions when clocking in from a bar | the page opens instead |
+| `git` | saving the log to a git repository | the other kinds of place still work |
+| `openssl` | checking the timestamp services' signatures in `chronata verify` | the signatures are not checked |
+
+It also needs a web browser for its page, and internet access to reach the DigiCert and FreeTSA timestamp services.
