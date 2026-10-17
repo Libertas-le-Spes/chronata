@@ -12,6 +12,10 @@ The PC's on and off times are sealed alongside your shifts as corroboration. A P
 
 Overtime is owed by whoever it was worked for. So each client or project keeps its own hours, its overtime is measured against them alone, and what it pays or gives as time off is matched to that overtime and nobody else's. A late start is made up as soon as the time due by then has been worked, and only after that does overtime begin.
 
+![Clocked in, with this week's hours and overtime](preview.png)
+
+![The week's hours per day against a full day, and the hours per client or project](docs/week.png)
+
 ## Install
 
 Chronata needs Python 3.10 or newer and installs nothing else. `install.sh` links the `chronata` command, adds Chronata to the applications menu and starts it in the background at every login, for the page, the PC on and off records and the reminders. It never asks for sudo.
