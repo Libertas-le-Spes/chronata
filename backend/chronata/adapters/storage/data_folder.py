@@ -7,6 +7,7 @@ from chronata.adapters.storage.place_folder import PlaceFolder
 LEDGER = "ledger.jsonl"
 RULES = "rules.json"
 TIMESTAMPS = "timestamps"
+CHECKED_RECEIPTS = "checked-receipts.json"
 
 
 class DataFolder:

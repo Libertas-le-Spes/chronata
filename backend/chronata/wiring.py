@@ -60,7 +60,6 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
              secrets: Secrets | None = None, git: GitTransport | None = None) -> App:
     folder = DataFolder(data or locations.log_folder())
     power = power or this_machine.power_history()
-    timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
     settings = config or locations.settings_folder()
     save_record = SaveRecord(settings / "saves.json")
     git = git or GitTransport()
@@ -70,7 +69,9 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     places = PlaceBook(settings, kinds)
     history = OptionalHistory(folder.directory, data_folder.LEDGER, places.needs_local_history)
     running = OwnerOnlyFolder(locations.runtime_folder())
-    log = Log(LedgerFile(folder.ledger), history, LabelHoursFile(folder.rules), write_lock(running, locations.lock_name(folder.directory)), clock)
+    ledger = LedgerFile(folder.ledger)
+    timestamper = timestamper or Rfc3161Timestamper(folder.timestamps, ledger.hash_of, folder.directory / data_folder.CHECKED_RECEIPTS)
+    log = Log(ledger, history, LabelHoursFile(folder.rules), write_lock(running, locations.lock_name(folder.directory)), clock)
 
     def readable_copy(current: Log, now: datetime) -> dict[str, bytes]:
         return readable_files(current.shifts(), current.hours, current.pc_sessions(), timestamper.stamps(), current.entry_count(), now)
@@ -85,4 +86,5 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
 
 def open_saved_copy(folder: Path) -> tuple[LedgerFile, Rfc3161Timestamper]:
     sealed = find_saved_copy(folder)
-    return LedgerFile(sealed / data_folder.LEDGER), Rfc3161Timestamper(sealed / data_folder.TIMESTAMPS)
+    ledger = LedgerFile(sealed / data_folder.LEDGER)
+    return ledger, Rfc3161Timestamper(sealed / data_folder.TIMESTAMPS, ledger.hash_of)

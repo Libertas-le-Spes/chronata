@@ -95,8 +95,8 @@ class NoTimestamps:
     def stamps(self):
         return []
 
-    def check(self, stamp, record_hash):
-        return None
+    def problems(self):
+        return []
 
 
 class Fixture:
