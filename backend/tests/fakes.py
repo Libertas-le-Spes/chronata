@@ -2,6 +2,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.use_cases.questions.questions import Answers
 from chronata.wiring import App, open_app
@@ -65,6 +66,28 @@ class FakeDesktop:
         next(action for summary, action in self.notices if summary.startswith(summary_start) and action)()
 
 
+class FakePage:
+    def __init__(self):
+        self.opened: list[str] = []
+
+    def open(self, section=""):
+        self.opened.append(section)
+
+
+class FakeSecrets:
+    def __init__(self):
+        self.kept: dict[str, str] = {}
+
+    def keep(self, key, secret):
+        self.kept[key] = secret
+
+    def find(self, key):
+        return self.kept.get(key)
+
+    def forget(self, key):
+        self.kept.pop(key, None)
+
+
 class NoTimestamps:
     def stamp(self, seq, record_hash):
         return [], []
@@ -72,8 +95,8 @@ class NoTimestamps:
     def stamps(self):
         return []
 
-    def check(self, stamp, record_hash):
-        return None
+    def problems(self):
+        return []
 
 
 class Fixture:
@@ -81,9 +104,12 @@ class Fixture:
         self.now = at(now)
         self.power = FakePower()
         self.desktop = FakeDesktop()
+        self.page = FakePage()
+        self.secrets = FakeSecrets()
         self.data = Path(tempfile.mkdtemp())
         self.app: App = open_app(self.data, Path(tempfile.mkdtemp()), clock=lambda: self.now,
-                                 power=self.power, timestamper=NoTimestamps(), desktop=self.desktop)
+                                 power=self.power, timestamper=NoTimestamps(), desktop=self.desktop,
+                                 secrets=self.secrets, git=GitTransport())
 
     def at(self, text: str) -> None:
         self.now = at(text)

@@ -1,19 +1,23 @@
 import json
 import secrets
-from dataclasses import asdict, replace
+from dataclasses import asdict, fields, replace
 from pathlib import Path
 
 from chronata.adapters.places.place_kind import PlaceKind, SavedPlace
+from chronata.adapters.storage.owner_only_file import make_owner_only_folder, write_owner_only
 from chronata.use_cases.log.ports import PlaceKindDescription, SaveError
+
+KEPT = {field.name for field in fields(SavedPlace)}
 
 
 class PlaceBook:
     def __init__(self, directory: Path, kinds: list[PlaceKind]):
-        directory.mkdir(parents=True, exist_ok=True)
+        make_owner_only_folder(directory)
         self.path = directory / "places.json"
         self.by_kind = {kind.id: kind for kind in kinds}
         if not self.path.exists():
             self._write([place for kind in kinds for place in kind.already_there()])
+        self._move_passwords_into_the_keyring()
 
     def kinds(self) -> dict[str, PlaceKindDescription]:
         return {kind_id: kind.description for kind_id, kind in self.by_kind.items()}
@@ -21,7 +25,7 @@ class PlaceBook:
     def places(self) -> list[SavedPlace]:
         if not self.path.exists():
             return []
-        return [SavedPlace(**raw) for raw in json.loads(self.path.read_text(encoding="utf-8"))]
+        return [SavedPlace(**{key: value for key, value in raw.items() if key in KEPT}) for raw in self._raw()]
 
     def add(self, kind: str, name: str, target: str, username: str = "", password: str = "", folder: str = "") -> SavedPlace:
         if kind not in self.by_kind:
@@ -29,10 +33,10 @@ class PlaceBook:
         if not target.strip():
             raise SaveError("say where to save: a folder, or an address")
         chosen = self.by_kind[kind]
-        typed = SavedPlace(f"{kind}-{secrets.token_hex(3)}", kind, name.strip(), target.strip(), username.strip(), password, folder)
+        typed = SavedPlace(f"{kind}-{secrets.token_hex(3)}", kind, name.strip(), target.strip(), username.strip(), folder)
         place = chosen.accept(typed)
         place = replace(place, name=place.name or chosen.description.label)
-        chosen.added(place)
+        chosen.added(place, password)
         self._write([*self.places(), place])
         return place
 
@@ -55,6 +59,26 @@ class PlaceBook:
             raise SaveError(f"unknown kind of place: {place.kind}")
         return self.by_kind[place.kind]
 
+    def _move_passwords_into_the_keyring(self) -> None:
+        kept = self._raw()
+        if any("password" in raw for raw in kept):
+            self._write_raw([self._without_password(raw) for raw in kept])
+
+    def _without_password(self, raw: dict) -> dict:
+        password = raw.get("password", "")
+        if password:
+            place = SavedPlace(**{key: value for key, value in raw.items() if key in KEPT})
+            try:
+                self._kind_of(place).take_password(place, password)
+            except SaveError:
+                return raw
+        return {key: value for key, value in raw.items() if key != "password"}
+
+    def _raw(self) -> list[dict]:
+        return json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else []
+
     def _write(self, places: list[SavedPlace]) -> None:
-        self.path.write_text(json.dumps([asdict(p) for p in places], indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
+        self._write_raw([asdict(place) for place in places])
+
+    def _write_raw(self, places: list[dict]) -> None:
+        write_owner_only(self.path, (json.dumps(places, indent=2) + "\n").encode("utf-8"))

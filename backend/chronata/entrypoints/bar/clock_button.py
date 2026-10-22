@@ -1,11 +1,11 @@
 from datetime import datetime
 
 from chronata.entrypoints.bar.clock_in_questions import ask_and_clock_in
-from chronata.entrypoints.web.server import DEFAULT_PORT, page_url
 from chronata.timekeeping.shifts.durations import hours
 from chronata.timekeeping.shifts.shifts import Shift, open_shift
 from chronata.timekeeping.shifts.today import day_so_far
 from chronata.use_cases.log.outcome import UserError
+from chronata.use_cases.log.ports import Page
 from chronata.use_cases.pc.pc_records import Interrupted
 
 CLOCK_ICON = ""
@@ -43,16 +43,16 @@ def _working(current: Shift, all_shifts: list[Shift], now: datetime) -> dict:
     }
 
 
-def toggle(app) -> None:
+def toggle(app, page: Page) -> None:
     if app.pc.interrupted():
         app.desktop.notify("Last shift is still open", "The PC turned off while you were clocked in. Right-click the timer to open Chronata and close it.")
         return
     current = open_shift(app.log.shifts())
     if current is None:
-        ask_and_clock_in(app)
+        ask_and_clock_in(app, page)
         return
     if app.log.hours.before_end_of_workday(current.label, app.log.clock()):
-        app.desktop.open_page(page_url(DEFAULT_PORT) + "#confirm-out")
+        page.open("confirm-out")
         return
     try:
         outcome = app.clocking.clock_out(None, None)

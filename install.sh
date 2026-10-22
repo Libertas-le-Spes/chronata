@@ -38,7 +38,7 @@ add_launcher() {
 Type=Application
 Name=Chronata
 GenericName=Time log
-Exec=$command_path ui
+Exec="$command_path" ui
 Icon=appointment-soon
 Terminal=false
 Categories=Office;
@@ -56,8 +56,9 @@ PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=$command_path service
-ExecStop=$command_path shutting-down
+ExecStart="$command_path" service
+ExecStop="$command_path" shutting-down
+UMask=0077
 TimeoutStopSec=20
 Restart=on-failure
 RestartSec=10
@@ -77,7 +78,7 @@ start_with_autostart() {
 [Desktop Entry]
 Type=Application
 Name=Chronata in the background
-Exec=$command_path service
+Exec="$command_path" service
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
 ENTRY

@@ -2,12 +2,16 @@ import sys
 from pathlib import Path
 
 from chronata.use_cases.log.outcome import UserError
+from chronata.use_cases.log.ports import CannotCheck
 from chronata.use_cases.log.verification import Findings, verify
 from chronata.wiring import App, open_saved_copy
 
 
 def check(args, app: App) -> None:
-    findings = _findings(args, app)
+    try:
+        findings = _findings(args, app)
+    except CannotCheck as error:
+        raise UserError(f"could not check the log: {error}; nothing is vouched for until it can be")
     if findings.problems:
         print("\n".join(findings.problems), file=sys.stderr)
         raise UserError("the log has been altered; see above")

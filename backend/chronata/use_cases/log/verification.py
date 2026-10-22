@@ -16,16 +16,8 @@ class Findings:
 
 
 def verify(record: RecordStore, timestamper: Timestamper, history: History | None = None) -> Findings:
-    problems = record.problems()
+    problems = record.problems() + timestamper.problems()
     stamps = timestamper.stamps()
-    for stamp in stamps:
-        expected = record.hash_of(stamp.seq)
-        if expected is None:
-            problems.append(f"{stamp.name}: timestamps entry {stamp.seq}, which is missing from the log")
-            continue
-        failure = timestamper.check(stamp, expected)
-        if failure:
-            problems.append(failure)
     if history is not None:
         problems += history.rewrites()
     return Findings(len(record.entries()), problems, stamps)

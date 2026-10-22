@@ -8,6 +8,7 @@ from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.record.stamps import Stamp
+from chronata.use_cases.log.outcome import UserError
 
 
 class SaveError(Exception):
@@ -40,10 +41,14 @@ class PowerHistory(Protocol):
     def current_boot_id(self) -> str: ...
 
 
+class CannotCheck(Exception):
+    pass
+
+
 class Timestamper(Protocol):
     def stamp(self, seq: int, record_hash: str) -> tuple[list[Stamp], list[str]]: ...
     def stamps(self) -> list[Stamp]: ...
-    def check(self, stamp: Stamp, record_hash: str) -> str | None: ...
+    def problems(self) -> list[str]: ...
 
 
 class Place(Protocol):
@@ -83,6 +88,26 @@ class Desktop(Protocol):
     def can_ask(self) -> bool: ...
     def ask(self, question: str, suggested: str) -> str | None: ...
     def choose(self, question: str, options: list[str]) -> str | None: ...
+
+
+class Secrets(Protocol):
+    def keep(self, key: str, secret: str) -> None: ...
+    def find(self, key: str) -> str | None: ...
+    def forget(self, key: str) -> None: ...
+
+
+class NotPrivate(UserError):
+    pass
+
+
+class PrivateFolder(Protocol):
+    def write(self, name: str, text: str) -> None: ...
+    def read(self, name: str) -> str | None: ...
+    def forget(self, name: str) -> None: ...
+
+
+class Page(Protocol):
+    def open(self, section: str = "") -> None: ...
 
 
 WriteLock = Callable[[], AbstractContextManager]

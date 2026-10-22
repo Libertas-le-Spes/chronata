@@ -60,6 +60,12 @@ chronata setup
 
 Removing Chronata never deletes your log or settings; they stay in `~/.local/share/chronata` and `~/.config/chronata`.
 
+## Who can open the page
+
+The log holds your hours and where it is saved, so the page opens only for you, even on a computer other people log into. Open it from the bar, the applications menu or `chronata ui`: each of these opens a one-time link, and the page then stays open in that browser for up to twelve hours or until Chronata restarts. A bookmarked or typed address shows a notice instead.
+
+Each request must come from your own user account, carry that browser's visit, and come from the page itself. The one-time links are handed out only to programs that can read a key kept where only you can open it (`$XDG_RUNTIME_DIR/chronata`), and Chronata will not start the page if that folder is open to anyone else.
+
 ## Needs
 
 Python 3.10 or newer. Chronata also uses these programs where they exist. Omarchy comes with all of them except `zenity`, which it can do without:
@@ -71,6 +77,7 @@ Python 3.10 or newer. Chronata also uses these programs where they exist. Omarch
 | `notify-send` | reminder pop-ups | no pop-ups |
 | `zenity` or `kdialog` | questions when clocking in from a bar | the page opens instead |
 | `git` | saving the log to a git repository | the other kinds of place still work |
-| `openssl` | checking the timestamp services' signatures in `chronata verify` | the signatures are not checked |
+| `secret-tool`, with a desktop keyring such as GNOME Keyring or KWallet | keeping a web server's password | web server places can't be added; the password is never kept in a plain file |
+| `openssl` | checking every timestamp receipt's signature, against that service's own root certificate, before it is kept or shown | new receipts are not kept, and `chronata verify` says it cannot check; receipts this computer already checked stay listed on the page |
 
 It also needs a web browser for its page, and internet access to reach the DigiCert and FreeTSA timestamp services.

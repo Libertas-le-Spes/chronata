@@ -1,3 +1,4 @@
+import html
 import subprocess
 
 CANCEL = "Cancel"
@@ -5,7 +6,7 @@ CANCEL = "Cancel"
 
 class Zenity:
     def ask(self, title: str, question: str, suggested: str) -> str | None:
-        answered = _zenity("--entry", f"--title={title}", f"--text={question}", f"--entry-text={suggested}")
+        answered = _zenity("--entry", f"--title={title}", f"--text={html.escape(question, quote=False)}", f"--entry-text={suggested}")
         return answered.stdout.strip() if answered and answered.returncode == 0 else None
 
     def choose(self, title: str, question: str, options: list[str]) -> str | None:

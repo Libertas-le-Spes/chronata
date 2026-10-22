@@ -2,6 +2,7 @@ import json
 from datetime import time, timedelta
 from pathlib import Path
 
+from chronata.adapters.storage.owner_only_file import write_owner_only
 from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.working_day import Lunch, MONDAY_TO_FRIDAY, WEEKDAY_NAMES, WorkingDay
 
@@ -31,7 +32,7 @@ class LabelHoursFile:
         self._write({**saved, "labels": labels})
 
     def _write(self, rules: dict) -> None:
-        self.path.write_text(json.dumps(rules, indent=2) + "\n", encoding="utf-8")
+        write_owner_only(self.path, (json.dumps(rules, indent=2) + "\n").encode("utf-8"))
 
     def _saved(self) -> dict:
         saved = json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else {}

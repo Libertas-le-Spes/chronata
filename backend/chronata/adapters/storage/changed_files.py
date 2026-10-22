@@ -1,44 +1,40 @@
-import os
 from pathlib import Path
+from typing import Protocol
 
+from chronata.adapters.storage.owner_only_file import write_owner_only
+from chronata.adapters.storage.place_folder import PlaceFolder
 from chronata.use_cases.log.ports import SaveError
 
 WRITTEN_LIST = ".chronata-files"
 
 
-def write_changed(folder: Path, bundle: dict[str, bytes]) -> None:
+class WrittenNames(Protocol):
+    def names(self) -> set[str]: ...
+    def remember(self, names: set[str]) -> None: ...
+
+
+class NamesInFile:
+    def __init__(self, path: Path):
+        self.path = path
+
+    def names(self) -> set[str]:
+        return set(self.path.read_text(encoding="utf-8").splitlines()) - {""} if self.path.exists() else set()
+
+    def remember(self, names: set[str]) -> None:
+        write_owner_only(self.path, listing(names))
+
+
+def listing(names: set[str]) -> bytes:
+    return ("\n".join(sorted(names)) + "\n").encode("utf-8")
+
+
+def write_changed(folder: PlaceFolder, bundle: dict[str, bytes], written: WrittenNames) -> None:
     try:
         for relative, content in bundle.items():
-            path = folder / relative
-            if path.exists() and path.read_bytes() == content:
-                continue
-            path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = path.with_name(f".{path.name}.chronata-tmp")
-            temporary.write_bytes(content)
-            os.replace(temporary, path)
-        _remove_no_longer_written(folder, set(bundle))
+            if not folder.holds(relative, content):
+                folder.write(relative, content)
+        for relative in sorted(written.names() - set(bundle)):
+            folder.remove(relative)
+        written.remember(set(bundle))
     except OSError as error:
         raise SaveError(f"could not write to {folder}: {error.strerror or error}")
-
-
-def _remove_no_longer_written(folder: Path, written: set[str]) -> None:
-    listing = folder / WRITTEN_LIST
-    before = set(listing.read_text(encoding="utf-8").splitlines()) if listing.exists() else set()
-    for relative in sorted(before - written):
-        _remove(folder / relative, folder)
-    listing.write_text("\n".join(sorted(written)) + "\n", encoding="utf-8")
-
-
-def _remove(stale: Path, folder: Path) -> None:
-    if stale.is_file():
-        stale.unlink()
-    for parent in stale.parents:
-        if not _empty_below(parent, folder):
-            break
-        parent.rmdir()
-
-
-def _empty_below(parent: Path, folder: Path) -> bool:
-    if parent == folder or not parent.is_dir():
-        return False
-    return not any(parent.iterdir())

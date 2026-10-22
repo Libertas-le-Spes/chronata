@@ -26,6 +26,11 @@ class Notifications(unittest.TestCase):
     def test_an_announcement_goes_away_on_its_own(self):
         self.assertNotIn("--urgency=critical", self.sent("Clocked in", ""))
 
+    def test_text_is_never_read_as_an_option_or_as_markup(self):
+        for notification in (("--help", "<b>made-up</b> & more"), ("--help", "<b>made-up</b> & more", lambda: None, "Open")):
+            sent = self.sent(*notification)
+            self.assertEqual(sent[-3:], ["--", "--help", "&lt;b&gt;made-up&lt;/b&gt; &amp; more"])
+
 
 class LinuxDialogTools(unittest.TestCase):
     def desktop_with(self, *installed: str) -> LinuxDesktop:
@@ -58,10 +63,14 @@ class Zenity_(unittest.TestCase):
 
 class KDialog_(unittest.TestCase):
     def test_choices_are_offered_as_a_menu_and_the_chosen_one_comes_back(self):
-        with answering("Use Northwind\n") as run:
+        with answering("0\n") as run:
             self.assertEqual(KDialog().choose("Chronata", "Sure?", ["Use Northwind", "Clock in on Acme"]), "Use Northwind")
         self.assertEqual(run.call_args.args[0],
-                         ["kdialog", "--title", "Chronata", "--menu", "Sure?", "Use Northwind", "Use Northwind", "Clock in on Acme", "Clock in on Acme"])
+                         ["kdialog", "--title", "Chronata", "--menu", "Sure?", "0", "Use Northwind", "1", "Clock in on Acme"])
+
+    def test_a_choice_that_starts_with_a_dash_can_still_be_picked(self):
+        with answering("1\n"):
+            self.assertEqual(KDialog().choose("Chronata", "Which?", ["Acme", "-Made-up"]), "-Made-up")
 
     def test_cancelling_the_menu_is_no_answer(self):
         with answering("", 1):

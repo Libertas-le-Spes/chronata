@@ -1,3 +1,4 @@
+import html
 import shutil
 import subprocess
 import threading
@@ -8,6 +9,7 @@ from chronata.adapters.desktop.kdialog import KDialog
 from chronata.adapters.desktop.zenity import Zenity
 
 APP_NAME = "Chronata"
+USUAL_UMASK = 0o022
 FOLDER_TITLE = "Where should Chronata save?"
 DIALOG_TOOLS = {"zenity": Zenity, "kdialog": KDialog}
 
@@ -19,13 +21,13 @@ class LinuxDesktop:
     def notify(self, summary: str, body: str = "", on_click: Callable[[], None] | None = None, click_label: str = "Open") -> None:
         if shutil.which("notify-send") is None:
             return
-        command = ["notify-send", "-a", APP_NAME, summary, body]
+        shown = ["--", summary, html.escape(body, quote=False)]
         if on_click is None:
-            subprocess.run(command, check=False)
+            subprocess.run(["notify-send", "-a", APP_NAME, *shown], check=False)
             return
 
         def wait_for_click():
-            question = [*command, "--urgency=critical", f"--action=default={click_label}"]
+            question = ["notify-send", "-a", APP_NAME, "--urgency=critical", f"--action=default={click_label}", *shown]
             answered = subprocess.run(question, capture_output=True, text=True, check=False)
             if answered.stdout.strip() == "default":
                 on_click()
@@ -33,7 +35,11 @@ class LinuxDesktop:
         threading.Thread(target=wait_for_click, daemon=True).start()
 
     def open_page(self, url: str) -> None:
-        webbrowser.open(url)
+        if shutil.which("xdg-open") is None:
+            webbrowser.open(url)
+            return
+        subprocess.Popen(["xdg-open", url], umask=USUAL_UMASK, start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def can_ask(self) -> bool:
         return self.dialogs is not None

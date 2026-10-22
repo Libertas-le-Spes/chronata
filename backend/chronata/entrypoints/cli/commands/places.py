@@ -1,3 +1,6 @@
+import getpass
+import sys
+
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
 
@@ -18,7 +21,13 @@ def list_places(args, app: App) -> None:
 
 
 def add_place(args, app: App) -> Outcome:
-    return app.saving.add_place(app.log, args.kind, args.name or "", args.where, args.username or "", args.password or "", args.folder or "")
+    return app.saving.add_place(app.log, args.kind, args.name or "", args.where, args.username or "", _password(args.username), args.folder or "")
+
+
+def _password(username: str | None) -> str:
+    if not username:
+        return ""
+    return getpass.getpass(f"password for {username}: ") if sys.stdin.isatty() else sys.stdin.readline().rstrip("\n")
 
 
 def remove_place(args, app: App) -> Outcome:
@@ -37,8 +46,7 @@ def register(commands) -> None:
     command.add_argument("where", help="a folder path, a git URL or a web server address")
     command.add_argument("--folder", help="for git-folder: the folder inside the repository, e.g. 'Work Logs'")
     command.add_argument("--name")
-    command.add_argument("--username")
-    command.add_argument("--password")
+    command.add_argument("--username", help="asks for the password, or reads it from the first line of input")
     command.set_defaults(run=add_place)
 
     command = commands.add_parser("place-remove", help="stop saving to a place")

@@ -18,14 +18,17 @@ class GitRepositoryFolder:
         self.folders = folders
 
     def accept(self, place: SavedPlace) -> SavedPlace:
-        return replace(place, folder=checked_folder(place.folder))
+        return replace(place, target=self.folders.transport.checked(place.target), folder=checked_folder(place.folder))
 
-    def added(self, place: SavedPlace) -> None:
+    def added(self, place: SavedPlace, password: str) -> None:
         try:
             self.folders.prepare(place.id, place.target, place.folder)
         except SaveError:
             self.folders.forget(place.id)
             raise
+
+    def take_password(self, place: SavedPlace, password: str) -> None:
+        return None
 
     def removed(self, place: SavedPlace) -> None:
         self.folders.forget(place.id)
