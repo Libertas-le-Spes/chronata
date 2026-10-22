@@ -1,3 +1,4 @@
+import html
 import shutil
 import subprocess
 import threading
@@ -19,13 +20,13 @@ class LinuxDesktop:
     def notify(self, summary: str, body: str = "", on_click: Callable[[], None] | None = None, click_label: str = "Open") -> None:
         if shutil.which("notify-send") is None:
             return
-        command = ["notify-send", "-a", APP_NAME, summary, body]
+        shown = ["--", summary, html.escape(body, quote=False)]
         if on_click is None:
-            subprocess.run(command, check=False)
+            subprocess.run(["notify-send", "-a", APP_NAME, *shown], check=False)
             return
 
         def wait_for_click():
-            question = [*command, "--urgency=critical", f"--action=default={click_label}"]
+            question = ["notify-send", "-a", APP_NAME, "--urgency=critical", f"--action=default={click_label}", *shown]
             answered = subprocess.run(question, capture_output=True, text=True, check=False)
             if answered.stdout.strip() == "default":
                 on_click()

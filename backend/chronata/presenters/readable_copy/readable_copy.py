@@ -16,10 +16,13 @@ OVERVIEW = "README.md"
 WHOLE_LOG = "Chronata time log.md"
 DAYS = "Days"
 NO_LABEL = "No label"
+KEPT_BESIDE_LABELS = {OVERVIEW, WHOLE_LOG, DAYS, "sealed", "ledger.jsonl", "rules.json", "timestamps", "checked-receipts.json", "git", "chronata-files"}
 
 
 def label_folder(label: str) -> str:
-    cleaned = re.sub(r'[\\/:*?"<>|]+', "-", label).strip(" .-")
+    cleaned = re.sub(r'[\\/:*?"<>|\x00-\x1f\x7f]+', "-", label).strip(" .-")
+    if cleaned.casefold() in {name.casefold() for name in KEPT_BESIDE_LABELS}:
+        return f"{cleaned} (label)"
     return cleaned or NO_LABEL
 
 

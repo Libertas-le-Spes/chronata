@@ -26,6 +26,11 @@ class Notifications(unittest.TestCase):
     def test_an_announcement_goes_away_on_its_own(self):
         self.assertNotIn("--urgency=critical", self.sent("Clocked in", ""))
 
+    def test_text_is_never_read_as_an_option_or_as_markup(self):
+        for notification in (("--help", "<b>made-up</b> & more"), ("--help", "<b>made-up</b> & more", lambda: None, "Open")):
+            sent = self.sent(*notification)
+            self.assertEqual(sent[-3:], ["--", "--help", "&lt;b&gt;made-up&lt;/b&gt; &amp; more"])
+
 
 class LinuxDialogTools(unittest.TestCase):
     def desktop_with(self, *installed: str) -> LinuxDesktop:
