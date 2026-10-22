@@ -35,6 +35,9 @@ class OwnerOnlyFolder:
             _require_private(os.fstat(file.fileno()), self.path / name, stat.S_ISREG)
             return file.read()
 
+    def forget(self, name: str) -> None:
+        (self.path / name).unlink(missing_ok=True)
+
     def open_for_locking(self, name: str) -> int:
         self._make_private()
         descriptor = os.open(self.path / name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)

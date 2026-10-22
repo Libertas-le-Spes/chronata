@@ -5,7 +5,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from http.client import HTTPConnection
+from http.client import HTTPConnection, RemoteDisconnected
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+import threading
+import time
 from pathlib import Path
 from unittest import mock
 from urllib.parse import urlparse
@@ -13,11 +17,13 @@ from urllib.parse import urlparse
 from chronata.entrypoints.web import connection_owner
 from chronata.entrypoints.web.address import HOST, page_key_name
 from chronata.adapters.storage.owner_only_folder import NotPrivate, OwnerOnlyFolder
+from chronata.entrypoints.web.door_proof import ANSWERED_BY_THE_PAGE, ASKED_BY_THE_DOOR, fresh_nonce, proof, proves
 from chronata.entrypoints.web.page_door import PageDoor
-from chronata.entrypoints.web.server import serve_in_background
+from chronata.entrypoints.web.server import LARGEST_REQUEST, close, serve_in_background
 from tests.fakes import FakeDesktop, Fixture
 
 ANOTHER_USER = "nobody"
+NO_ANSWER = 0
 
 
 def free_port() -> int:
@@ -54,11 +60,16 @@ class ServedPage(unittest.TestCase):
             connection.request(method, path, body=body, headers=headers or {})
             reply = connection.getresponse()
             return Reply(reply.status, dict(reply.getheaders()), reply.read())
+        except (RemoteDisconnected, ConnectionResetError):
+            return Reply(NO_ANSWER, {}, b"")
         finally:
             connection.close()
 
     def key(self) -> str:
         return self.keys.read(page_key_name(self.port))
+
+    def asked_by_the_door(self, key: str, nonce: str) -> dict:
+        return {"X-Door-Nonce": nonce, "X-Door-Proof": proof(key, ASKED_BY_THE_DOOR, nonce)}
 
     def launch_link(self) -> str:
         desktop = FakeDesktop()
@@ -125,11 +136,19 @@ class OpeningThroughTheDoor(ServedPage):
 
 
 class AskingForALaunchCode(ServedPage):
-    def test_needs_the_page_key(self):
-        self.assertEqual(self.request("POST", "/door/code", {"X-Page-Key": "made-up"}).status, 403)
+    def test_needs_proof_of_the_page_key(self):
+        self.assertEqual(self.request("POST", "/door/code", self.asked_by_the_door("made-up", fresh_nonce())).status, 403)
+
+    def test_never_needs_the_key_itself_to_be_sent(self):
+        self.assertEqual(self.request("POST", "/door/code", {"X-Page-Key": self.key()}).status, 403)
+
+    def test_is_answered_with_proof_that_the_page_holds_the_key(self):
+        nonce = fresh_nonce()
+        answer = json.loads(self.request("POST", "/door/code", self.asked_by_the_door(self.key(), nonce)).body)
+        self.assertTrue(proves(self.key(), answer["proof"], ANSWERED_BY_THE_PAGE, nonce, answer["code"]))
 
     def test_is_refused_to_a_browser_even_with_the_key(self):
-        reply = self.request("POST", "/door/code", {"X-Page-Key": self.key(), "Origin": self.origin})
+        reply = self.request("POST", "/door/code", self.asked_by_the_door(self.key(), fresh_nonce()) | {"Origin": self.origin})
         self.assertEqual(reply.status, 403)
 
     def test_the_key_is_kept_where_only_you_can_open_it(self):
@@ -169,18 +188,18 @@ class ChangesFromThePage(ServedPage):
 class AnotherUsersConnection(ServedPage):
     def test_is_refused_a_launch_code_even_with_a_leaked_key(self):
         self.from_this_user = False
-        self.assertEqual(self.request("POST", "/door/code", {"X-Page-Key": self.key()}).status, 403)
+        self.assertEqual(self.request("POST", "/door/code", self.asked_by_the_door(self.key(), fresh_nonce())).status, NO_ANSWER)
 
     def test_is_refused_even_with_a_leaked_visit(self):
         cookie, token = self.enter()
         self.from_this_user = False
-        self.assertEqual(self.request("GET", "/", {"Cookie": cookie}).status, 403)
-        self.assertEqual(self.request("GET", "/api/state", self.page_request(cookie, token)).status, 403)
+        self.assertEqual(self.request("GET", "/", {"Cookie": cookie}).status, NO_ANSWER)
+        self.assertEqual(self.request("GET", "/api/state", self.page_request(cookie, token)).status, NO_ANSWER)
 
     def test_cannot_open_the_door_with_a_leaked_launch_link(self):
         link = urlparse(self.launch_link())
         self.from_this_user = False
-        self.assertEqual(self.request("GET", f"{link.path}?{link.query}").status, 403)
+        self.assertEqual(self.request("GET", f"{link.path}?{link.query}").status, NO_ANSWER)
 
 
 class AnotherHostName(ServedPage):
@@ -203,7 +222,7 @@ class TheRealOwnerCheck(unittest.TestCase):
         desktop = FakeDesktop()
         PageDoor(desktop, self.port, self.keys).open()
         if not desktop.opened:
-            return 403
+            return NO_ANSWER
         link = urlparse(desktop.opened[0])
         connection = HTTPConnection(HOST, self.port, timeout=5)
         connection.request("GET", f"{link.path}?{link.query}")
@@ -216,25 +235,29 @@ class TheRealOwnerCheck(unittest.TestCase):
 
     def test_refuses_everyone_when_it_cannot_tell_who_is_connecting(self):
         with mock.patch.object(connection_owner, "TCP_TABLE", Path("/nonexistent/tcp")):
-            self.assertEqual(self.door_status(), 403)
+            self.assertEqual(self.door_status(), NO_ANSWER)
 
     @unittest.skipUnless(subprocess.run(["sudo", "-n", "true"], capture_output=True).returncode == 0,
                          "needs sudo; run `sudo -v` in a terminal, then the tests from the same terminal")
     def test_refuses_another_user_who_has_the_key(self):
         script = (
-            "import sys\nfrom http.client import HTTPConnection\n"
-            "port, key = int(sys.argv[1]), sys.argv[2]\n"
+            "import hashlib, hmac, sys\nfrom http.client import HTTPConnection\n"
+            "port, key, nonce = int(sys.argv[1]), sys.argv[2], 'n' * 43\n"
+            "asked = {'X-Door-Nonce': nonce, 'X-Door-Proof': hmac.new(key.encode(), ('door\\n' + nonce).encode(), hashlib.sha256).hexdigest()}\n"
             "replies = []\n"
-            "for method, path, headers in (('GET', '/', {}), ('POST', '/door/code', {'X-Page-Key': key})):\n"
+            "for method, path, headers in (('GET', '/', {}), ('POST', '/door/code', asked)):\n"
             "    connection = HTTPConnection('127.0.0.1', port, timeout=5)\n"
-            "    connection.request(method, path, headers=headers)\n"
-            "    replies.append(str(connection.getresponse().status))\n"
+            "    try:\n"
+            "        connection.request(method, path, headers=headers)\n"
+            "        replies.append(str(connection.getresponse().status))\n"
+            "    except Exception:\n"
+            "        replies.append('closed')\n"
             "print(' '.join(replies))\n"
         )
         key = self.keys.read(page_key_name(self.port))
         run = subprocess.run(["sudo", "-n", "-u", ANOTHER_USER, sys.executable, "-I", "-c", script, str(self.port), key],
                              capture_output=True, text=True, cwd="/")
-        self.assertEqual(run.stdout.strip(), "403 403", run.stderr)
+        self.assertEqual(run.stdout.strip(), "closed closed", run.stderr)
 
 
 class StartingWithAKeyFolderOthersCanOpen(unittest.TestCase):
@@ -254,6 +277,67 @@ class TheDoorWithNothingRunning(unittest.TestCase):
         desktop = FakeDesktop()
         PageDoor(desktop, free_port(), OwnerOnlyFolder(Path(tempfile.mkdtemp()) / "chronata")).open()
         self.assertEqual((desktop.opened, desktop.notices[0][0]), ([], "Chronata's page is not running"))
+
+
+class TheDoorFacingAnImpostor(unittest.TestCase):
+    def setUp(self):
+        class Impostor(BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = json.dumps({"code": "made-up-code", "proof": "0" * 64}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self.impostor = HTTPServer((HOST, 0), Impostor)
+        threading.Thread(target=self.impostor.serve_forever, daemon=True).start()
+        self.port = self.impostor.server_port
+        self.keys = OwnerOnlyFolder(Path(tempfile.mkdtemp()) / "chronata")
+        self.keys.write(page_key_name(self.port), "made-up stale key")
+        self.desktop = FakeDesktop()
+
+    def tearDown(self):
+        self.impostor.shutdown()
+        self.impostor.server_close()
+
+    def test_that_cannot_prove_it_holds_the_key_opens_nothing(self):
+        PageDoor(self.desktop, self.port, self.keys).open()
+        self.assertEqual((self.desktop.opened, self.desktop.notices[0][0]), ([], "Chronata will not open its page"))
+
+    def test_on_a_port_held_by_another_user_is_not_even_asked(self):
+        PageDoor(self.desktop, self.port, self.keys, listener_check=lambda address: False).open()
+        self.assertEqual((self.desktop.opened, self.desktop.notices[0][0]), ([], "Chronata will not open its page"))
+
+
+class AConnectionThatSaysNothing(ServedPage):
+    def test_does_not_hold_up_anyone_else(self):
+        with socket.create_connection((HOST, self.port)):
+            started = time.monotonic()
+            self.assertEqual(self.request("GET", "/").status, 401)
+            self.assertLess(time.monotonic() - started, 2)
+
+
+class AnOversizedRequest(ServedPage):
+    def test_is_refused_before_it_is_read(self):
+        cookie, token = self.enter()
+        headers = self.page_request(cookie, token, self.origin) | {"Content-Length": str(LARGEST_REQUEST + 1)}
+        connection = HTTPConnection(HOST, self.port, timeout=5)
+        connection.putrequest("POST", "/api/save")
+        for name, value in headers.items():
+            connection.putheader(name, value)
+        connection.endheaders()
+        self.assertEqual(connection.getresponse().status, 413)
+        connection.close()
+
+
+class ClosingThePage(ServedPage):
+    def test_forgets_its_key(self):
+        close(self.server, self.keys)
+        self.assertIsNone(self.keys.read(page_key_name(self.port)))
+        self.server = serve_in_background(self.f.app, self.port, self.owner_check(), self.keys)
 
 
 if __name__ == "__main__":

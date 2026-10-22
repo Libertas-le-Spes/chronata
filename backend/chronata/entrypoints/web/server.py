@@ -1,9 +1,10 @@
 import json
 import re
 import secrets
+import sys
 import threading
 from http.cookies import CookieError, SimpleCookie
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qsl, urlparse
@@ -11,6 +12,7 @@ from urllib.parse import parse_qsl, urlparse
 from chronata.entrypoints.web import requests
 from chronata.entrypoints.web.address import HOST, page_key_name, page_url
 from chronata.entrypoints.web.connection_owner import owned_by_this_user
+from chronata.entrypoints.web.door_proof import ANSWERED_BY_THE_PAGE, ASKED_BY_THE_DOOR, proof, proves
 from chronata.entrypoints.web.page_door import DOOR_PATH, LAUNCH_CODE_PATH, PageDoor
 from chronata.entrypoints.web.refusals import refusal
 from chronata.entrypoints.web.visits import Visit, Visits
@@ -19,6 +21,8 @@ from chronata.use_cases.log.ports import PrivateFolder
 PAGE_FILE = re.compile(r"^/([a-z_]+/)?[a-z_]+\.(js|css)$")
 CONTENT_TYPES = {"js": "text/javascript", "css": "text/css"}
 HTML = "text/html; charset=utf-8"
+LARGEST_REQUEST = 1024 * 1024
+IDLE_SECONDS = 10
 OPEN_AGAIN = "Open Chronata again from the bar, the applications menu or the chronata command."
 SAFETY_HEADERS = {
     "Cache-Control": "no-store",
@@ -46,19 +50,34 @@ def serve(app, port: int, open_browser: bool) -> None:
         serving.join()
     except KeyboardInterrupt:
         pass
+    finally:
+        close(server, app.running)
 
 
-def serve_in_background(app, port: int, owner_check: OwnerCheck = owned_by_this_user, keys: PrivateFolder | None = None) -> HTTPServer | None:
+def close(server: "PageServer", keys: PrivateFolder) -> None:
+    keys.forget(page_key_name(server.server_address[1]))
+    server.shutdown()
+    server.server_close()
+
+
+def serve_in_background(app, port: int, owner_check: OwnerCheck = owned_by_this_user, keys: PrivateFolder | None = None) -> "PageServer | None":
     server = _bind(app, port, owner_check, keys or app.running)
     if server is not None:
         threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
 
-def _bind(app, port: int, owner_check: OwnerCheck, keys: PrivateFolder) -> HTTPServer | None:
+class PageServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address) -> None:
+        print(f"chronata page: a request failed: {sys.exc_info()[1]!r}", file=sys.stderr)
+
+
+def _bind(app, port: int, owner_check: OwnerCheck, keys: PrivateFolder) -> "PageServer | None":
     key = secrets.token_urlsafe(32)
     try:
-        server = HTTPServer((HOST, port), _handler(app, port, key, Visits(), owner_check))
+        server = PageServer((HOST, port), _handler(app, port, key, Visits(), owner_check))
     except OSError:
         return None
     try:
@@ -79,6 +98,10 @@ def _page_file(pages: Path, path: str) -> tuple[str, bytes] | None:
     return f"{CONTENT_TYPES[path.rsplit('.', 1)[1]]}; charset=utf-8", (pages / path.lstrip("/")).read_bytes()
 
 
+def _size(given: str) -> int:
+    return int(given) if given.isdigit() else -1
+
+
 def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) -> type[BaseHTTPRequestHandler]:
     allowed_hosts = {f"{HOST}:{port}", f"localhost:{port}"}
     allowed_origins = {f"http://{host}" for host in allowed_hosts}
@@ -86,8 +109,14 @@ def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) 
     reads, dialogs, changes = requests.reads(app), requests.dialogs(app), requests.changes(app)
 
     class Handler(BaseHTTPRequestHandler):
+        timeout = IDLE_SECONDS
+
+        def handle(self):
+            if owner_check(self.client_address, self.server.server_address):
+                super().handle()
+
         def do_GET(self):
-            if not self._from_this_user():
+            if not self._addressed_to_this_page():
                 return self._send(403, "text/plain", b"forbidden")
             address = urlparse(self.path)
             if address.path == DOOR_PATH:
@@ -107,7 +136,7 @@ def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) 
             return self._json(404, {"error": "not found"})
 
         def do_POST(self):
-            if not self._from_this_user():
+            if not self._addressed_to_this_page():
                 return self._json(403, {"error": "forbidden"})
             if self.path == LAUNCH_CODE_PATH:
                 return self._hand_out_launch_code()
@@ -118,25 +147,31 @@ def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) 
                 return self._json(403, {"error": "forbidden"})
             if self.path not in dialogs and self.path not in changes:
                 return self._json(404, {"error": "not found"})
+            size = _size(self.headers.get("Content-Length", "0"))
+            if not 0 <= size <= LARGEST_REQUEST:
+                return self._json(413, {"error": "that request is too large"})
             try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                body = json.loads(self.rfile.read(size) or b"{}")
                 if self.path in dialogs:
                     return self._json(200, dialogs[self.path](body))
                 outcome = changes[self.path](body)
             except Exception as error:
                 refused = refusal(error)
                 if refused is None:
-                    raise
+                    print(f"chronata page: {self.path} failed: {error!r}", file=sys.stderr)
+                    return self._json(500, {"error": "Chronata could not do that; the details are in its log"})
                 return self._json(*refused)
             return self._json(200, {"message": outcome.message, "warning": outcome.warning})
 
-        def _from_this_user(self) -> bool:
-            return self.headers.get("Host") in allowed_hosts and owner_check(self.client_address, self.server.server_address)
+        def _addressed_to_this_page(self) -> bool:
+            return self.headers.get("Host") in allowed_hosts
 
         def _hand_out_launch_code(self) -> None:
-            if "Origin" in self.headers or not secrets.compare_digest(self.headers.get("X-Page-Key", ""), key):
+            nonce = self.headers.get("X-Door-Nonce", "")
+            if "Origin" in self.headers or len(nonce) < 32 or not proves(key, self.headers.get("X-Door-Proof", ""), ASKED_BY_THE_DOOR, nonce):
                 return self._json(403, {"error": "forbidden"})
-            self._json(200, {"code": visits.launch_code()})
+            code = visits.launch_code()
+            self._json(200, {"code": code, "proof": proof(key, ANSWERED_BY_THE_PAGE, nonce, code)})
 
         def _enter(self, code: str) -> None:
             visit = visits.enter(code)
