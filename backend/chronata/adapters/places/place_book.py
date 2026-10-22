@@ -4,12 +4,13 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from chronata.adapters.places.place_kind import PlaceKind, SavedPlace
+from chronata.adapters.storage.owner_only_file import make_owner_only_folder, write_owner_only
 from chronata.use_cases.log.ports import PlaceKindDescription, SaveError
 
 
 class PlaceBook:
     def __init__(self, directory: Path, kinds: list[PlaceKind]):
-        directory.mkdir(parents=True, exist_ok=True)
+        make_owner_only_folder(directory)
         self.path = directory / "places.json"
         self.by_kind = {kind.id: kind for kind in kinds}
         if not self.path.exists():
@@ -56,5 +57,4 @@ class PlaceBook:
         return self.by_kind[place.kind]
 
     def _write(self, places: list[SavedPlace]) -> None:
-        self.path.write_text(json.dumps([asdict(p) for p in places], indent=2) + "\n", encoding="utf-8")
-        self.path.chmod(0o600)
+        write_owner_only(self.path, (json.dumps([asdict(p) for p in places], indent=2) + "\n").encode("utf-8"))

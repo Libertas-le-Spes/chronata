@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from chronata.entrypoints.web.owner_only_folder import NotPrivate, OwnerOnlyFolder
+from chronata.adapters.storage.owner_only_folder import NotPrivate, OwnerOnlyFolder
 
 
 def mode(path: Path) -> int:

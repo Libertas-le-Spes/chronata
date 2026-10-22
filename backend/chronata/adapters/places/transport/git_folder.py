@@ -2,7 +2,10 @@ import shutil
 import subprocess
 from pathlib import Path, PurePosixPath
 
-from chronata.adapters.storage.changed_files import WRITTEN_LIST, write_changed
+from chronata.adapters.places.save_record import SaveRecord
+from chronata.adapters.storage.changed_files import WRITTEN_LIST, listing, write_changed
+from chronata.adapters.storage.owner_only_file import make_owner_only_folder
+from chronata.adapters.storage.place_folder import PlaceFolder
 from chronata.use_cases.log.ports import SaveError
 
 
@@ -20,8 +23,9 @@ def _inside_the_repository(path: PurePosixPath) -> bool:
 
 
 class GitFolders:
-    def __init__(self, copies: Path):
+    def __init__(self, copies: Path, save_record: SaveRecord):
         self.copies = copies
+        self.save_record = save_record
 
     def prepare(self, place_id: str, address: str, folder: str) -> None:
         target = self._fresh_copy(place_id, address, folder) / folder
@@ -31,7 +35,9 @@ class GitFolders:
     def save(self, place_id: str, address: str, folder: str, bundle: dict[str, bytes]) -> None:
         self.prepare(place_id, address, folder)
         copy = self.copies / place_id
-        write_changed(copy / folder, bundle)
+        place_folder = PlaceFolder(copy, folder)
+        write_changed(place_folder, bundle, self.save_record.written_to(place_id))
+        place_folder.write(WRITTEN_LIST, listing(set(bundle)))
         self._git(copy, "add", "-A", "--", folder)
         if self._git(copy, "diff", "--cached", "--quiet").returncode == 0:
             return
@@ -46,6 +52,7 @@ class GitFolders:
         shutil.rmtree(self.copies / place_id, ignore_errors=True)
 
     def _fresh_copy(self, place_id: str, address: str, folder: str) -> Path:
+        make_owner_only_folder(self.copies)
         copy = self.copies / place_id
         if not (copy / ".git").exists():
             self._partial_copy(place_id, address)
@@ -55,7 +62,7 @@ class GitFolders:
         return copy
 
     def _partial_copy(self, place_id: str, address: str) -> None:
-        self.copies.mkdir(parents=True, exist_ok=True)
+        make_owner_only_folder(self.copies)
         cloned = self._git(self.copies, "clone", "-q", "--filter=blob:none", "--no-checkout", address, place_id, timeout=120)
         if cloned.returncode != 0:
             raise SaveError(f"could not reach {address}: {cloned.stderr.strip()}")

@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from chronata.entrypoints.cli.answers import how_to_answer
@@ -20,7 +21,11 @@ def parser() -> argparse.ArgumentParser:
     return built
 
 
+OWNER_ONLY_MASK = 0o077
+
+
 def main(argv: list[str] | None = None) -> int:
+    os.umask(OWNER_ONLY_MASK)
     args = parser().parse_args(argv)
     try:
         outcome = _answering(args, open_app())

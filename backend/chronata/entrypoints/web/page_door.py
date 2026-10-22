@@ -2,18 +2,17 @@ import json
 from http.client import HTTPConnection
 
 from chronata.entrypoints.web.address import HOST, page_key_name, page_url
-from chronata.entrypoints.web.owner_only_folder import NotPrivate, OwnerOnlyFolder, runtime_folder
-from chronata.use_cases.log.ports import Desktop
+from chronata.use_cases.log.ports import Desktop, NotPrivate, PrivateFolder
 
 LAUNCH_CODE_PATH = "/door/code"
 DOOR_PATH = "/door"
 
 
 class PageDoor:
-    def __init__(self, desktop: Desktop, port: int, keys: OwnerOnlyFolder | None = None):
+    def __init__(self, desktop: Desktop, port: int, keys: PrivateFolder):
         self.desktop = desktop
         self.port = port
-        self.keys = keys or OwnerOnlyFolder(runtime_folder())
+        self.keys = keys
 
     def open(self, section: str = "") -> None:
         try:

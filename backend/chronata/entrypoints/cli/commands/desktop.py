@@ -17,7 +17,7 @@ def bar_status(args, app: App) -> None:
 
 
 def bar_toggle(args, app: App) -> None:
-    clock_button.toggle(app, PageDoor(app.desktop, DEFAULT_PORT))
+    clock_button.toggle(app, PageDoor(app.desktop, DEFAULT_PORT, app.running))
 
 
 def service(args, app: App) -> None:

@@ -16,6 +16,7 @@ from chronata.adapters.storage import data_folder, locations
 from chronata.adapters.storage.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.storage.label_hours_file import LabelHoursFile
 from chronata.adapters.storage.ledger_file import LedgerFile
+from chronata.adapters.storage.owner_only_folder import OwnerOnlyFolder
 from chronata.adapters.storage.write_lock import write_lock
 from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
 from chronata.presenters.readable_copy.readable_copy import readable_files
@@ -45,6 +46,7 @@ class App:
     desktop: Desktop
     power: PowerHistory
     web_page: Path
+    running: OwnerOnlyFolder
 
 
 def local_now() -> datetime:
@@ -58,11 +60,12 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
     settings = config or locations.settings_folder()
     save_record = SaveRecord(settings / "saves.json")
-    kinds = [ObsidianVault(), FolderPlace(), GitRepository(GitRemotes(folder.directory)),
-             GitRepositoryFolder(GitFolders(locations.repository_copies_folder(folder.directory))), WebDavServer(save_record)]
+    kinds = [ObsidianVault(save_record), FolderPlace(save_record), GitRepository(GitRemotes(folder.directory)),
+             GitRepositoryFolder(GitFolders(locations.repository_copies_folder(folder.directory), save_record)), WebDavServer(save_record)]
     places = PlaceBook(settings, kinds)
     history = OptionalHistory(folder.directory, data_folder.LEDGER, places.needs_local_history)
-    log = Log(LedgerFile(folder.ledger), history, LabelHoursFile(folder.rules), write_lock(locations.lock_file(folder.directory)), clock)
+    running = OwnerOnlyFolder(locations.runtime_folder())
+    log = Log(LedgerFile(folder.ledger), history, LabelHoursFile(folder.rules), write_lock(running, locations.lock_name(folder.directory)), clock)
 
     def readable_copy(current: Log, now: datetime) -> dict[str, bytes]:
         return readable_files(current.shifts(), current.hours, current.pc_sessions(), timestamper.stamps(), current.entry_count(), now)
@@ -72,7 +75,7 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     labels = Labelling(log)
     pc = PcRecords(log, power)
     return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), pc, Compensations(log, labels), WorkingDaySetup(log, labels),
-               saving, history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder())
+               saving, history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder(), running)
 
 
 def open_saved_copy(folder: Path) -> tuple[LedgerFile, Rfc3161Timestamper]:

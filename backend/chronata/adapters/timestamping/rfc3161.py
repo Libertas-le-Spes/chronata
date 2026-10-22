@@ -6,6 +6,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from chronata.adapters.storage.owner_only_file import write_owner_only
 from chronata.adapters.timestamping import der
 from chronata.timekeeping.record.stamps import Stamp
 
@@ -23,7 +24,7 @@ class Rfc3161Timestamper:
         self.folder = folder
 
     def stamp(self, seq: int, record_hash: str) -> tuple[list[Stamp], list[str]]:
-        self.folder.mkdir(parents=True, exist_ok=True)
+        self.folder.mkdir(mode=0o700, parents=True, exist_ok=True)
         have = {(s.seq, s.authority) for s in self.stamps()}
         made, failures = [], []
         for authority, (shown_name, url) in AUTHORITIES.items():
@@ -36,7 +37,7 @@ class Rfc3161Timestamper:
                 failures.append(f"{shown_name}: {error}")
                 continue
             name = f"{seq:06d}-{record_hash[:12]}-{authority}.tsr"
-            (self.folder / name).write_bytes(reply)
+            write_owner_only(self.folder / name, reply)
             made.append(Stamp(seq, authority, shown_name, when, name))
         return made, failures
 

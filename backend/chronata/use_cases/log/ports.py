@@ -8,6 +8,7 @@ from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.record.stamps import Stamp
+from chronata.use_cases.log.outcome import UserError
 
 
 class SaveError(Exception):
@@ -83,6 +84,15 @@ class Desktop(Protocol):
     def can_ask(self) -> bool: ...
     def ask(self, question: str, suggested: str) -> str | None: ...
     def choose(self, question: str, options: list[str]) -> str | None: ...
+
+
+class NotPrivate(UserError):
+    pass
+
+
+class PrivateFolder(Protocol):
+    def write(self, name: str, text: str) -> None: ...
+    def read(self, name: str) -> str | None: ...
 
 
 class Page(Protocol):

@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 
 from chronata.entrypoints.web import connection_owner
 from chronata.entrypoints.web.address import HOST, page_key_name
-from chronata.entrypoints.web.owner_only_folder import NotPrivate, OwnerOnlyFolder
+from chronata.adapters.storage.owner_only_folder import NotPrivate, OwnerOnlyFolder
 from chronata.entrypoints.web.page_door import PageDoor
 from chronata.entrypoints.web.server import serve_in_background
 from tests.fakes import FakeDesktop, Fixture

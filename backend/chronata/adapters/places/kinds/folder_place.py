@@ -2,7 +2,9 @@ from dataclasses import replace
 from pathlib import Path
 
 from chronata.adapters.places.place_kind import SavedPlace
+from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.storage.changed_files import write_changed
+from chronata.adapters.storage.place_folder import PlaceFolder
 from chronata.use_cases.log.ports import PlaceKindDescription, SaveError
 
 
@@ -13,6 +15,9 @@ class FolderPlace:
         "Folder", "Folder", "/home/you/Documents/Time", True, False, False,
         "Gets an overview, the whole log in one file, a file per day, and the sealed log. A Dropbox, OneDrive or Syncthing folder works too.",
     )
+
+    def __init__(self, save_record: SaveRecord):
+        self.save_record = save_record
 
     def accept(self, place: SavedPlace) -> SavedPlace:
         folder = Path(place.target).expanduser()
@@ -29,13 +34,13 @@ class FolderPlace:
     def deliver(self, place: SavedPlace, bundle: dict[str, bytes]) -> None:
         if not Path(place.target).is_dir():
             raise SaveError(f"{place.target} is missing; if it is on a drive that is not plugged in, plug it in and save again")
-        write_changed(self.destination(place), bundle)
+        write_changed(self.destination(place), bundle, self.save_record.written_to(place.id))
 
     def already_there(self) -> list[SavedPlace]:
         return []
 
-    def destination(self, place: SavedPlace) -> Path:
-        return Path(place.target)
+    def destination(self, place: SavedPlace) -> PlaceFolder:
+        return PlaceFolder(Path(place.target))
 
 
 class ObsidianVault(FolderPlace):
@@ -51,5 +56,5 @@ class ObsidianVault(FolderPlace):
             raise SaveError(f"{accepted.target} is a folder, but not an Obsidian vault (it has no .obsidian folder inside)")
         return accepted
 
-    def destination(self, place: SavedPlace) -> Path:
-        return Path(place.target) / "Chronata"
+    def destination(self, place: SavedPlace) -> PlaceFolder:
+        return PlaceFolder(Path(place.target), "Chronata")

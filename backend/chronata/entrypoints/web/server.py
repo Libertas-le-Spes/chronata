@@ -11,10 +11,10 @@ from urllib.parse import parse_qsl, urlparse
 from chronata.entrypoints.web import requests
 from chronata.entrypoints.web.address import HOST, page_key_name, page_url
 from chronata.entrypoints.web.connection_owner import owned_by_this_user
-from chronata.entrypoints.web.owner_only_folder import OwnerOnlyFolder, runtime_folder
 from chronata.entrypoints.web.page_door import DOOR_PATH, LAUNCH_CODE_PATH, PageDoor
 from chronata.entrypoints.web.refusals import refusal
 from chronata.entrypoints.web.visits import Visit, Visits
+from chronata.use_cases.log.ports import PrivateFolder
 
 PAGE_FILE = re.compile(r"^/([a-z_]+/)?[a-z_]+\.(js|css)$")
 CONTENT_TYPES = {"js": "text/javascript", "css": "text/css"}
@@ -32,30 +32,30 @@ OwnerCheck = Callable[[tuple[str, int], tuple[str, int]], bool]
 
 
 def serve(app, port: int, open_browser: bool) -> None:
-    server = _bind(app, port, owned_by_this_user, OwnerOnlyFolder(runtime_folder()))
+    server = _bind(app, port, owned_by_this_user, app.running)
     print(f"chronata at {page_url(port)} (Ctrl+C to stop)" if server else f"already running at {page_url(port)}")
     if server is None:
         if open_browser:
-            PageDoor(app.desktop, port).open()
+            PageDoor(app.desktop, port, app.running).open()
         return
     serving = threading.Thread(target=server.serve_forever, daemon=True)
     serving.start()
     if open_browser:
-        PageDoor(app.desktop, port).open()
+        PageDoor(app.desktop, port, app.running).open()
     try:
         serving.join()
     except KeyboardInterrupt:
         pass
 
 
-def serve_in_background(app, port: int, owner_check: OwnerCheck = owned_by_this_user, keys: OwnerOnlyFolder | None = None) -> HTTPServer | None:
-    server = _bind(app, port, owner_check, keys or OwnerOnlyFolder(runtime_folder()))
+def serve_in_background(app, port: int, owner_check: OwnerCheck = owned_by_this_user, keys: PrivateFolder | None = None) -> HTTPServer | None:
+    server = _bind(app, port, owner_check, keys or app.running)
     if server is not None:
         threading.Thread(target=server.serve_forever, daemon=True).start()
     return server
 
 
-def _bind(app, port: int, owner_check: OwnerCheck, keys: OwnerOnlyFolder) -> HTTPServer | None:
+def _bind(app, port: int, owner_check: OwnerCheck, keys: PrivateFolder) -> HTTPServer | None:
     key = secrets.token_urlsafe(32)
     try:
         server = HTTPServer((HOST, port), _handler(app, port, key, Visits(), owner_check))
