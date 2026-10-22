@@ -25,7 +25,7 @@ class FolderPlace:
             raise SaveError(f"{folder} is not a folder on this computer")
         return replace(place, target=str(folder), folder="")
 
-    def added(self, place: SavedPlace) -> None:
+    def added(self, place: SavedPlace, password: str) -> None:
         return None
 
     def removed(self, place: SavedPlace) -> None:

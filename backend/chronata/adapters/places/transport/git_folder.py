@@ -2,7 +2,9 @@ import shutil
 import subprocess
 from pathlib import Path, PurePosixPath
 
+from chronata.adapters.places.addresses import shown
 from chronata.adapters.places.save_record import SaveRecord
+from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.adapters.storage.changed_files import WRITTEN_LIST, listing, write_changed
 from chronata.adapters.storage.owner_only_file import make_owner_only_folder
 from chronata.adapters.storage.place_folder import PlaceFolder
@@ -23,9 +25,10 @@ def _inside_the_repository(path: PurePosixPath) -> bool:
 
 
 class GitFolders:
-    def __init__(self, copies: Path, save_record: SaveRecord):
+    def __init__(self, copies: Path, save_record: SaveRecord, transport: GitTransport):
         self.copies = copies
         self.save_record = save_record
+        self.transport = transport
 
     def prepare(self, place_id: str, address: str, folder: str) -> None:
         target = self._fresh_copy(place_id, address, folder) / folder
@@ -46,7 +49,7 @@ class GitFolders:
             self._sync(copy)
             pushed = self._git(copy, "push", "-q", timeout=30)
             if pushed.returncode != 0:
-                raise SaveError(f"could not push to {address}: {pushed.stderr.strip()}; will try again on the next save")
+                raise SaveError(f"could not push to {shown(address)}: {pushed.stderr.strip()}; will try again on the next save")
 
     def forget(self, place_id: str) -> None:
         shutil.rmtree(self.copies / place_id, ignore_errors=True)
@@ -63,9 +66,9 @@ class GitFolders:
 
     def _partial_copy(self, place_id: str, address: str) -> None:
         make_owner_only_folder(self.copies)
-        cloned = self._git(self.copies, "clone", "-q", "--filter=blob:none", "--no-checkout", address, place_id, timeout=120)
+        cloned = self._git(self.copies, "clone", "-q", "--filter=blob:none", "--no-checkout", "--", self.transport.checked(address), place_id, timeout=120)
         if cloned.returncode != 0:
-            raise SaveError(f"could not reach {address}: {cloned.stderr.strip()}")
+            raise SaveError(f"could not reach {shown(address)}: {cloned.stderr.strip()}")
 
     def _sync(self, copy: Path) -> None:
         pulled = self._git(copy, "pull", "-q", "--rebase", timeout=60)
@@ -77,6 +80,6 @@ class GitFolders:
         if shutil.which("git") is None:
             raise SaveError("git is not installed, so git places cannot be saved to")
         try:
-            return subprocess.run(["git", "-C", str(where), *args], capture_output=True, text=True, check=False, timeout=timeout)
+            return subprocess.run(["git", *self.transport.options(), "-C", str(where), *args], capture_output=True, text=True, check=False, timeout=timeout)
         except subprocess.TimeoutExpired:
             raise SaveError("the repository did not answer in time; will try again on the next save")

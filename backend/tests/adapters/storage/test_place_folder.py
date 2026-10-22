@@ -9,6 +9,7 @@ from chronata.adapters.places.kinds.folder_place import FolderPlace, ObsidianVau
 from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.places.transport.git_folder import GitFolders
+from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.adapters.storage.changed_files import WRITTEN_LIST
 from chronata.adapters.storage.place_folder import PlaceFolder
 from chronata.use_cases.log.ports import SaveError
@@ -92,7 +93,7 @@ class AGitFolderUnderAttack(unittest.TestCase):
         (self.collaborator / "Notes" / "note.md").write_text("theirs\n")
         self.commit("start")
         self.copies = fresh()
-        self.folders = GitFolders(self.copies, saves())
+        self.folders = GitFolders(self.copies, saves(), GitTransport(local_allowed=True))
         self.ledger = self.copies.parent / f"{self.copies.name}-ledger.jsonl"
         self.ledger.write_text("sealed entries\n")
 

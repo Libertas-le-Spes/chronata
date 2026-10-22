@@ -2,6 +2,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.use_cases.questions.questions import Answers
 from chronata.wiring import App, open_app
@@ -73,6 +74,20 @@ class FakePage:
         self.opened.append(section)
 
 
+class FakeSecrets:
+    def __init__(self):
+        self.kept: dict[str, str] = {}
+
+    def keep(self, key, secret):
+        self.kept[key] = secret
+
+    def find(self, key):
+        return self.kept.get(key)
+
+    def forget(self, key):
+        self.kept.pop(key, None)
+
+
 class NoTimestamps:
     def stamp(self, seq, record_hash):
         return [], []
@@ -90,9 +105,11 @@ class Fixture:
         self.power = FakePower()
         self.desktop = FakeDesktop()
         self.page = FakePage()
+        self.secrets = FakeSecrets()
         self.data = Path(tempfile.mkdtemp())
         self.app: App = open_app(self.data, Path(tempfile.mkdtemp()), clock=lambda: self.now,
-                                 power=self.power, timestamper=NoTimestamps(), desktop=self.desktop)
+                                 power=self.power, timestamper=NoTimestamps(), desktop=self.desktop,
+                                 secrets=self.secrets, git=GitTransport(local_allowed=True))
 
     def at(self, text: str) -> None:
         self.now = at(text)

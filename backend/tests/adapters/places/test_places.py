@@ -13,6 +13,7 @@ from chronata.adapters.places.place_kind import SavedPlace
 from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.places.transport.git_folder import GitFolders
 from chronata.adapters.places.transport.git_push import GitRemotes
+from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.adapters.places.transport.webdav_upload import upload_changed
 from chronata.use_cases.log.ports import PlaceKindDescription, SaveError
 
@@ -55,7 +56,7 @@ class GitPlaces(unittest.TestCase):
         (self.log / "ledger.jsonl").write_text("entry\n")
         subprocess.run(["git", "-C", str(self.log), "add", "-A"], check=True)
         subprocess.run(["git", "-C", str(self.log), "commit", "-q", "-m", "entry"], check=True)
-        self.remotes = GitRemotes(self.log)
+        self.remotes = GitRemotes(self.log, GitTransport(local_allowed=True))
 
     def test_the_log_is_pushed_to_a_git_place(self):
         backup = Path(tempfile.mkdtemp())
@@ -86,7 +87,7 @@ class FoldersInAGitRepository(unittest.TestCase):
         git("add", "-A", cwd=self.mine)
         git("commit", "-q", "-m", "my notes", cwd=self.mine)
         git("push", "-q", "origin", "main", cwd=self.mine)
-        self.folders = GitFolders(Path(tempfile.mkdtemp()), saves())
+        self.folders = GitFolders(Path(tempfile.mkdtemp()), saves(), GitTransport(local_allowed=True))
 
     def test_only_the_chosen_folder_is_written_and_nothing_else_changes(self):
         self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"logs", "Northwind/Days/2026-10-14.md": b"day"})
@@ -192,7 +193,7 @@ class Notebook:
     def accept(self, place: SavedPlace) -> SavedPlace:
         return place
 
-    def added(self, place: SavedPlace) -> None:
+    def added(self, place: SavedPlace, password: str) -> None:
         self.pages[place.target] = {}
 
     def removed(self, place: SavedPlace) -> None:

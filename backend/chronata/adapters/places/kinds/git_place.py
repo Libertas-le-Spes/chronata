@@ -19,9 +19,9 @@ class GitRepository:
         self.remotes = remotes
 
     def accept(self, place: SavedPlace) -> SavedPlace:
-        return replace(place, folder="")
+        return replace(place, target=self.remotes.transport.checked(place.target), folder="")
 
-    def added(self, place: SavedPlace) -> None:
+    def added(self, place: SavedPlace, password: str) -> None:
         self.remotes.add(place.id, place.target)
 
     def removed(self, place: SavedPlace) -> None:

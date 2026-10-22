@@ -12,6 +12,8 @@ from chronata.adapters.places.place_book import PlaceBook
 from chronata.adapters.places.save_record import SaveRecord
 from chronata.adapters.places.transport.git_folder import GitFolders
 from chronata.adapters.places.transport.git_push import GitRemotes
+from chronata.adapters.places.transport.git_transport import GitTransport
+from chronata.adapters.secrets.secret_service import SecretService
 from chronata.adapters.storage import data_folder, locations
 from chronata.adapters.storage.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.storage.label_hours_file import LabelHoursFile
@@ -26,7 +28,7 @@ from chronata.use_cases.corrections.corrections import Corrections
 from chronata.use_cases.hours.working_day_setup import WorkingDaySetup
 from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log
-from chronata.use_cases.log.ports import Clock, Desktop, History, PowerHistory, Timestamper
+from chronata.use_cases.log.ports import Clock, Desktop, History, PowerHistory, Secrets, Timestamper
 from chronata.use_cases.pc.pc_records import PcRecords
 from chronata.use_cases.saving.saving import Saving
 
@@ -54,14 +56,17 @@ def local_now() -> datetime:
 
 
 def open_app(data: Path | None = None, config: Path | None = None, clock: Clock = local_now,
-             power: PowerHistory | None = None, timestamper: Timestamper | None = None, desktop: Desktop | None = None) -> App:
+             power: PowerHistory | None = None, timestamper: Timestamper | None = None, desktop: Desktop | None = None,
+             secrets: Secrets | None = None, git: GitTransport | None = None) -> App:
     folder = DataFolder(data or locations.log_folder())
     power = power or this_machine.power_history()
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps)
     settings = config or locations.settings_folder()
     save_record = SaveRecord(settings / "saves.json")
-    kinds = [ObsidianVault(save_record), FolderPlace(save_record), GitRepository(GitRemotes(folder.directory)),
-             GitRepositoryFolder(GitFolders(locations.repository_copies_folder(folder.directory), save_record)), WebDavServer(save_record)]
+    git = git or GitTransport()
+    kinds = [ObsidianVault(save_record), FolderPlace(save_record), GitRepository(GitRemotes(folder.directory, git)),
+             GitRepositoryFolder(GitFolders(locations.repository_copies_folder(folder.directory), save_record, git)),
+             WebDavServer(save_record, secrets or SecretService())]
     places = PlaceBook(settings, kinds)
     history = OptionalHistory(folder.directory, data_folder.LEDGER, places.needs_local_history)
     running = OwnerOnlyFolder(locations.runtime_folder())

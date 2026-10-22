@@ -4,6 +4,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from chronata.adapters.places.addresses import shown
 from chronata.use_cases.log.ports import SaveError
 
 
@@ -38,11 +39,11 @@ def _send(address: str, username: str, password: str, method: str, url: str, bod
         status = error.code
         error.close()
     except (urllib.error.URLError, OSError) as error:
-        raise SaveError(f"could not reach {address}: {getattr(error, 'reason', error)}")
+        raise SaveError(f"could not reach {shown(address)}: {getattr(error, 'reason', error)}")
     if status in (401, 403):
-        raise SaveError(f"{address} refused the username or password")
+        raise SaveError(f"{shown(address)} refused the username or password")
     if status not in accept:
-        raise SaveError(f"{address} answered {status} to {method} {url}")
+        raise SaveError(f"{shown(address)} answered {status} to {method} {shown(url)}")
 
 
 def _quoted(relative: str) -> str:

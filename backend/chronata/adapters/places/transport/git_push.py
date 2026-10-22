@@ -2,12 +2,15 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from chronata.adapters.places.addresses import shown
+from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.use_cases.log.ports import SaveError
 
 
 class GitRemotes:
-    def __init__(self, repository: Path):
+    def __init__(self, repository: Path, transport: GitTransport):
         self.repository = repository
+        self.transport = transport
 
     def address(self, name: str = "origin") -> str | None:
         if shutil.which("git") is None or not (self.repository / ".git").exists():
@@ -18,9 +21,9 @@ class GitRemotes:
     def add(self, name: str, address: str) -> None:
         if not (self.repository / ".git").exists():
             self._git("init", "-q", "-b", "main")
-        added = self._git("remote", "add", name, address)
+        added = self._git("remote", "add", "--", name, self.transport.checked(address))
         if added.returncode != 0:
-            raise SaveError(f"could not add {address}: {added.stderr.strip()}")
+            raise SaveError(f"could not add {shown(address)}: {added.stderr.strip()}")
 
     def remove(self, name: str) -> None:
         self._git("remote", "remove", name)
@@ -36,4 +39,4 @@ class GitRemotes:
     def _git(self, *args: str, timeout: float | None = None) -> subprocess.CompletedProcess:
         if shutil.which("git") is None:
             raise SaveError("git is not installed, so git places cannot be saved to")
-        return subprocess.run(["git", "-C", str(self.repository), *args], capture_output=True, text=True, check=False, timeout=timeout)
+        return subprocess.run(["git", *self.transport.options(), "-C", str(self.repository), *args], capture_output=True, text=True, check=False, timeout=timeout)
