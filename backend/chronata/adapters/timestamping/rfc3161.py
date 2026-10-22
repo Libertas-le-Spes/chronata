@@ -3,6 +3,7 @@ import json
 import re
 import secrets
 import urllib.request
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -94,8 +95,9 @@ class Rfc3161Timestamper:
     def _checked_time(self, path: Path, record_hash: str, authority: Authority) -> datetime | None:
         reply = path.read_bytes()
         remembered = self._remembered().get(path.name, {})
-        if remembered.get("receipt") == _digest(reply) and remembered.get("entry") == record_hash:
-            return datetime.fromisoformat(remembered["time"])
+        if isinstance(remembered, dict) and remembered.get("receipt") == _digest(reply) and remembered.get("entry") == record_hash:
+            with suppress(TypeError, ValueError):
+                return datetime.fromisoformat(remembered["time"])
         try:
             when = checked_receipt(reply, record_hash, authority)
         except (ReceiptRefused, CannotCheck):

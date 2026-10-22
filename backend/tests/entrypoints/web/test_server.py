@@ -273,6 +273,13 @@ class StartingWithAKeyFolderOthersCanOpen(unittest.TestCase):
 
 
 class TheDoorWithNothingRunning(unittest.TestCase):
+    def test_says_so_and_drops_a_key_left_behind(self):
+        desktop, port = FakeDesktop(), free_port()
+        keys = OwnerOnlyFolder(Path(tempfile.mkdtemp()) / "chronata")
+        keys.write(page_key_name(port), "made-up stale key")
+        PageDoor(desktop, port, keys).open()
+        self.assertEqual((desktop.opened, desktop.notices[0][0], keys.read(page_key_name(port))), ([], "Chronata's page is not running", None))
+
     def test_says_so_and_opens_nothing(self):
         desktop = FakeDesktop()
         PageDoor(desktop, free_port(), OwnerOnlyFolder(Path(tempfile.mkdtemp()) / "chronata")).open()
@@ -308,7 +315,7 @@ class TheDoorFacingAnImpostor(unittest.TestCase):
         self.assertEqual((self.desktop.opened, self.desktop.notices[0][0]), ([], "Chronata will not open its page"))
 
     def test_on_a_port_held_by_another_user_is_not_even_asked(self):
-        PageDoor(self.desktop, self.port, self.keys, listener_check=lambda address: False).open()
+        PageDoor(self.desktop, self.port, self.keys, listener_owner=lambda address: os.getuid() + 1).open()
         self.assertEqual((self.desktop.opened, self.desktop.notices[0][0]), ([], "Chronata will not open its page"))
 
 
@@ -339,6 +346,31 @@ class ClosingThePage(ServedPage):
         self.assertIsNone(self.keys.read(page_key_name(self.port)))
         self.server = serve_in_background(self.f.app, self.port, self.owner_check(), self.keys)
 
+
+class CheckingTheLogWithoutOpenssl(ServedPage):
+    def test_says_why_instead_of_dropping_the_connection(self):
+        from chronata.use_cases.log.ports import CannotCheck
+        cookie, token = self.enter()
+        with mock.patch.object(self.f.app.timestamper, "problems", side_effect=CannotCheck("openssl is not installed")):
+            reply = self.request("GET", "/api/verify", self.page_request(cookie, token))
+        self.assertEqual((reply.status, json.loads(reply.body)["error"]), (503, "openssl is not installed"))
+
+
+class StoppingChronataUi(unittest.TestCase):
+    def test_removes_its_key(self):
+        import signal
+        home, port = Path(tempfile.mkdtemp()), free_port()
+        environment = {**os.environ, "CHRONATA_HOME": str(home / "data"), "CHRONATA_CONFIG": str(home / "config"), "XDG_RUNTIME_DIR": str(home / "run")}
+        launcher = Path(__file__).parents[3] / "bin" / "chronata"
+        running = subprocess.Popen([str(launcher), "ui", "--no-browser", "--port", str(port)], env=environment, stdout=subprocess.DEVNULL)
+        key = home / "run" / "chronata" / page_key_name(port)
+        for _ in range(100):
+            if key.exists():
+                break
+            time.sleep(0.05)
+        running.send_signal(signal.SIGTERM)
+        running.wait(timeout=10)
+        self.assertEqual((running.returncode, key.exists()), (0, False))
 
 if __name__ == "__main__":
     unittest.main()

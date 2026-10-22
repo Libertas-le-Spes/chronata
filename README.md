@@ -78,6 +78,6 @@ Python 3.10 or newer. Chronata also uses these programs where they exist. Omarch
 | `zenity` or `kdialog` | questions when clocking in from a bar | the page opens instead |
 | `git` | saving the log to a git repository | the other kinds of place still work |
 | `secret-tool`, with a desktop keyring such as GNOME Keyring or KWallet | keeping a web server's password | web server places can't be added; the password is never kept in a plain file |
-| `openssl` | checking every timestamp receipt's signature, against that service's own root certificate, before it is kept or shown | no receipt is kept or vouched for, and `chronata verify` says it cannot check |
+| `openssl` | checking every timestamp receipt's signature, against that service's own root certificate, before it is kept or shown | new receipts are not kept, and `chronata verify` says it cannot check; receipts this computer already checked stay listed on the page |
 
 It also needs a web browser for its page, and internet access to reach the DigiCert and FreeTSA timestamp services.

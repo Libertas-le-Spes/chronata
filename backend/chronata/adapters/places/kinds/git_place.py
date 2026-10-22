@@ -24,6 +24,9 @@ class GitRepository:
     def added(self, place: SavedPlace, password: str) -> None:
         self.remotes.add(place.id, place.target)
 
+    def take_password(self, place: SavedPlace, password: str) -> None:
+        return None
+
     def removed(self, place: SavedPlace) -> None:
         if place.id != FIRST_REMOTE:
             self.remotes.remove(place.id)

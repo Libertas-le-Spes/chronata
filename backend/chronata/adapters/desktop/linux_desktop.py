@@ -9,6 +9,7 @@ from chronata.adapters.desktop.kdialog import KDialog
 from chronata.adapters.desktop.zenity import Zenity
 
 APP_NAME = "Chronata"
+USUAL_UMASK = 0o022
 FOLDER_TITLE = "Where should Chronata save?"
 DIALOG_TOOLS = {"zenity": Zenity, "kdialog": KDialog}
 
@@ -34,7 +35,11 @@ class LinuxDesktop:
         threading.Thread(target=wait_for_click, daemon=True).start()
 
     def open_page(self, url: str) -> None:
-        webbrowser.open(url)
+        if shutil.which("xdg-open") is None:
+            webbrowser.open(url)
+            return
+        subprocess.Popen(["xdg-open", url], umask=USUAL_UMASK, start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def can_ask(self) -> bool:
         return self.dialogs is not None

@@ -3,7 +3,8 @@ from urllib.parse import urlsplit
 
 from chronata.use_cases.log.ports import SaveError
 
-SCP_STYLE = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:(?!-)[^\s]+$")
+SCP_STYLE = re.compile(r"^([A-Za-z0-9._-]+@)?[A-Za-z0-9][A-Za-z0-9.-]*:(?![-:]|//)\S+$")
+UNENCRYPTED = ("http", "git")
 UNSAFE_TEXT = re.compile(r"[\s\x00-\x1f\x7f]")
 CREDENTIALS = re.compile(r"(?<=//)[^/@\s]*@")
 
@@ -17,13 +18,17 @@ def checked_web_address(text: str) -> str:
     return address
 
 
-def checked_git_address(text: str, local_allowed: bool) -> str:
+def checked_git_address(text: str) -> str:
     address = _bare(text)
-    if SCP_STYLE.match(address) or (local_allowed and address.startswith("/")):
+    if address.startswith("/") or SCP_STYLE.match(address):
         return address
     parts = urlsplit(address)
+    if parts.scheme in UNENCRYPTED:
+        raise SaveError(f"{parts.scheme}:// sends the log unencrypted and unauthenticated; use https:// or ssh instead")
+    if parts.scheme == "file" and parts.path.startswith("/"):
+        return address
     if parts.scheme not in ("https", "ssh") or not parts.hostname:
-        raise SaveError("give the repository as an https:// or ssh:// address, or as user@host:path")
+        raise SaveError("give the repository as an https:// or ssh:// address, as host:path, or as a folder on this computer")
     if parts.scheme == "https":
         _refuse_credentials(parts)
     elif parts.password:

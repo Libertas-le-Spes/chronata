@@ -28,15 +28,17 @@ class WebServerAddresses(unittest.TestCase):
 
 class GitAddresses(unittest.TestCase):
     def test_only_https_and_ssh_are_accepted(self):
-        for accepted in ("https://git.example.com/me/log.git", "ssh://git@git.example.com/me/log.git", "git@git.example.com:me/log.git"):
-            self.assertEqual(checked_git_address(accepted, local_allowed=False), accepted)
+        for accepted in ("https://git.example.com/me/log.git", "ssh://git@git.example.com/me/log.git", "git@git.example.com:me/log.git",
+                         "work-alias:me/log.git", "/media/usb/log.git", "file:///media/usb/log.git", "git@git.example.com:/srv/log.git"):
+            self.assertEqual(checked_git_address(accepted), accepted)
 
     def test_addresses_git_would_read_as_options_or_commands_are_refused(self):
-        for refused in ("--upload-pack=touch /tmp/made-up", "-oProxyCommand=made-up", "ext::sh -c made-up", "file:///home/me/repo",
-                        "/home/me/repo", "https://alice:made-up-token@git.example.com/me/log.git", "git@git.example.com:-oProxyCommand=x",
-                        "ssh://git:made-up@git.example.com/me/log.git", "http://git.example.com/me/log.git"):
+        for refused in ("--upload-pack=touch /tmp/made-up", "-oProxyCommand=made-up", "ext::sh -c made-up", "fd::17",
+                        "https://alice:made-up-token@git.example.com/me/log.git", "git@git.example.com:-oProxyCommand=x",
+                        "ssh://git:made-up@git.example.com/me/log.git", "http://git.example.com/me/log.git", "git://git.example.com/log.git",
+                        "relative/repo", "https:////x"):
             with self.subTest(address=refused), self.assertRaises(SaveError):
-                checked_git_address(refused, local_allowed=False)
+                checked_git_address(refused)
 
     def test_credentials_are_never_shown(self):
         self.assertEqual(shown("https://alice:made-up-token@git.example.com/log.git"), "https://git.example.com/log.git")
@@ -65,11 +67,22 @@ class WebServerPasswords(unittest.TestCase):
         with self.assertRaisesRegex(SaveError, "not in the desktop keyring"):
             self.book.deliver(place, {"a.txt": b"x"})
 
-    def test_kept_in_plain_text_by_an_older_version_are_removed_from_disk(self):
+    def older_version_kept(self) -> None:
         self.book.path.write_text(json.dumps([{"id": "webdav-1", "kind": "webdav", "name": "Old", "target": "https://cloud.example.com/",
                                                "username": "alice", "password": "made-up-password", "folder": ""}]))
+
+    def test_kept_in_plain_text_by_an_older_version_move_into_the_keyring(self):
+        self.older_version_kept()
         PlaceBook(self.settings, [self.kind])
-        self.assertNotIn("password", self.book.path.read_text())
+        self.assertEqual((self.secrets.kept, "password" in self.book.path.read_text()), ({"webdav-1": "made-up-password"}, False))
+
+    def test_kept_in_plain_text_stay_where_they_are_until_the_keyring_takes_them(self):
+        self.older_version_kept()
+        with mock.patch.object(self.secrets, "keep", side_effect=SaveError("locked")):
+            PlaceBook(self.settings, [self.kind])
+        self.assertIn("made-up-password", self.book.path.read_text())
+        PlaceBook(self.settings, [self.kind])
+        self.assertEqual(self.secrets.kept, {"webdav-1": "made-up-password"})
 
 
 class TheKeyring(unittest.TestCase):

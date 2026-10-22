@@ -25,6 +25,9 @@ class WebDavServer:
     def added(self, place: SavedPlace, password: str) -> None:
         if place.username and not password:
             raise SaveError("give the password for that name")
+        self.take_password(place, password)
+
+    def take_password(self, place: SavedPlace, password: str) -> None:
         if password:
             self.secrets.keep(place.id, password)
 
@@ -34,7 +37,7 @@ class WebDavServer:
     def deliver(self, place: SavedPlace, bundle: dict[str, bytes]) -> None:
         password = self.secrets.find(place.id) if place.username else ""
         if place.username and password is None:
-            raise SaveError("its password is not in the desktop keyring; remove this place and add it again")
+            raise SaveError("its password is not in the desktop keyring yet; unlock the keyring, or install secret-tool, and save again")
         already_sent = self.save_record.last(place.id).get("uploaded", {})
         self.save_record.note(place.id, uploaded=upload_changed(place.target, place.username, password, bundle, already_sent))
 

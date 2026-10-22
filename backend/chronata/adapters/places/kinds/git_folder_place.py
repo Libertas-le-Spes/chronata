@@ -27,6 +27,9 @@ class GitRepositoryFolder:
             self.folders.forget(place.id)
             raise
 
+    def take_password(self, place: SavedPlace, password: str) -> None:
+        return None
+
     def removed(self, place: SavedPlace) -> None:
         self.folders.forget(place.id)
 

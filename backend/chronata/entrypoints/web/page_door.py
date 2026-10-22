@@ -1,9 +1,10 @@
 import json
+import os
 from http.client import HTTPConnection
 from typing import Callable
 
 from chronata.entrypoints.web.address import HOST, page_key_name, page_url
-from chronata.entrypoints.web.connection_owner import listened_on_by_this_user
+from chronata.entrypoints.web.connection_owner import who_listens_on
 from chronata.entrypoints.web.door_proof import ANSWERED_BY_THE_PAGE, ASKED_BY_THE_DOOR, fresh_nonce, proof, proves
 from chronata.use_cases.log.ports import Desktop, NotPrivate, PrivateFolder
 
@@ -11,15 +12,15 @@ LAUNCH_CODE_PATH = "/door/code"
 DOOR_PATH = "/door"
 ANSWER_SECONDS = 5
 
-ListenerCheck = Callable[[tuple[str, int]], bool]
+ListenerOwner = Callable[[tuple[str, int]], int | None]
 
 
 class PageDoor:
-    def __init__(self, desktop: Desktop, port: int, keys: PrivateFolder, listener_check: ListenerCheck = listened_on_by_this_user):
+    def __init__(self, desktop: Desktop, port: int, keys: PrivateFolder, listener_owner: ListenerOwner = who_listens_on):
         self.desktop = desktop
         self.port = port
         self.keys = keys
-        self.listener_check = listener_check
+        self.listener_owner = listener_owner
 
     def open(self, section: str = "") -> None:
         try:
@@ -27,10 +28,12 @@ class PageDoor:
         except NotPrivate as error:
             self.desktop.notify("Chronata will not open its page", str(error))
             return
-        if key is None:
+        owner = self.listener_owner((HOST, self.port))
+        if key is None or owner is None:
+            self.keys.forget(page_key_name(self.port))
             self.desktop.notify("Chronata's page is not running", "Start it with: systemctl --user start chronata, or run: chronata ui")
             return
-        if not self.listener_check((HOST, self.port)):
+        if owner != os.getuid():
             self.desktop.notify("Chronata will not open its page", f"Port {self.port} is held by a program that is not Chronata running as you.")
             return
         code = self._launch_code(key)

@@ -28,6 +28,9 @@ class FolderPlace:
     def added(self, place: SavedPlace, password: str) -> None:
         return None
 
+    def take_password(self, place: SavedPlace, password: str) -> None:
+        return None
+
     def removed(self, place: SavedPlace) -> None:
         return None
 

@@ -13,8 +13,8 @@ def owned_by_this_user(client: tuple[str, int], server: tuple[str, int]) -> bool
     return connection_owner(client, server, _read(TCP_TABLE)) == os.getuid()
 
 
-def listened_on_by_this_user(address: tuple[str, int]) -> bool:
-    return listener_owner(address, _read(TCP_TABLE)) == os.getuid()
+def who_listens_on(address: tuple[str, int]) -> int | None:
+    return listener_owner(address, _read(TCP_TABLE))
 
 
 def listener_owner(address: tuple[str, int], table: str) -> int | None:

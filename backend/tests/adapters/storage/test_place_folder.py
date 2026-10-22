@@ -93,7 +93,7 @@ class AGitFolderUnderAttack(unittest.TestCase):
         (self.collaborator / "Notes" / "note.md").write_text("theirs\n")
         self.commit("start")
         self.copies = fresh()
-        self.folders = GitFolders(self.copies, saves(), GitTransport(local_allowed=True))
+        self.folders = GitFolders(self.copies, saves(), GitTransport())
         self.ledger = self.copies.parent / f"{self.copies.name}-ledger.jsonl"
         self.ledger.write_text("sealed entries\n")
 
@@ -120,6 +120,20 @@ class AGitFolderUnderAttack(unittest.TestCase):
             self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"first", "Days/x.md": b"day"})
         self.assertFalse((self.copies.parent / "x.md").exists())
 
+
+class ThingsPlantedInAPlace(unittest.TestCase):
+    def test_a_pipe_in_place_of_a_file_does_not_hold_the_save_up(self):
+        folder = fresh()
+        os.mkfifo(folder / "README.md")
+        self.assertFalse(PlaceFolder(folder).holds("README.md", b"r"))
+
+    def test_a_write_that_fails_leaves_nothing_behind(self):
+        folder = fresh()
+        (folder / "README.md").mkdir()
+        for _ in range(2):
+            with self.assertRaises(OSError):
+                PlaceFolder(folder).write("README.md", b"r")
+        self.assertEqual([path.name for path in folder.iterdir()], ["README.md"])
 
 if __name__ == "__main__":
     unittest.main()

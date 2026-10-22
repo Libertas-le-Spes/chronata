@@ -6,7 +6,8 @@ from difflib import get_close_matches
 from chronata.timekeeping.shifts.shifts import Shift
 from chronata.timekeeping.shifts.today import resumable
 
-INVISIBLE = {"Cc", "Cf", "Cs", "Co", "Cn"}
+CONTROLS = {"Cc", "Cs", "Co"}
+DIRECTION_OVERRIDES = {chr(code) for code in (*range(0x202A, 0x202F), *range(0x2066, 0x206A))}
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,8 @@ def suggested(all_shifts: list[Shift], now: datetime, default_label: str) -> str
 
 
 def tidy(typed: str) -> str:
-    return " ".join("".join(character for character in typed if unicodedata.category(character) not in INVISIBLE).split())
+    kept = (character for character in typed if unicodedata.category(character) not in CONTROLS and character not in DIRECTION_OVERRIDES)
+    return " ".join("".join(kept).split())
 
 
 def choose(typed: str, known: list[str]) -> LabelChoice:

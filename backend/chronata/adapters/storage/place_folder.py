@@ -2,7 +2,7 @@ import errno
 import os
 import secrets
 import stat
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path, PurePosixPath
 
 from chronata.adapters.storage.owner_only_file import OWNER_ONLY, OWNER_ONLY_FOLDER
@@ -30,11 +30,16 @@ class PlaceFolder:
         with self._folder(folders, create=True) as folder:
             temporary = f".{name}.{secrets.token_hex(8)}.chronata-tmp"
             descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, OWNER_ONLY, dir_fd=folder)
-            with os.fdopen(descriptor, "wb") as file:
-                file.write(content)
-                file.flush()
-                os.fsync(file.fileno())
-            os.replace(temporary, name, src_dir_fd=folder, dst_dir_fd=folder)
+            try:
+                with os.fdopen(descriptor, "wb") as file:
+                    file.write(content)
+                    file.flush()
+                    os.fsync(file.fileno())
+                os.replace(temporary, name, src_dir_fd=folder, dst_dir_fd=folder)
+            except BaseException:
+                with suppress(FileNotFoundError):
+                    os.unlink(temporary, dir_fd=folder)
+                raise
             os.fsync(folder)
 
     def remove(self, relative: str) -> None:
@@ -90,9 +95,9 @@ def _step_into(folder: int, part: str, create: bool) -> int:
 
 def _read(folder: int, name: str) -> bytes | None:
     try:
-        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=folder)
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=folder)
     except OSError as error:
-        if error.errno in (errno.ELOOP, errno.ENOENT):
+        if error.errno in (errno.ELOOP, errno.ENOENT, errno.ENXIO):
             return None
         raise
     with os.fdopen(descriptor, "rb") as file:

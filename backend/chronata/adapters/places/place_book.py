@@ -17,7 +17,7 @@ class PlaceBook:
         self.by_kind = {kind.id: kind for kind in kinds}
         if not self.path.exists():
             self._write([place for kind in kinds for place in kind.already_there()])
-        self._forget_passwords_kept_in_plain_text()
+        self._move_passwords_into_the_keyring()
 
     def kinds(self) -> dict[str, PlaceKindDescription]:
         return {kind_id: kind.description for kind_id, kind in self.by_kind.items()}
@@ -59,12 +59,26 @@ class PlaceBook:
             raise SaveError(f"unknown kind of place: {place.kind}")
         return self.by_kind[place.kind]
 
-    def _forget_passwords_kept_in_plain_text(self) -> None:
-        if any("password" in raw for raw in self._raw()):
-            self._write(self.places())
+    def _move_passwords_into_the_keyring(self) -> None:
+        kept = self._raw()
+        if any("password" in raw for raw in kept):
+            self._write_raw([self._without_password(raw) for raw in kept])
+
+    def _without_password(self, raw: dict) -> dict:
+        password = raw.get("password", "")
+        if password:
+            place = SavedPlace(**{key: value for key, value in raw.items() if key in KEPT})
+            try:
+                self._kind_of(place).take_password(place, password)
+            except SaveError:
+                return raw
+        return {key: value for key, value in raw.items() if key != "password"}
 
     def _raw(self) -> list[dict]:
         return json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else []
 
     def _write(self, places: list[SavedPlace]) -> None:
-        write_owner_only(self.path, (json.dumps([asdict(p) for p in places], indent=2) + "\n").encode("utf-8"))
+        self._write_raw([asdict(place) for place in places])
+
+    def _write_raw(self, places: list[dict]) -> None:
+        write_owner_only(self.path, (json.dumps(places, indent=2) + "\n").encode("utf-8"))

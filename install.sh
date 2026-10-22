@@ -59,7 +59,6 @@ After=graphical-session.target
 ExecStart="$command_path" service
 ExecStop="$command_path" shutting-down
 UMask=0077
-NoNewPrivileges=yes
 TimeoutStopSec=20
 Restart=on-failure
 RestartSec=10

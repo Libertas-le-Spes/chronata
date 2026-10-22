@@ -1,6 +1,7 @@
 import json
 import re
 import secrets
+import signal
 import sys
 import threading
 from http.cookies import CookieError, SimpleCookie
@@ -42,6 +43,8 @@ def serve(app, port: int, open_browser: bool) -> None:
         if open_browser:
             PageDoor(app.desktop, port, app.running).open()
         return
+    for stopping in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(stopping, lambda signum, frame: sys.exit(0))
     serving = threading.Thread(target=server.serve_forever, daemon=True)
     serving.start()
     if open_browser:
@@ -131,9 +134,9 @@ def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) 
                 return self._send(200, *page_file)
             if not self._carries_form_token(visit):
                 return self._json(403, {"error": "forbidden"})
-            if address.path in reads:
-                return self._json(200, reads[address.path](dict(parse_qsl(address.query))))
-            return self._json(404, {"error": "not found"})
+            if address.path not in reads:
+                return self._json(404, {"error": "not found"})
+            self._answer(lambda: self._json(200, reads[address.path](dict(parse_qsl(address.query)))))
 
         def do_POST(self):
             if not self._addressed_to_this_page():
@@ -150,18 +153,23 @@ def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) 
             size = _size(self.headers.get("Content-Length", "0"))
             if not 0 <= size <= LARGEST_REQUEST:
                 return self._json(413, {"error": "that request is too large"})
+            self._answer(lambda: self._changed(json.loads(self.rfile.read(size) or b"{}")))
+
+        def _changed(self, body: dict) -> None:
+            if self.path in dialogs:
+                return self._json(200, dialogs[self.path](body))
+            outcome = changes[self.path](body)
+            self._json(200, {"message": outcome.message, "warning": outcome.warning})
+
+        def _answer(self, reply: Callable[[], None]) -> None:
             try:
-                body = json.loads(self.rfile.read(size) or b"{}")
-                if self.path in dialogs:
-                    return self._json(200, dialogs[self.path](body))
-                outcome = changes[self.path](body)
+                reply()
             except Exception as error:
                 refused = refusal(error)
                 if refused is None:
                     print(f"chronata page: {self.path} failed: {error!r}", file=sys.stderr)
                     return self._json(500, {"error": "Chronata could not do that; the details are in its log"})
-                return self._json(*refused)
-            return self._json(200, {"message": outcome.message, "warning": outcome.warning})
+                self._json(*refused)
 
         def _addressed_to_this_page(self) -> bool:
             return self.headers.get("Host") in allowed_hosts

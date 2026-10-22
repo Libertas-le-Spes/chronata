@@ -109,7 +109,7 @@ class Fixture:
         self.data = Path(tempfile.mkdtemp())
         self.app: App = open_app(self.data, Path(tempfile.mkdtemp()), clock=lambda: self.now,
                                  power=self.power, timestamper=NoTimestamps(), desktop=self.desktop,
-                                 secrets=self.secrets, git=GitTransport(local_allowed=True))
+                                 secrets=self.secrets, git=GitTransport())
 
     def at(self, text: str) -> None:
         self.now = at(text)

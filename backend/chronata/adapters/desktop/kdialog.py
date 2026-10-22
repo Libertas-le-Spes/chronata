@@ -8,9 +8,10 @@ class KDialog:
         return answered.stdout.strip() if answered and answered.returncode == 0 else None
 
     def choose(self, title: str, question: str, options: list[str]) -> str | None:
-        listed = [part for option in options if not option.startswith("-") for part in (option, html.escape(option, quote=False))]
+        listed = [part for number, option in enumerate(options) for part in (str(number), html.escape(option, quote=False))]
         answered = _kdialog("--title", title, "--menu", html.escape(question, quote=False), *listed)
-        return answered.stdout.strip() or None if answered and answered.returncode == 0 else None
+        picked = answered.stdout.strip() if answered and answered.returncode == 0 else ""
+        return options[int(picked)] if picked.isdigit() and int(picked) < len(options) else None
 
     def pick_folder(self, title: str) -> str | None:
         chosen = _kdialog("--title", title, "--getexistingdirectory")

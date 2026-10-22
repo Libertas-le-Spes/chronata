@@ -102,5 +102,21 @@ class AReplyFromTheNetwork(unittest.TestCase):
             server.server_close()
 
 
+class CheckingAReceipt(unittest.TestCase):
+    def test_is_done_at_the_time_it_was_granted_so_it_outlives_the_signing_certificate(self):
+        from chronata.adapters.timestamping import receipt_check
+        from chronata.adapters.timestamping.authority import AUTHORITIES
+        calls = []
+        real = receipt_check._openssl
+
+        def recorded(*args):
+            calls.append(args)
+            return real(*args)
+
+        with mock.patch.object(receipt_check, "_openssl", side_effect=recorded):
+            granted = receipt_check.checked_receipt(RECEIPT, RECEIPT_HASH, AUTHORITIES[0])
+        verify = next(call for call in calls if "-verify" in call)
+        self.assertEqual(verify[verify.index("-attime") + 1], str(int(granted.timestamp())))
+
 if __name__ == "__main__":
     unittest.main()

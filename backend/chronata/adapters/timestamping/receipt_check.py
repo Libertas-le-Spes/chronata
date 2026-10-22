@@ -32,12 +32,14 @@ def _checked(reply: bytes, authority: Authority, query: bytes | None = None, dig
     with tempfile.TemporaryDirectory() as scratch:
         receipt = Path(scratch) / "receipt.tsr"
         write_owner_only(receipt, reply)
+        granted = _granted_at(_openssl("ts", "-reply", "-in", str(receipt), "-text").stdout)
         against = ["-digest", digest] if digest else ["-queryfile", _written(Path(scratch) / "query.tsq", query)]
-        verified = _openssl("ts", "-verify", *against, "-in", str(receipt), "-CAfile", str(authority.anchor))
+        verified = _openssl("ts", "-verify", *against, "-in", str(receipt), "-CAfile", str(authority.anchor),
+                            "-attime", str(int(granted.timestamp())))
         if "Verification: OK" not in verified.stdout:
             reason = (verified.stderr.strip().splitlines() or ["unknown error"])[-1]
             raise ReceiptRefused(f"it is not a genuine {authority.name} receipt for this entry ({reason})")
-        return _granted_at(_openssl("ts", "-reply", "-in", str(receipt), "-text").stdout)
+        return granted
 
 
 def _written(path: Path, content: bytes) -> str:
