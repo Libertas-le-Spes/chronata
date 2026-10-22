@@ -85,5 +85,9 @@ class Desktop(Protocol):
     def choose(self, question: str, options: list[str]) -> str | None: ...
 
 
+class Page(Protocol):
+    def open(self, section: str = "") -> None: ...
+
+
 WriteLock = Callable[[], AbstractContextManager]
 Clock = Callable[[], datetime]

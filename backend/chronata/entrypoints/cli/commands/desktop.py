@@ -1,7 +1,8 @@
 import json
 
 from chronata.entrypoints.bar import clock_button
-from chronata.entrypoints.web.server import DEFAULT_PORT
+from chronata.entrypoints.web.address import DEFAULT_PORT
+from chronata.entrypoints.web.page_door import PageDoor
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
 
@@ -16,7 +17,7 @@ def bar_status(args, app: App) -> None:
 
 
 def bar_toggle(args, app: App) -> None:
-    clock_button.toggle(app)
+    clock_button.toggle(app, PageDoor(app.desktop, DEFAULT_PORT))
 
 
 def service(args, app: App) -> None:

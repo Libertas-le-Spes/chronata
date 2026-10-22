@@ -1,18 +1,18 @@
 from dataclasses import replace
 
 from chronata.entrypoints.bar.desktop_questions import ask
-from chronata.entrypoints.web.server import DEFAULT_PORT, page_url
 from chronata.timekeeping.labels.labels import known_labels
 from chronata.timekeeping.shifts.durations import hours
 from chronata.use_cases.log.outcome import UserError
+from chronata.use_cases.log.ports import Page
 from chronata.use_cases.questions.questions import Answers, Choice, Question
 
 STARTED_WHEN_THE_PC_CAME_ON = "started when the PC came on"
 
 
-def ask_and_clock_in(app) -> None:
+def ask_and_clock_in(app, page: Page) -> None:
     if not app.desktop.can_ask():
-        app.desktop.open_page(page_url(DEFAULT_PORT) + "#clock-in")
+        page.open("clock-in")
         return
     typed = app.desktop.ask(_which_label(app), app.labels.suggested())
     if typed is None:

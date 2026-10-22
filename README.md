@@ -60,6 +60,12 @@ chronata setup
 
 Removing Chronata never deletes your log or settings; they stay in `~/.local/share/chronata` and `~/.config/chronata`.
 
+## Who can open the page
+
+The log holds your hours and where it is saved, so the page opens only for you, even on a computer other people log into. Open it from the bar, the applications menu or `chronata ui`: each of these opens a one-time link, and the page then stays open in that browser for up to twelve hours or until Chronata restarts. A bookmarked or typed address shows a notice instead.
+
+Each request must come from your own user account, carry that browser's visit, and come from the page itself. The one-time links are handed out only to programs that can read a key kept where only you can open it (`$XDG_RUNTIME_DIR/chronata`), and Chronata will not start the page if that folder is open to anyone else.
+
 ## Needs
 
 Python 3.10 or newer. Chronata also uses these programs where they exist. Omarchy comes with all of them except `zenity`, which it can do without:

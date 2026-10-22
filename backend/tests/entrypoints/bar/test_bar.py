@@ -15,7 +15,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
 
     def click(self, *answers) -> None:
         self.desktop.answers = list(answers)
-        bar.toggle(self.f.app)
+        bar.toggle(self.f.app, self.f.page)
 
     def labels(self) -> list[str]:
         return [shift.label for shift in self.f.app.log.shifts()]
@@ -32,7 +32,7 @@ class ClickingTheBarWhenClockedOut(unittest.TestCase):
     def test_with_no_way_to_ask_it_opens_the_page_at_the_label_box(self):
         self.desktop.dialogs_installed = False
         self.click()
-        self.assertTrue(self.desktop.opened[0].endswith("#clock-in"))
+        self.assertEqual(self.f.page.opened, ["clock-in"])
         self.assertEqual(self.labels(), [])
 
     def test_closing_the_question_clocks_nothing(self):
@@ -78,7 +78,7 @@ class StartingFromWhenThePcCameOn(unittest.TestCase):
 
     def click(self, *answers) -> None:
         self.f.desktop.answers = list(answers)
-        bar.toggle(self.f.app)
+        bar.toggle(self.f.app, self.f.page)
 
     def test_the_question_shows_how_long_the_pc_has_been_on(self):
         self.pc_on("2026-10-14T07:50:00")
@@ -154,13 +154,13 @@ class ANewLabelFromTheBar(unittest.TestCase):
 
     def test_typing_a_new_label_asks_its_hours_then_clocks_in(self):
         self.f.desktop.answers = ["Globex", "Save its hours", "900", "1500", "", "Clock in on “Globex”"]
-        bar.toggle(self.f.app)
+        bar.toggle(self.f.app, self.f.page)
         self.assertEqual(self.f.app.log.shifts()[0].label, "Globex")
         self.assertEqual(self.f.app.log.hours.for_label("Globex").daily_hours, 6)
 
     def test_cancelling_the_hours_question_clocks_nothing(self):
         self.f.desktop.answers = ["Globex", None]
-        bar.toggle(self.f.app)
+        bar.toggle(self.f.app, self.f.page)
         self.assertEqual((self.f.app.log.shifts(), self.f.app.log.hours.labels()), ([], ["Northwind"]))
 
 

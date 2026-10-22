@@ -4,7 +4,7 @@ from chronata.timekeeping.shifts.shifts import completed, open_shift
 from chronata.use_cases.clocking.clocking import Clocking
 from chronata.use_cases.log.log import Log
 from chronata.use_cases.log.outcome import UserError
-from chronata.use_cases.log.ports import Desktop
+from chronata.use_cases.log.ports import Desktop, Page
 from chronata.use_cases.pc.pc_records import PcRecords
 from chronata.use_cases.reminders.at_login import NeedsSetUp, PcOffUnexplained, ShiftLeftOpen
 from chronata.use_cases.reminders.during_the_day import LongShift, LunchOver, LunchTime, NotClockedIn
@@ -12,12 +12,12 @@ from chronata.use_cases.reminders.situation import Actions, Nudge, Situation
 
 
 class Reminders:
-    def __init__(self, log: Log, clocking: Clocking, pc: PcRecords, desktop: Desktop, page_url: str):
+    def __init__(self, log: Log, clocking: Clocking, pc: PcRecords, desktop: Desktop, page: Page):
         self.log = log
         self.clocking = clocking
         self.pc = pc
         self.desktop = desktop
-        self.page_url = page_url
+        self.page = page
         self.at_login = [NeedsSetUp(), PcOffUnexplained(), ShiftLeftOpen()]
         self.during_the_day = [LunchTime(), LongShift(), LunchOver(), NotClockedIn()]
         self.actions = Actions(self._clock_in, self._clock_out, self._open)
@@ -49,7 +49,7 @@ class Reminders:
         self.desktop.notify(nudge.summary, nudge.body, nudge.on_click, click_label=nudge.click_label)
 
     def _open(self, section: str) -> None:
-        self.desktop.open_page(self.page_url + (f"#{section}" if section else ""))
+        self.page.open(section)
 
     def _clock_in(self, note: str) -> None:
         self._report("Could not clock in", lambda: self.clocking.clock_in(None, note))

@@ -11,7 +11,7 @@ class Lunch(unittest.TestCase):
         self.f = Fixture("2026-10-14T08:30:00")
         self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"))
         self.f.app.clocking.clock_in(None, None)
-        self.reminders = Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, "http://page/")
+        self.reminders = Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, self.f.page)
 
     def test_at_lunch_time_you_are_asked_and_ignoring_it_keeps_you_working(self):
         self.f.at("2026-10-14T12:00:30")
@@ -35,12 +35,12 @@ class Lunch(unittest.TestCase):
 class NotClockedIn(unittest.TestCase):
     def test_at_the_weekend_the_reminder_asks_whether_you_are_working(self):
         f = Fixture("2026-10-17T09:15:00")
-        Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, "http://page/").tick()
+        Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, f.page).tick()
         self.assertEqual(f.desktop.notices[0][0], "It's Saturday. Working today?")
 
     def test_on_a_workday_it_reminds_twice_at_most(self):
         f = Fixture("2026-10-14T08:40:00")
-        reminders = Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, "http://page/")
+        reminders = Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, f.page)
         for moment in ("08:40", "09:00", "09:41", "10:50"):
             f.at(f"2026-10-14T{moment}:00")
             reminders.tick()
@@ -49,7 +49,7 @@ class NotClockedIn(unittest.TestCase):
     def test_clocking_in_from_the_reminder_uses_the_default_label(self):
         f = Fixture("2026-10-14T08:40:00")
         f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
-        Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, "http://page/").tick()
+        Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, f.page).tick()
         f.desktop.click("Not clocked in")
         self.assertEqual(f.app.log.shifts()[0].label, "Northwind")
 
@@ -65,9 +65,9 @@ class PcOffPrompt(unittest.TestCase):
                              Boot("after", at("2026-10-14T12:13:00"), at("2026-10-14T12:13:00"), True)]
         f.power.booted = "after"
         f.at("2026-10-14T12:13:30")
-        Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, "http://page/").on_login()
+        Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, f.page).on_login()
         f.desktop.click("Your PC was off 12:10–12:13")
-        self.assertEqual(f.desktop.opened, ["http://page/#explain-break"])
+        self.assertEqual(f.page.opened, ["explain-break"])
 
 
 class LunchPerLabel(unittest.TestCase):
@@ -80,7 +80,7 @@ class LunchPerLabel(unittest.TestCase):
     def lunch_prompts(self, label: str, moment: str) -> list[str]:
         self.f.app.clocking.clock_in(None, None, label, Answers(off_default=True))
         self.f.at(moment)
-        Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, "http://page/").tick()
+        Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, self.f.page).tick()
         return [summary for summary, _ in self.f.desktop.notices if summary == "Lunch time"]
 
     def test_a_label_without_lunch_is_never_asked(self):

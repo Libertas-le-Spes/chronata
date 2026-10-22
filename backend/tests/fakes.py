@@ -65,6 +65,14 @@ class FakeDesktop:
         next(action for summary, action in self.notices if summary.startswith(summary_start) and action)()
 
 
+class FakePage:
+    def __init__(self):
+        self.opened: list[str] = []
+
+    def open(self, section=""):
+        self.opened.append(section)
+
+
 class NoTimestamps:
     def stamp(self, seq, record_hash):
         return [], []
@@ -81,6 +89,7 @@ class Fixture:
         self.now = at(now)
         self.power = FakePower()
         self.desktop = FakeDesktop()
+        self.page = FakePage()
         self.data = Path(tempfile.mkdtemp())
         self.app: App = open_app(self.data, Path(tempfile.mkdtemp()), clock=lambda: self.now,
                                  power=self.power, timestamper=NoTimestamps(), desktop=self.desktop)
