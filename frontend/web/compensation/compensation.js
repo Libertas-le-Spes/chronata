@@ -57,7 +57,7 @@ export function wire() {
   $("#compensation-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = fields(event.target);
-    if (await act("/api/compensation", { ...body, timeOff: body.timeOff === "1" }, event.target)) {
+    if (await act("/api/compensation", body, event.target)) {
       event.target.reset();
       event.target.elements.label.value = defaultLabel;
     }

@@ -87,7 +87,7 @@ class LunchAfterALateStart(unittest.TestCase):
         f.app.clocking.clock_out(None, None)
         f.at("2026-10-14T12:30:00")
         today = f.app.log.weeks()[0].days[0]
-        self.assertEqual((today.late, today.made_up), (timedelta(minutes=10), True))
+        self.assertEqual((today.punctuality.late, today.punctuality.made_up), (timedelta(minutes=10), True))
 
 
 if __name__ == "__main__":

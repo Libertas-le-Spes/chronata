@@ -12,7 +12,7 @@ def status(args, app: App) -> None:
     print(_today(day_so_far(app.log.shifts(), now)))
     this_week = [week for week in app.log.weeks() if week.start <= now.date() <= week.end]
     if this_week:
-        print(f"this week: worked {hours(this_week[0].worked)}, overtime {hours(this_week[0].overtime)}")
+        print(f"this week: worked {hours(this_week[0].worked)}, overtime {hours(this_week[0].overtime.earned)}")
 
 
 def _today(so_far) -> str:

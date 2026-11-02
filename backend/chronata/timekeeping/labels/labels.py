@@ -1,6 +1,6 @@
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from difflib import get_close_matches
 
 from chronata.timekeeping.shifts.shifts import Shift
@@ -15,30 +15,6 @@ class LabelChoice:
     label: str
     exists: bool
     near_misses: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class LabelHours:
-    label: str
-    this_week: timedelta
-    all_time: timedelta
-    open_now: bool
-
-
-def hours_by_label(all_shifts: list[Shift], now: datetime) -> list[LabelHours]:
-    monday = now.date() - timedelta(days=now.weekday())
-    week: dict[str, timedelta] = {}
-    total: dict[str, timedelta] = {}
-    open_now: set[str] = set()
-    for shift in (s for s in all_shifts if not s.voided):
-        worked = shift.worked(shift.end or now)
-        total[shift.label] = total.get(shift.label, timedelta()) + worked
-        if shift.start.date() >= monday:
-            week[shift.label] = week.get(shift.label, timedelta()) + worked
-        if shift.end is None:
-            open_now.add(shift.label)
-    return [LabelHours(label, week.get(label, timedelta()), worked, label in open_now)
-            for label, worked in sorted(total.items(), key=lambda item: item[1], reverse=True)]
 
 
 def known_labels(all_shifts: list[Shift]) -> list[str]:

@@ -1,10 +1,12 @@
 from chronata.entrypoints.cli.answers import answer_options, answers
+from chronata.timekeeping.compensation.given_kinds.payment import Payment
+from chronata.timekeeping.compensation.given_kinds.time_off import TimeOff
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
 
 
 def compensation(args, app: App) -> Outcome:
-    return app.compensations.record(args.label or "", args.from_date, args.to_date, args.hours, args.time_off, args.ref, answers(args))
+    return app.compensations.record(args.label, args.from_date, args.to_date, args.hours, args.kind, args.ref, answers(args))
 
 
 def register(commands) -> None:
@@ -12,8 +14,9 @@ def register(commands) -> None:
     command.add_argument("from_date", metavar="from")
     command.add_argument("to_date", metavar="to")
     command.add_argument("hours", type=float, help="overtime hours compensated (0 if none)")
-    command.add_argument("--label", help="the client or project that compensated it; your default label if left out")
+    command.add_argument("--label", default="", help="the client or project that compensated it; your default label if left out")
     answer_options(command)
-    command.add_argument("--time-off", action="store_true", help="compensated with leave instead of pay")
+    command.add_argument("--time-off", dest="kind", action="store_const", const=TimeOff.kind, default=Payment.kind,
+                         help="compensated with leave instead of pay")
     command.add_argument("--ref", help="e.g. 'payslip October 2026'")
     command.set_defaults(run=compensation)

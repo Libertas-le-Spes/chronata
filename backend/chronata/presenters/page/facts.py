@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from chronata.timekeeping.compensation.compensation import Reconciliation
+from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.overtime import Week
+from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp
 from chronata.timekeeping.shifts.shifts import Shift

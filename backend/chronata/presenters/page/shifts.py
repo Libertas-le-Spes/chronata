@@ -3,7 +3,9 @@ from datetime import datetime
 from chronata.presenters.day.day_story import LATE_ENOUGH_TO_FLAG, DayRecords, Line, day_story
 from chronata.presenters.page.facts import PageFacts
 from chronata.presenters.page.values import iso
-from chronata.timekeeping.hours.overtime import Day, days_so_far
+from chronata.timekeeping.hours.day import Day
+from chronata.timekeeping.hours.timesheet import days_so_far
+from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession, support
 from chronata.timekeeping.pc.start_proof import start_proof
 from chronata.timekeeping.record.stamps import Stamp
@@ -13,22 +15,38 @@ from chronata.timekeeping.shifts.shifts import Shift
 
 
 def state(facts: PageFacts) -> dict:
-    stamps = facts.stamps
-    days = days_so_far(facts.shifts, facts.hours, facts.now)
-    newest_day_first = sorted(day_entries(facts.shifts), key=lambda e: (-e.day.toordinal(), e.start))
     return {
-        "weeks": [
-            {"start": week.start.isoformat(), "end": week.end.isoformat(), "worked": minutes(week.worked),
-             "overtime": minutes(week.overtime), "running": week.end >= facts.now.date()}
-            for week in reversed(facts.weeks)
-        ],
-        "entries": [_entry(entry, days.get((entry.day, entry.label or facts.hours.default_label)), DayRecords(facts.sessions, stamps, facts.now))
-                    for entry in newest_day_first],
-        "unexplainedBreaks": [
-            {"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()}
-            for shift in facts.shifts for gap in shift.breaks if gap.unexplained_pc_off
-        ],
+        "weeks": [_week(week, facts.now) for week in reversed(facts.weeks)],
+        "entries": _entries(facts),
+        "unexplainedBreaks": _unexplained_breaks(facts.shifts),
     }
+
+
+def _week(week: Week, now: datetime) -> dict:
+    return {"start": week.start.isoformat(), "end": week.end.isoformat(), "worked": minutes(week.worked),
+            "overtime": minutes(week.overtime.earned), "running": week.end >= now.date()}
+
+
+def _entries(facts: PageFacts) -> list[dict]:
+    days = days_so_far(facts.shifts, facts.hours, facts.now)
+    records = DayRecords(facts.sessions, facts.stamps, facts.now)
+    shown = []
+    for entry in sorted(day_entries(facts.shifts), key=_newest_day_first):
+        shown.append(_entry(entry, days.get((entry.day, facts.hours.counted_under(entry.label))), records))
+    return shown
+
+
+def _newest_day_first(entry: DayEntry) -> tuple[int, datetime]:
+    return -entry.day.toordinal(), entry.start
+
+
+def _unexplained_breaks(all_shifts: list[Shift]) -> list[dict]:
+    found = []
+    for shift in all_shifts:
+        for gap in shift.breaks:
+            if gap.unexplained_pc_off:
+                found.append({"shift": shift.id, "start": gap.start.isoformat(), "end": gap.end.isoformat()})
+    return found
 
 
 def _entry(entry: DayEntry, day: Day | None, records: DayRecords) -> dict:
@@ -53,9 +71,11 @@ def _line(line: Line, entry: DayEntry) -> dict:
 
 
 def _punctuality(day: Day | None) -> dict | None:
-    if day is None or not day.worth_noting:
+    if day is None or not day.punctuality.worth_noting:
         return None
-    return {"late": minutes(day.late), "short": minutes(day.short), "madeUp": day.made_up, "running": day.running, "lastOut": day.last_out.isoformat()}
+    punctuality = day.punctuality
+    return {"late": minutes(punctuality.late), "short": minutes(punctuality.short), "madeUp": punctuality.made_up, "running": day.running,
+            "lastOut": day.last_out.isoformat()}
 
 
 def _piece(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:

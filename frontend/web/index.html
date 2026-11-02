@@ -115,9 +115,9 @@
         <label>to <input name="to" type="date" required></label>
         <label>Overtime hours compensated <input name="hours" type="number" min="0" step="0.01" required value="0"></label>
         <label>Given as
-          <select name="timeOff">
-            <option value="">Pay</option>
-            <option value="1">Time off</option>
+          <select name="kind">
+            <option value="paid">Pay</option>
+            <option value="time_off">Time off</option>
           </select>
         </label>
         <label class="wide">Reference <input name="reference" type="text" placeholder="e.g. payslip October 2026"></label>

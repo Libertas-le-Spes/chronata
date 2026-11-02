@@ -1,7 +1,11 @@
 from datetime import date, datetime, timedelta
 
 from chronata.presenters.page.facts import PageFacts
-from chronata.timekeeping.hours.overtime import Week, combined, weeks_by_label
+from chronata.timekeeping.hours.all_labels import combined
+from chronata.timekeeping.hours.day import Day
+from chronata.timekeeping.hours.label_hours import LabelHours
+from chronata.timekeeping.hours.timesheet import weeks_by_label
+from chronata.timekeeping.hours.week import Week, latest_weeks, week_starting
 from chronata.timekeeping.shifts.durations import minutes
 from chronata.timekeeping.shifts.shifts import Shift
 
@@ -9,24 +13,54 @@ WEEKS_SHOWN = 8
 
 
 def state(facts: PageFacts) -> dict:
-    running = None if facts.interrupted else facts.current
     now = facts.now
-    all_weeks = combined(weeks_by_label(facts.shifts, facts.hours, now), facts.hours.default_label)
-    recent: dict[date, Week | None] = {week.start: week for week in all_weeks[-WEEKS_SHOWN:]}
-    recent.setdefault(now.date() - timedelta(days=now.weekday()), None)
-    return {"chart": {
-        "targetMinutes": round(facts.hours.main.daily_hours * 60) if facts.hours.main else 0,
-        "weeks": [
-            {"start": start.isoformat(), "days": [_day(start + timedelta(days=i), week, now, running) for i in range(7)]}
-            for start, week in sorted(recent.items())
-        ],
-    }}
+    running = _running(facts)
+    shown = []
+    for start, week in _recent_weeks(facts):
+        days = [_day(start + timedelta(days=offset), week, now, running) for offset in range(7)]
+        shown.append({"start": start.isoformat(), "days": days})
+    return {"chart": {"targetMinutes": _target_minutes(facts.hours), "weeks": shown}}
+
+
+def _running(facts: PageFacts) -> Shift | None:
+    if facts.interrupted:
+        return None
+    return facts.current
+
+
+def _recent_weeks(facts: PageFacts) -> list[tuple[date, Week | None]]:
+    all_weeks = combined(weeks_by_label(facts.shifts, facts.hours, facts.now), facts.hours.default_label)
+    recent: dict[date, Week | None] = {}
+    for week in latest_weeks(all_weeks, WEEKS_SHOWN):
+        recent[week.start] = week
+    recent.setdefault(week_starting(facts.now.date()), None)
+    return sorted(recent.items())
+
+
+def _target_minutes(hours: LabelHours) -> int:
+    if hours.main is None:
+        return 0
+    return round(hours.main.daily_hours * 60)
 
 
 def _day(day: date, week: Week | None, now: datetime, running: Shift | None) -> dict:
-    found = next((d for d in week.days if d.date == day), None) if week else None
-    when = {"date": day.isoformat(), "soFar": bool(running) and day == now.date(), "future": day > now.date()}
+    shown = {"date": day.isoformat(), "soFar": running is not None and day == now.date(), "future": day > now.date()}
+    shown.update(_hours(_found(day, week)))
+    return shown
+
+
+def _hours(found: Day | None) -> dict:
     if found is None:
-        return {**when, "normal": 0, "overtime": 0, "late": 0, "short": 0, "madeUp": False}
-    return {**when, "normal": minutes(found.worked - found.overtime), "overtime": minutes(found.overtime),
-            "late": minutes(found.late), "short": minutes(found.short), "madeUp": found.made_up}
+        return {"normal": 0, "overtime": 0, "late": 0, "short": 0, "madeUp": False}
+    punctuality = found.punctuality
+    return {"normal": minutes(found.normal), "overtime": minutes(found.overtime.earned),
+            "late": minutes(punctuality.late), "short": minutes(punctuality.short), "madeUp": punctuality.made_up}
+
+
+def _found(day: date, week: Week | None) -> Day | None:
+    if week is None:
+        return None
+    for measured in week.days:
+        if measured.date == day:
+            return measured
+    return None
