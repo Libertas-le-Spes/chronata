@@ -1,6 +1,6 @@
 .totals {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -23,7 +23,7 @@
 .period { margin-bottom: 12px; }
 .period-head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 
-.figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.figures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .figures div { display: flex; flex-direction: column; }
 .figures span:first-child { color: var(--muted); font-size: 0.8rem; }
 .figures span:last-child { font-weight: 600; font-size: 1.1rem; }

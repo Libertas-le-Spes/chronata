@@ -10,8 +10,7 @@ function takenOff(minutes) {
 
 function renderTotals(totals) {
   $("#t-owed").textContent = hours(totals.owed);
-  $("#t-compensated").textContent = takenOff(totals.compensated);
-  $("#t-lateness").textContent = takenOff(totals.uncoveredLateness);
+  $("#t-compensated").textContent = hours(totals.compensated);
   $("#t-unpaid").textContent = hours(totals.unpaid);
   $("#t-unpaid").parentElement.classList.toggle("has-value", totals.unpaid > 0);
 }
