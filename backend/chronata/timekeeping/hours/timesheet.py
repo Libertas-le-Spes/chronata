@@ -8,7 +8,7 @@ from chronata.timekeeping.hours.day_kinds.kind_of_day import kind_of_day
 from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.measuring_moment import MeasuringMoment
 from chronata.timekeeping.hours.week import Week, week_starting
-from chronata.timekeeping.hours.weekly_allowance import allowance_of
+from chronata.timekeeping.hours.weekly_allowance import WeeklyAllowance, allowance_of
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift, completed, open_shift
 
@@ -17,7 +17,8 @@ def weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, now: dat
     moment = MeasuringMoment(now, clocked_in)
     found = []
     for start, clocked_days in _clocked_days_by_week(finished_shifts):
-        found.append(Week(start, _measured(clocked_days, working_day, moment)))
+        days, allowance = _measured(clocked_days, working_day, moment)
+        found.append(Week(start, days, allowance.left))
     return found
 
 
@@ -56,14 +57,14 @@ def _clocked_days_by_week(shifts: list[Shift]) -> list[tuple[date, list[ClockedD
     return sorted(per_week.items())
 
 
-def _measured(clocked_days: list[ClockedDay], working_day: WorkingDay | None, moment: MeasuringMoment) -> tuple[Day, ...]:
+def _measured(clocked_days: list[ClockedDay], working_day: WorkingDay | None, moment: MeasuringMoment) -> tuple[tuple[Day, ...], WeeklyAllowance]:
     allowance = allowance_of(working_day)
     days = []
     for clocked in clocked_days:
         day = kind_of_day(working_day, clocked.date).measure(clocked, allowance, moment)
         allowance = allowance.after(day.normal)
         days.append(day)
-    return tuple(days)
+    return tuple(days), allowance
 
 
 def _running_today(all_shifts: list[Shift], now: datetime | None) -> Shift | None:

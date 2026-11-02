@@ -49,21 +49,37 @@ class LatenessComesOffTheUncompensatedTotal(unittest.TestCase):
     def test_lateness_not_covered_is_taken_off_overtime_with_no_compensation_yet(self):
         worked = overtime_on(("2026-10-05", "08:00", "18:00"), ("2026-10-06", "08:20", "16:00"))
         result = reconcile([], worked)
-        self.assertEqual((result.lateness_offset, result.uncompensated), (timedelta(minutes=20), timedelta(hours=1, minutes=40)))
+        self.assertEqual((result.uncovered_lateness, result.unpaid), (timedelta(minutes=20), timedelta(hours=1, minutes=40)))
 
     def test_lateness_is_taken_off_what_recorded_periods_left_uncompensated(self):
         worked = overtime_on(("2026-10-05", "08:00", "19:00"), ("2026-10-06", "08:30", "16:00"))
         result = reconcile(compensations([compensated("2026-10-01", "2026-10-31", 1)]), worked)
-        self.assertEqual((result.shortfall, result.uncompensated), (timedelta(hours=2), timedelta(hours=1, minutes=30)))
+        self.assertEqual((result.shortfall, result.unpaid), (timedelta(hours=2), timedelta(hours=1, minutes=30)))
+
+    def test_only_days_with_lateness_left_uncovered_are_listed(self):
+        result = reconcile([], overtime_on(("2026-10-05", "08:00", "16:00"), ("2026-10-06", "08:20", "16:00"), ("2026-10-07", "08:10", "16:30")))
+        self.assertEqual([late.date for late in result.lateness], [date(2026, 10, 6)])
+
+    def test_lateness_a_weekly_limit_already_absorbed_is_not_taken_off_again(self):
+        weekly_limit = WorkingDay(time(8), time(16), weekly_limit=32)
+        worked = weeks([Shift(1, at("2026-10-05T08:10:00"), at("2026-10-05T16:00:00"), timedelta())]
+                       + [Shift(1, at(f"2026-10-0{d}T08:00:00"), at(f"2026-10-0{d}T16:00:00"), timedelta()) for d in range(6, 10)], weekly_limit)
+        result = reconcile([], worked)
+        self.assertEqual((result.unmatched_overtime.earned, result.uncovered_lateness, result.unpaid),
+                         (timedelta(hours=7, minutes=50), timedelta(), timedelta(hours=7, minutes=50)))
+
+    def test_a_week_with_room_left_takes_the_lateness_off(self):
+        worked = overtime_on(("2026-10-05", "08:10", "16:00"), ("2026-10-06", "08:00", "18:00"))
+        self.assertEqual(reconcile([], worked).unpaid, timedelta(hours=1, minutes=50))
 
     def test_more_lateness_than_overtime_goes_below_zero(self):
         result = reconcile([], overtime_on(("2026-10-05", "08:00", "16:10"), ("2026-10-06", "08:30", "16:00")))
-        self.assertEqual(result.uncompensated, timedelta(minutes=-20))
+        self.assertEqual(result.unpaid, timedelta(minutes=-20))
 
     def test_every_labels_lateness_is_in_the_totals(self):
         weeks_per_label = {"Northwind": overtime_on(("2026-10-05", "08:15", "16:00")), "Acme": overtime_on(("2026-10-06", "08:05", "16:00"))}
         everything = all_labels(reconcile_by_label([], weeks_per_label, NORTHWIND_FIRST))
-        self.assertEqual(everything.lateness_offset, timedelta(minutes=20))
+        self.assertEqual(everything.uncovered_lateness, timedelta(minutes=20))
 
 
 class EachLabelIsCompensatedForItsOwnOvertime(unittest.TestCase):

@@ -19,11 +19,15 @@ class LatenessInTheReport(unittest.TestCase):
         self.lines = report_lines(WEEKS, reconcile_by_label([], WEEKS, HOURS), date(2026, 10, 20))
 
     def test_each_day_with_lateness_not_covered_is_listed_under_its_label(self):
-        self.assertIn("    Tue 06 Oct: 0:07", self.lines)
+        self.assertIn("    2026-10-06 Tue: -0:07", self.lines)
 
-    def test_the_totals_show_what_lateness_took_off_and_what_is_left(self):
-        self.assertIn("  Lateness not covered:                -0:07", self.lines)
-        self.assertIn("  Uncompensated after lateness:         1:53", self.lines)
+    def test_the_totals_take_compensation_and_lateness_off_the_overtime_worked(self):
+        totals = self.lines[-5:]
+        self.assertEqual(totals, ["All labels",
+                                  "  Overtime worked:                2:00",
+                                  "  Compensated:                   -0:00",
+                                  "  Lateness not covered:          -0:07",
+                                  "  Unpaid:                         1:53"])
 
 
 if __name__ == "__main__":

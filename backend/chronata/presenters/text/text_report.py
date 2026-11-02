@@ -1,17 +1,14 @@
 from datetime import date, datetime
 
 from chronata.presenters.day.day_story import DayRecords, Line, day_story
-from chronata.timekeeping.compensation.compensation import all_labels
-from chronata.timekeeping.compensation.lateness_offset import LatenessOffset
-from chronata.timekeeping.compensation.period import Period
+from chronata.presenters.text.compensation_lines import label_compensation, totals
 from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.hours.day import Day
 from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp
 from chronata.timekeeping.shifts.day_entries import DayEntry, pc_share
-from chronata.timekeeping.shifts.durations import NONE
-from chronata.timekeeping.shifts.durations import hours
+from chronata.timekeeping.shifts.durations import NONE, hours
 from chronata.timekeeping.shifts.shifts import named
 
 
@@ -72,18 +69,8 @@ def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str,
         for week in weeks_per_label.get(label, []):
             lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime.earned):>8}{_still_running(week, today)}")
             lines += _punctuality_lines(week)
-        lines += _compensation_lines(label, reconciliation)
-        lines += _lateness_lines(reconciliation.lateness) + [""]
-    everything = all_labels(compensation)
-    return lines + [
-        "All labels",
-        f"  Overtime worked:                  {hours(everything.owed.earned):>8}",
-        f"  Compensated (pay or time off):    {hours(everything.compensated):>8}",
-        f"  No compensation recorded yet:     {hours(everything.unmatched_overtime.earned):>8}",
-        f"  Uncompensated so far:             {hours(everything.shortfall):>8}",
-        f"  Lateness not covered:             {hours(-everything.lateness_offset):>8}",
-        f"  Uncompensated after lateness:     {hours(everything.uncompensated):>8}",
-    ]
+        lines += label_compensation(label, reconciliation) + [""]
+    return lines + totals(compensation)
 
 
 def _label_heading(label: str) -> str:
@@ -104,45 +91,4 @@ def _punctuality_lines(week: Week) -> list[str]:
         note = punctuality(day)
         if note:
             lines.append(f"    {day.date:%a %d %b}: {note}")
-    return lines
-
-
-def _lateness_lines(lateness: list[LatenessOffset]) -> list[str]:
-    if not lateness:
-        return []
-    lines = ["  Lateness not covered that day, taken off the uncompensated total"]
-    for offset in lateness:
-        lines.append(f"    {offset.date:%a %d %b}: {hours(offset.late)}")
-    return lines
-
-
-def _compensation_lines(label: str, reconciliation: Reconciliation) -> list[str]:
-    if not reconciliation.periods and not reconciliation.unmatched:
-        return []
-    return ["  Compensation recorded", *_recorded(label, reconciliation.periods), *_not_covered(reconciliation.unmatched)]
-
-
-def _recorded(label: str, periods: list[Period]) -> list[str]:
-    if not periods:
-        return [f"    none yet; add it with: chronata compensation FROM TO HOURS{f' --label {label!r}' if label else ''}"]
-    return [_period_line(period) for period in periods]
-
-
-def _period_line(period: Period) -> str:
-    return (f"    {period.start} to {period.end}: overtime worked {hours(period.owed.earned)}, paid {hours(period.paid)}, "
-            f"time off {hours(period.time_off)}, UNCOMPENSATED {hours(period.shortfall)}{_references(period)}")
-
-
-def _references(period: Period) -> str:
-    if not period.references:
-        return ""
-    return f"  [{'; '.join(period.references)}]"
-
-
-def _not_covered(unmatched: list[Day]) -> list[str]:
-    if not unmatched:
-        return []
-    lines = ["  Overtime on days no compensation covers yet"]
-    for day in unmatched:
-        lines.append(f"    {day.date:%Y-%m-%d %a}: {hours(day.overtime.earned)}")
     return lines

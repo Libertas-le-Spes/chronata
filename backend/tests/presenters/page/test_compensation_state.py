@@ -3,10 +3,10 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 from chronata.presenters.page.compensation import state
-from chronata.timekeeping.compensation.lateness_offset import LatenessOffset
+from chronata.timekeeping.compensation.uncovered_lateness import UncoveredLateness
 from chronata.timekeeping.compensation.reconciliation import Reconciliation
 
-ONLY_LATENESS = Reconciliation([], [], [LatenessOffset(date(2026, 10, 6), timedelta(minutes=7))])
+ONLY_LATENESS = Reconciliation([], [], [UncoveredLateness(date(2026, 10, 6), timedelta(minutes=7))])
 
 
 class LatenessOnThePage(unittest.TestCase):
@@ -18,7 +18,7 @@ class LatenessOnThePage(unittest.TestCase):
 
     def test_the_totals_carry_the_lateness_and_what_is_left(self):
         totals = self.shown["totals"]
-        self.assertEqual((totals["latenessOffset"], totals["uncompensated"]), (7, -7))
+        self.assertEqual((totals["uncoveredLateness"], totals["unpaid"]), (7, -7))
 
 
 if __name__ == "__main__":

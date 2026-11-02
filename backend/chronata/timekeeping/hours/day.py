@@ -21,7 +21,7 @@ class Day:
         return self.worked - self.overtime.earned
 
     @property
-    def lateness_taken_off(self) -> timedelta:
+    def uncovered_lateness(self) -> timedelta:
         if self.running:
             return NONE
         return self.punctuality.uncovered_lateness

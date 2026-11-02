@@ -4,14 +4,20 @@ import { $, el, fields } from "../shared/dom.js";
 
 let defaultLabel = "";
 
+function takenOff(minutes) {
+  return `-${hours(minutes)}`;
+}
+
 function renderTotals(totals) {
   $("#t-owed").textContent = hours(totals.owed);
-  $("#t-compensated").textContent = hours(totals.compensated);
-  $("#t-shortfall").textContent = hours(totals.shortfall);
-  $("#t-unmatched").textContent = hours(totals.unmatched);
-  $("#t-shortfall").parentElement.classList.toggle("has-value", totals.shortfall > 0);
-  $("#t-lateness").textContent = hours(-totals.latenessOffset);
-  $("#t-uncompensated").textContent = hours(totals.uncompensated);
+  $("#t-compensated").textContent = takenOff(totals.compensated);
+  $("#t-lateness").textContent = takenOff(totals.uncoveredLateness);
+  $("#t-unpaid").textContent = hours(totals.unpaid);
+  $("#t-unpaid").parentElement.classList.toggle("has-value", totals.unpaid > 0);
+}
+
+function latenessItem(late) {
+  return el("li", {}, `${dayLabel(late.date)} · ${takenOff(late.late)}`);
 }
 
 function latenessCard(lateness) {
@@ -20,13 +26,13 @@ function latenessCard(lateness) {
   }
   return el("div", { class: "card" },
     el("h2", {}, "Lateness not covered that day"),
-    el("p", { class: "muted small" }, "Taken off the uncompensated total."),
-    el("ul", { class: "days" }, lateness.map((offset) => el("li", {}, `${dayLabel(offset.date)} · ${hours(offset.late)}`))),
+    el("p", { class: "muted small" }, "Taken off what is unpaid."),
+    el("ul", { class: "days" }, lateness.map(latenessItem)),
   );
 }
 
 function periodCard(period) {
-  const settled = period.shortfall === 0;
+  const settled = period.unpaid === 0;
   return el("div", { class: "card period" },
     el("div", { class: "period-head" },
       el("h3", {}, `${longDate(period.start)} – ${longDate(period.end)}`),
@@ -36,7 +42,7 @@ function periodCard(period) {
       el("div", {}, el("span", {}, "Overtime worked"), el("span", {}, hours(period.owed))),
       el("div", {}, el("span", {}, "Paid"), el("span", {}, hours(period.paid))),
       el("div", {}, el("span", {}, "Time off"), el("span", {}, hours(period.timeOff))),
-      el("div", { class: settled ? "good" : "bad" }, el("span", {}, "Uncompensated"), el("span", {}, settled ? "None" : hours(period.shortfall))),
+      el("div", { class: settled ? "good" : "bad" }, el("span", {}, "Unpaid"), el("span", {}, settled ? "None" : hours(period.unpaid))),
     ),
   );
 }
@@ -50,7 +56,7 @@ function labelSection(section) {
         el("strong", {}, hours(section.totals.compensated)), " compensated"),
     ),
     section.unmatched.length ? el("div", { class: "card" },
-      el("h2", {}, "Overtime no compensation covers yet"),
+      el("h2", {}, "Unpaid overtime"),
       el("p", { class: "muted small" }, `When ${name} compensates these days, record it above.`),
       el("ul", { class: "days" }, section.unmatched.map((day) => el("li", {}, `${dayLabel(day.date)} · ${hours(day.overtime)}`))),
     ) : null,

@@ -19,8 +19,6 @@ class Punctuality:
 
     @property
     def uncovered_lateness(self) -> timedelta:
-        if not self.arrived_late:
-            return NONE
         return min(self.late, self.short)
 
     @property
