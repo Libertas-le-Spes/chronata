@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from chronata.presenters.day.day_story import DayRecords, Line, day_story
 from chronata.timekeeping.compensation.compensation import all_labels
+from chronata.timekeeping.compensation.lateness_offset import LatenessOffset
 from chronata.timekeeping.compensation.period import Period
 from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.hours.day import Day
@@ -71,7 +72,8 @@ def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str,
         for week in weeks_per_label.get(label, []):
             lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime.earned):>8}{_still_running(week, today)}")
             lines += _punctuality_lines(week)
-        lines += _compensation_lines(label, reconciliation) + [""]
+        lines += _compensation_lines(label, reconciliation)
+        lines += _lateness_lines(reconciliation.lateness) + [""]
     everything = all_labels(compensation)
     return lines + [
         "All labels",
@@ -79,6 +81,8 @@ def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str,
         f"  Compensated (pay or time off):    {hours(everything.compensated):>8}",
         f"  No compensation recorded yet:     {hours(everything.unmatched_overtime.earned):>8}",
         f"  Uncompensated so far:             {hours(everything.shortfall):>8}",
+        f"  Lateness not covered:             {hours(-everything.lateness_offset):>8}",
+        f"  Uncompensated after lateness:     {hours(everything.uncompensated):>8}",
     ]
 
 
@@ -100,6 +104,15 @@ def _punctuality_lines(week: Week) -> list[str]:
         note = punctuality(day)
         if note:
             lines.append(f"    {day.date:%a %d %b}: {note}")
+    return lines
+
+
+def _lateness_lines(lateness: list[LatenessOffset]) -> list[str]:
+    if not lateness:
+        return []
+    lines = ["  Lateness not covered that day, taken off the uncompensated total"]
+    for offset in lateness:
+        lines.append(f"    {offset.date:%a %d %b}: {hours(offset.late)}")
     return lines
 
 

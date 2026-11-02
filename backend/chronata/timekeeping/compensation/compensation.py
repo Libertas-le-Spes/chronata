@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import date
 
 from chronata.timekeeping.compensation.given import Given
+from chronata.timekeeping.compensation.lateness_offset import lateness_offsets
 from chronata.timekeeping.compensation.period import Period
 from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.entries.compensation import Compensated
@@ -23,11 +24,12 @@ def reconcile_by_label(entries: list[Entry], weeks_per_label: dict[str, list[Wee
 
 
 def all_labels(by_label: dict[str, Reconciliation]) -> Reconciliation:
-    periods, unmatched = [], []
+    periods, unmatched, lateness = [], [], []
     for reconciliation in by_label.values():
         periods += reconciliation.periods
         unmatched += reconciliation.unmatched
-    return Reconciliation(periods, unmatched)
+        lateness += reconciliation.lateness
+    return Reconciliation(periods, unmatched, lateness)
 
 
 def compensations(entries: list[Entry]) -> list[Compensated]:
@@ -44,7 +46,7 @@ def reconcile(records: list[Compensated], all_weeks: list[Week]) -> Reconciliati
     for record in records:
         grouped[(record.start, record.end)].append(record.given)
     periods = [_period(start, end, grouped[(start, end)], days) for start, end in sorted(grouped)]
-    return Reconciliation(periods, _not_covered(days, periods))
+    return Reconciliation(periods, _not_covered(days, periods), lateness_offsets(all_weeks))
 
 
 def _days_with_overtime(all_weeks: list[Week]) -> list[Day]:

@@ -10,6 +10,19 @@ function renderTotals(totals) {
   $("#t-shortfall").textContent = hours(totals.shortfall);
   $("#t-unmatched").textContent = hours(totals.unmatched);
   $("#t-shortfall").parentElement.classList.toggle("has-value", totals.shortfall > 0);
+  $("#t-lateness").textContent = hours(-totals.latenessOffset);
+  $("#t-uncompensated").textContent = hours(totals.uncompensated);
+}
+
+function latenessCard(lateness) {
+  if (lateness.length === 0) {
+    return null;
+  }
+  return el("div", { class: "card" },
+    el("h2", {}, "Lateness not covered that day"),
+    el("p", { class: "muted small" }, "Taken off the uncompensated total."),
+    el("ul", { class: "days" }, lateness.map((offset) => el("li", {}, `${dayLabel(offset.date)} · ${hours(offset.late)}`))),
+  );
 }
 
 function periodCard(period) {
@@ -41,6 +54,7 @@ function labelSection(section) {
       el("p", { class: "muted small" }, `When ${name} compensates these days, record it above.`),
       el("ul", { class: "days" }, section.unmatched.map((day) => el("li", {}, `${dayLabel(day.date)} · ${hours(day.overtime)}`))),
     ) : null,
+    latenessCard(section.lateness),
     ...section.periods.map(periodCard),
   );
 }

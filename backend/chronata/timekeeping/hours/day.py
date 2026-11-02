@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 
 from chronata.timekeeping.hours.overtime import Overtime
 from chronata.timekeeping.hours.punctuality import Punctuality
+from chronata.timekeeping.shifts.durations import NONE
 
 
 @dataclass(frozen=True)
@@ -18,3 +19,9 @@ class Day:
     @property
     def normal(self) -> timedelta:
         return self.worked - self.overtime.earned
+
+    @property
+    def lateness_taken_off(self) -> timedelta:
+        if self.running:
+            return NONE
+        return self.punctuality.uncovered_lateness

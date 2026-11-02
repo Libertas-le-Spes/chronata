@@ -147,6 +147,14 @@ class MakingUpALateStart(unittest.TestCase):
         day = days_so_far([saturday], self.hours, at("2026-10-17T11:00:00"))[(at("2026-10-17T00:00:00").date(), "Northwind")]
         self.assertEqual((day.running, day.overtime.earned), (True, timedelta(hours=2)))
 
+    def test_lateness_is_not_taken_off_while_the_day_is_still_running(self):
+        day = self.today_at("12:30:00", ("08:40", "12:00"))
+        self.assertEqual((day.punctuality.uncovered_lateness, day.lateness_taken_off), (timedelta(minutes=10), timedelta()))
+
+    def test_lateness_left_uncovered_is_taken_off_once_the_day_is_over(self):
+        day = self.today_at("18:00:00", ("08:40", "12:10"), ("13:10", "17:35"))
+        self.assertEqual(day.lateness_taken_off, timedelta(minutes=5))
+
     def test_a_full_day_after_a_late_start_is_made_up_once_the_day_is_over(self):
         day = self.today_at("18:00:00", ("08:40", "12:10"), ("13:10", "17:40"))
         self.assertEqual((day.punctuality.made_up, day.running), (True, False))

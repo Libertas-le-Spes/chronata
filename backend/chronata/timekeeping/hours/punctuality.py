@@ -18,6 +18,12 @@ class Punctuality:
         return self.arrived_late and self.short == NONE
 
     @property
+    def uncovered_lateness(self) -> timedelta:
+        if not self.arrived_late:
+            return NONE
+        return min(self.late, self.short)
+
+    @property
     def worth_noting(self) -> bool:
         return self.late > NONE or self.short > NONE
 

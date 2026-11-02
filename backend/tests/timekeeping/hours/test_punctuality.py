@@ -34,5 +34,22 @@ class MakingUp(unittest.TestCase):
         self.assertEqual((Punctuality().made_up, Punctuality().worth_noting), (False, False))
 
 
+class LatenessNotCovered(unittest.TestCase):
+    def test_late_and_leaving_on_time_leaves_all_of_it_uncovered(self):
+        self.assertEqual(Punctuality(timedelta(minutes=12), timedelta(minutes=12)).uncovered_lateness, timedelta(minutes=12))
+
+    def test_staying_a_little_later_covers_part_of_it(self):
+        self.assertEqual(Punctuality(timedelta(minutes=12), timedelta(minutes=7)).uncovered_lateness, timedelta(minutes=7))
+
+    def test_staying_long_enough_covers_all_of_it(self):
+        self.assertEqual(Punctuality(timedelta(minutes=12)).uncovered_lateness, timedelta())
+
+    def test_leaving_early_as_well_counts_only_the_lateness(self):
+        self.assertEqual(Punctuality(timedelta(minutes=12), timedelta(minutes=22)).uncovered_lateness, timedelta(minutes=12))
+
+    def test_leaving_early_after_arriving_on_time_is_not_lateness(self):
+        self.assertEqual(Punctuality(timedelta(), timedelta(minutes=30)).uncovered_lateness, timedelta())
+
+
 if __name__ == "__main__":
     unittest.main()
