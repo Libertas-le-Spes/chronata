@@ -1,6 +1,6 @@
 from chronata.entrypoints.cli.answers import answer_options, answers, hours_from
 from chronata.presenters.readable_copy.readable_copy import label_folder
-from chronata.timekeeping.labels.labels import hours_by_label
+from chronata.timekeeping.labels.time_on_label import hours_by_label
 from chronata.timekeeping.shifts.durations import hours
 from chronata.use_cases.log.outcome import Outcome, UserError
 from chronata.wiring import App

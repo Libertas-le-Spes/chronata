@@ -2,7 +2,8 @@ import unittest
 
 from datetime import timedelta
 
-from chronata.timekeeping.labels.labels import choose, hours_by_label
+from chronata.timekeeping.labels.labels import choose
+from chronata.timekeeping.labels.time_on_label import hours_by_label
 from chronata.timekeeping.shifts.shifts import Shift
 from tests.fakes import at
 

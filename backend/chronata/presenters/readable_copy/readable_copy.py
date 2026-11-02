@@ -5,7 +5,9 @@ from datetime import date, datetime, timedelta
 from chronata.presenters.day.day_story import DayRecords, Line, day_story
 from chronata.presenters.text.text_report import punctuality
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.overtime import Day, Week, combined, days_so_far, weeks_by_label
+from chronata.timekeeping.hours.day import Day
+from chronata.timekeeping.hours.timesheet import combined, days_so_far, weeks_by_label
+from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp, latest
 from chronata.timekeeping.shifts.day_entries import DayEntry, day_entries, pc_share
@@ -53,7 +55,7 @@ def _overview(all_weeks: list[Week], totals: dict[str, timedelta], stamps: list[
     lines += ["", "## Recent weeks, all labels", ""]
     if all_weeks:
         lines += ["| Week of | Worked | Overtime |", "|---|---|---|"]
-        lines += [f"| {week.start:%d %b %Y} | {hours(week.worked)} | {hours(week.overtime)} |" for week in reversed(all_weeks[-8:])]
+        lines += [f"| {week.start:%d %b %Y} | {hours(week.worked)} | {hours(week.overtime.earned)} |" for week in reversed(all_weeks[-8:])]
     else:
         lines.append("No finished shifts yet.")
     lines += ["", "The sealed record covers every label: `ledger.jsonl` with its `timestamps` (inside `sealed/` in saved copies). "
@@ -99,8 +101,13 @@ def _worked_line(folder: str, entries: list[DayEntry], summary: Day | None, now:
 def _summary_notes(summary: Day | None) -> list[str]:
     if summary is None:
         return []
+    notes = []
+    if summary.overtime.earned_some:
+        notes.append(f", overtime {hours(summary.overtime.earned)}")
     note = punctuality(summary)
-    return [f", overtime {hours(summary.overtime)}"] * bool(summary.overtime) + [f", {note}"] * bool(note)
+    if note:
+        notes.append(f", {note}")
+    return notes
 
 
 def _row(entry: DayEntry, sessions: list[PcSession], now: datetime) -> str:

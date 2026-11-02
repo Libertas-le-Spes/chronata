@@ -2,7 +2,7 @@ import unittest
 from datetime import date, datetime, time, timedelta
 
 from chronata.timekeeping.compensation.compensation import all_labels, reconcile, reconcile_by_label
-from chronata.timekeeping.hours.overtime import weeks
+from chronata.timekeeping.hours.timesheet import weeks
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.shifts.shifts import Shift
@@ -38,8 +38,8 @@ class EachLabelIsCompensatedForItsOwnOvertime(unittest.TestCase):
 
     def test_compensation_from_one_label_never_covers_another(self):
         result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3, label="Acme")], self.weeks_per_label, "Northwind")
-        self.assertEqual((result["Northwind"].compensated, result["Northwind"].unmatched_overtime), (timedelta(), timedelta(hours=3)))
-        self.assertEqual((result["Acme"].owed, result["Acme"].compensated), (timedelta(hours=2), timedelta(hours=3)))
+        self.assertEqual((result["Northwind"].compensated, result["Northwind"].unmatched_overtime.earned), (timedelta(), timedelta(hours=3)))
+        self.assertEqual((result["Acme"].owed.earned, result["Acme"].compensated), (timedelta(hours=2), timedelta(hours=3)))
 
     def test_compensation_without_a_label_belongs_to_the_default(self):
         result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3)], self.weeks_per_label, "Northwind")
@@ -47,7 +47,7 @@ class EachLabelIsCompensatedForItsOwnOvertime(unittest.TestCase):
 
     def test_the_totals_add_up_every_label(self):
         everything = all_labels(reconcile_by_label([compensated("2026-10-01", "2026-10-31", 1, label="Acme")], self.weeks_per_label, "Northwind"))
-        self.assertEqual((everything.owed, everything.compensated, everything.shortfall), (timedelta(hours=5), timedelta(hours=1), timedelta(hours=1)))
+        self.assertEqual((everything.owed.earned, everything.compensated, everything.shortfall), (timedelta(hours=5), timedelta(hours=1), timedelta(hours=1)))
 
 
 if __name__ == "__main__":

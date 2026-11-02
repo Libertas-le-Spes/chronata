@@ -5,7 +5,8 @@ from typing import Callable
 from chronata.timekeeping.compensation.compensation import Reconciliation, reconcile_by_label
 from chronata.timekeeping.entries.new_entry import NewEntry
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.overtime import Week, combined, weeks_by_label
+from chronata.timekeeping.hours.timesheet import combined, weeks_by_label
+from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession, pc_sessions
 from chronata.timekeeping.shifts.replay import shifts
 from chronata.timekeeping.shifts.shifts import Shift

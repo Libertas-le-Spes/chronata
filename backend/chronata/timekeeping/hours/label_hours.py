@@ -18,13 +18,27 @@ class LabelHours:
         return self.for_label(self.default_label)
 
     def for_label(self, label: str) -> WorkingDay | None:
-        return self.by_label.get(label or self.default_label)
+        return self.by_label.get(self.counted_under(label))
+
+    def counted_under(self, label: str) -> str:
+        if label:
+            return label
+        return self.default_label
 
     def labels(self) -> list[str]:
-        return [label for label in self.by_label if label]
+        named = []
+        for label in self.by_label:
+            if label:
+                named.append(label)
+        return named
 
     def is_workday(self, moment: datetime) -> bool:
-        return moment.weekday() in (self.main.workdays if self.main else MONDAY_TO_FRIDAY)
+        return moment.weekday() in self._main_workdays()
+
+    def _main_workdays(self) -> frozenset[int]:
+        if self.main is None:
+            return MONDAY_TO_FRIDAY
+        return self.main.workdays
 
     def strays_from_default(self, label: str, moment: datetime) -> bool:
         if not self.default_label or label == self.default_label:

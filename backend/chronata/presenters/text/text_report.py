@@ -1,8 +1,10 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from chronata.presenters.day.day_story import DayRecords, Line, day_story
 from chronata.timekeeping.compensation.compensation import Period, Reconciliation, all_labels
-from chronata.timekeeping.hours.overtime import Day, Week
+from chronata.timekeeping.hours.day import Day
+from chronata.timekeeping.hours.overtime import NONE
+from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp
 from chronata.timekeeping.shifts.day_entries import DayEntry, pc_share
@@ -33,17 +35,31 @@ def _story_line(line: Line, entry: DayEntry) -> str:
 
 
 def punctuality(day: Day) -> str | None:
-    if day.late <= timedelta():
-        return _behind(day) if day.short > timedelta() else None
-    return f"arrived {hours(day.late)} late, {_made_up(day) if day.made_up else _behind(day)}"
+    late = day.punctuality.late
+    if late > NONE:
+        return f"arrived {hours(late)} late, {_after_arriving_late(day)}"
+    if day.punctuality.short > NONE:
+        return _behind(day)
+    return None
+
+
+def _after_arriving_late(day: Day) -> str:
+    if day.punctuality.made_up:
+        return _made_up(day)
+    return _behind(day)
 
 
 def _behind(day: Day) -> str:
-    return f"{hours(day.short)} behind so far" if day.running else f"{hours(day.short)} short of a full day"
+    short = hours(day.punctuality.short)
+    if day.running:
+        return f"{short} behind so far"
+    return f"{short} short of a full day"
 
 
 def _made_up(day: Day) -> str:
-    return "made up so far" if day.running else f"made up (left {day.last_out:%H:%M})"
+    if day.running:
+        return "made up so far"
+    return f"made up (left {day.last_out:%H:%M})"
 
 
 def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str, Reconciliation], today: date) -> list[str]:
@@ -52,15 +68,15 @@ def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str,
         lines += [f"{label or '(no label)'}", f"  {'week of':10}  {'worked':>7}  {'overtime':>8}"]
         for week in weeks_per_label.get(label, []):
             running = "  (week still running)" if week.end >= today else ""
-            lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime):>8}{running}")
+            lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime.earned):>8}{running}")
             lines += [f"    {day.date:%a %d %b}: {note}" for day in week.days if (note := punctuality(day))]
         lines += _compensation_lines(label, reconciliation) + [""]
     everything = all_labels(compensation)
     return lines + [
         "All labels",
-        f"  Overtime worked:                  {hours(everything.owed):>8}",
+        f"  Overtime worked:                  {hours(everything.owed.earned):>8}",
         f"  Compensated (pay or time off):    {hours(everything.compensated):>8}",
-        f"  No compensation recorded yet:     {hours(everything.unmatched_overtime):>8}",
+        f"  No compensation recorded yet:     {hours(everything.unmatched_overtime.earned):>8}",
         f"  Uncompensated so far:             {hours(everything.shortfall):>8}",
     ]
 
@@ -78,12 +94,20 @@ def _recorded(label: str, periods: list[Period]) -> list[str]:
 
 
 def _period_line(period: Period) -> str:
-    references = f"  [{'; '.join(period.references)}]" if period.references else ""
-    return (f"    {period.start} to {period.end}: overtime worked {hours(period.owed)}, paid {hours(period.paid)}, "
-            f"time off {hours(period.time_off)}, UNCOMPENSATED {hours(period.shortfall)}{references}")
+    return (f"    {period.start} to {period.end}: overtime worked {hours(period.owed.earned)}, paid {hours(period.paid)}, "
+            f"time off {hours(period.time_off)}, UNCOMPENSATED {hours(period.shortfall)}{_references(period)}")
+
+
+def _references(period: Period) -> str:
+    if not period.references:
+        return ""
+    return f"  [{'; '.join(period.references)}]"
 
 
 def _not_covered(unmatched: list[Day]) -> list[str]:
     if not unmatched:
         return []
-    return ["  Overtime on days no compensation covers yet", *(f"    {day.date:%Y-%m-%d %a}: {hours(day.overtime)}" for day in unmatched)]
+    lines = ["  Overtime on days no compensation covers yet"]
+    for day in unmatched:
+        lines.append(f"    {day.date:%Y-%m-%d %a}: {hours(day.overtime.earned)}")
+    return lines

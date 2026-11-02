@@ -1,6 +1,7 @@
 import unittest
 from datetime import date
 
+from chronata.timekeeping.compensation.given import Payment
 from chronata.timekeeping.entries.clocking import ClockIn, ClockOut, ClockResumed
 from chronata.timekeeping.entries.compensation import Compensated
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
@@ -28,7 +29,7 @@ class WhatEachEntryRecords(unittest.TestCase):
             PowerSession("boot", NINE, None): ("pc_session", {"boot": "boot", "on": NINE.isoformat(), "off": None}),
             PowerSession("boot", NINE, TEN, True): ("pc_session", {"boot": "boot", "on": NINE.isoformat(), "off": TEN.isoformat(), "exact": True}),
             PcOffBreak(66, NINE, TEN): ("pc_off_break", {"shift": 66, "start": NINE.isoformat(), "end": TEN.isoformat()}),
-            Compensated(date(2026, 10, 1), date(2026, 10, 31), 2, False, "payslip", "Acme"):
+            Compensated(date(2026, 10, 1), date(2026, 10, 31), Payment(2, "payslip"), "Acme"):
                 ("compensation", {"from": "2026-10-01", "to": "2026-10-31", "hours": 2, "label": "Acme", "kind": "paid", "reference": "payslip"}),
         }
         for entry, (kind, data) in recorded.items():

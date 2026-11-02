@@ -1,6 +1,7 @@
 from chronata.presenters.page.facts import PageFacts
 from chronata.presenters.readable_copy.readable_copy import label_folder
-from chronata.timekeeping.labels.labels import hours_by_label, known_labels
+from chronata.timekeeping.labels.labels import known_labels
+from chronata.timekeeping.labels.time_on_label import hours_by_label
 from chronata.timekeeping.shifts.durations import minutes
 
 
