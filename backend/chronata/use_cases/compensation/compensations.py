@@ -1,4 +1,4 @@
-from chronata.timekeeping.compensation.given import GIVEN_AS, Given
+from chronata.timekeeping.compensation.given import GIVEN_AS, Chosen
 from chronata.timekeeping.entries.compensation import Compensated
 from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log, one_writer_at_a_time
@@ -31,7 +31,7 @@ class Compensations:
         return self.log.hours.default_label
 
 
-def _given(kind: str, hours: float, reference: str | None) -> Given:
+def _given(kind: str, hours: float, reference: str | None) -> Chosen:
     chosen = GIVEN_AS.get(kind)
     if chosen is None:
         raise UserError("say whether the overtime was paid or given as time off")

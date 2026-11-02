@@ -1,7 +1,7 @@
 import unittest
 from datetime import date
 
-from chronata.timekeeping.compensation.given import Payment
+from chronata.timekeeping.compensation.given_kinds.payment import Payment
 from chronata.timekeeping.entries.clocking import ClockIn, ClockOut, ClockResumed
 from chronata.timekeeping.entries.compensation import Compensated
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided

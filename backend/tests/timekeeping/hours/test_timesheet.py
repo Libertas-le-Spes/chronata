@@ -98,9 +98,15 @@ class LabelsWithTheirOwnHours(unittest.TestCase):
         whole = combined(by_label, "Northwind")[0].days[0]
         self.assertEqual((whole.first_in, whole.last_out), (at("2026-10-05T08:00:00"), at("2026-10-05T21:00:00")))
 
-    def test_a_day_on_two_labels_is_running_while_either_is_clocked_in(self):
+    def test_a_day_on_two_labels_is_running_while_the_main_label_is_clocked_in(self):
         shifts = [shift("2026-10-05", "06:00", "07:00", "Acme"), shift("2026-10-05", "08:00", None, "Northwind")]
         whole = combined(weeks_by_label(shifts, self.hours, at("2026-10-05T10:00:00")), "Northwind")[0].days[0]
+        self.assertTrue(whole.running)
+
+    def test_a_day_on_two_labels_is_running_while_only_the_other_label_is_clocked_in(self):
+        both_with_hours = LabelHours("Northwind", {"Northwind": WorkingDay(time(8), time(17), Lunch(time(12), 60)), "Acme": WorkingDay(time(18), time(22))})
+        shifts = split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", None, "Acme")]
+        whole = combined(weeks_by_label(shifts, both_with_hours, at("2026-10-05T19:00:00")), "Northwind")[0].days[0]
         self.assertTrue(whole.running)
 
     def test_unlabelled_time_counts_as_the_default_labels(self):

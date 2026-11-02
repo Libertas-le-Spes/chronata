@@ -1,7 +1,10 @@
 import unittest
 from datetime import timedelta
 
-from chronata.timekeeping.compensation.given import Payment, TimeOff, given_in
+from chronata.timekeeping.compensation.given import given_in
+from chronata.timekeeping.compensation.given_kinds.not_known import NotKnown
+from chronata.timekeeping.compensation.given_kinds.payment import Payment
+from chronata.timekeeping.compensation.given_kinds.time_off import TimeOff
 
 
 class WhatWasGiven(unittest.TestCase):
@@ -14,6 +17,9 @@ class WhatWasGiven(unittest.TestCase):
     def test_each_kind_is_read_back_from_what_the_log_holds(self):
         self.assertEqual(given_in({"kind": "time_off", "hours": 2, "reference": "leave form"}), TimeOff(2, "leave form"))
         self.assertEqual(given_in({"kind": "paid", "hours": 1}), Payment(1))
+
+    def test_a_kind_this_version_does_not_know_keeps_what_the_log_says(self):
+        self.assertEqual(given_in({"kind": "bonus", "hours": 3, "reference": "note 4"}), NotKnown("bonus", 3, "note 4"))
 
 
 if __name__ == "__main__":

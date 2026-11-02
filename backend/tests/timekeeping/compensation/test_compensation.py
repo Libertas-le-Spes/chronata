@@ -58,8 +58,10 @@ class EachLabelIsCompensatedForItsOwnOvertime(unittest.TestCase):
         self.assertEqual((result["Northwind"].shortfall, list(result)), (timedelta(), ["Northwind", "Acme"]))
 
     def test_labels_after_the_default_are_in_the_same_order_every_time(self):
-        weeks_per_label = {"acme": overtime_on(("2026-10-11", "09:00", "10:00")), "Acme": overtime_on(("2026-10-11", "09:00", "11:00"))}
-        self.assertEqual(list(reconcile_by_label([], weeks_per_label, NORTHWIND_FIRST)), ["Acme", "acme"])
+        weeks_per_label = {}
+        for spelling in ("acme", "aCme", "ACME", "Acme", "acmE"):
+            weeks_per_label[spelling] = overtime_on(("2026-10-11", "09:00", "10:00"))
+        self.assertEqual(list(reconcile_by_label([], weeks_per_label, NORTHWIND_FIRST)), ["ACME", "Acme", "aCme", "acmE", "acme"])
 
     def test_the_totals_add_up_every_label(self):
         everything = all_labels(reconcile_by_label([compensated("2026-10-01", "2026-10-31", 1, label="Acme")], self.weeks_per_label, NORTHWIND_FIRST))
