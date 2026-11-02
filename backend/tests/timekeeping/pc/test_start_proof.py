@@ -20,23 +20,23 @@ STAMPS = [stamp(65, "DigiCert", "2026-10-15T08:45:18"), stamp(65, "FreeTSA", "20
 
 class WhatProvesTheStart(unittest.TestCase):
     def test_a_shift_from_when_the_pc_came_on_is_proven_by_the_pc_record_stamps(self):
-        shift = Shift(67, at("2026-10-15T08:41:52"), at("2026-10-15T09:04:59"), timedelta(minutes=32), "Northwind")
+        shift = Shift(67, at("2026-10-15T08:41:52"), at("2026-10-15T09:04:59"), timedelta(minutes=32), "Primary")
         proof = start_proof(shift, SESSIONS, STAMPS)
         self.assertEqual((proof.from_pc_on, proof.entry), (True, 65))
         self.assertEqual([(s.authority_name, s.seq) for s in proof.stamps], [("DigiCert", 65), ("FreeTSA", 65)])
 
     def test_a_corrected_start_still_shows_it_began_when_the_pc_came_on(self):
-        shift = Shift(67, at("2026-10-15T08:41:52"), at("2026-10-15T09:04:59"), timedelta(minutes=32), "Northwind")
+        shift = Shift(67, at("2026-10-15T08:41:52"), at("2026-10-15T09:04:59"), timedelta(minutes=32), "Primary")
         shift.start = at("2026-10-15T08:30:00")
         self.assertEqual(start_proof(shift, SESSIONS, STAMPS).from_pc_on, True)
 
     def test_a_clock_in_is_proven_by_the_first_stamps_covering_its_own_entry(self):
-        shift = Shift(66, at("2026-10-15T09:04:59"), None, timedelta(), "Northwind")
+        shift = Shift(66, at("2026-10-15T09:04:59"), None, timedelta(), "Primary")
         proof = start_proof(shift, SESSIONS, STAMPS)
         self.assertEqual((proof.from_pc_on, proof.entry, [s.seq for s in proof.stamps]), (False, 66, [66]))
 
     def test_a_shift_not_yet_stamped_says_so(self):
-        shift = Shift(68, at("2026-10-15T10:00:00"), None, timedelta(), "Northwind")
+        shift = Shift(68, at("2026-10-15T10:00:00"), None, timedelta(), "Primary")
         self.assertEqual(start_proof(shift, SESSIONS, STAMPS).stamps, ())
 
 

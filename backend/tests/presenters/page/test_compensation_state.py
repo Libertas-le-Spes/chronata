@@ -11,7 +11,7 @@ ONLY_LATENESS = Reconciliation([], [], [UncoveredLateness(date(2026, 10, 6), tim
 
 class LatenessOnThePage(unittest.TestCase):
     def setUp(self):
-        self.shown = state(SimpleNamespace(compensation={"Northwind": ONLY_LATENESS}))
+        self.shown = state(SimpleNamespace(compensation={"Primary": ONLY_LATENESS}))
 
     def test_a_label_with_only_lateness_still_gets_a_section_listing_it(self):
         self.assertEqual(self.shown["compensation"][0]["lateness"], [{"date": "2026-10-06", "late": 7}])

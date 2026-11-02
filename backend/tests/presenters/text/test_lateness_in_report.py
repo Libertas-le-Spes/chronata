@@ -9,8 +9,8 @@ from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
 from tests.fakes import at
 
-HOURS = LabelHours("Northwind")
-WEEKS = {"Northwind": weeks([Shift(1, at("2026-10-05T08:00:00"), at("2026-10-05T18:00:00"), timedelta()),
+HOURS = LabelHours("Primary")
+WEEKS = {"Primary": weeks([Shift(1, at("2026-10-05T08:00:00"), at("2026-10-05T18:00:00"), timedelta()),
                              Shift(2, at("2026-10-06T08:12:00"), at("2026-10-06T16:05:00"), timedelta())], WorkingDay(time(8), time(16)))}
 
 

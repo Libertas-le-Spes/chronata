@@ -48,10 +48,10 @@ class NotClockedIn(unittest.TestCase):
 
     def test_clocking_in_from_the_reminder_uses_the_default_label(self):
         f = Fixture("2026-10-14T08:40:00")
-        f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Northwind")
+        f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Primary")
         Reminders(f.app.log, f.app.clocking, f.app.pc, f.desktop, f.page).tick()
         f.desktop.click("Not clocked in")
-        self.assertEqual(f.app.log.shifts()[0].label, "Northwind")
+        self.assertEqual(f.app.log.shifts()[0].label, "Primary")
 
 
 class PcOffPrompt(unittest.TestCase):
@@ -73,8 +73,8 @@ class PcOffPrompt(unittest.TestCase):
 class LunchPerLabel(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T08:30:00")
-        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Northwind")
-        self.f.app.labels.create("Globex", hours("08:00", "14:00"))
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Primary")
+        self.f.app.labels.create("Tertiary", hours("08:00", "14:00"))
         self.f.app.labels.create("Late lunch", hours("09:00", "18:00", "13:30", "30"))
 
     def lunch_prompts(self, label: str, moment: str) -> list[str]:
@@ -84,7 +84,7 @@ class LunchPerLabel(unittest.TestCase):
         return [summary for summary, _ in self.f.desktop.notices if summary == "Lunch time"]
 
     def test_a_label_without_lunch_is_never_asked(self):
-        self.assertEqual(self.lunch_prompts("Globex", "2026-10-14T12:00:30"), [])
+        self.assertEqual(self.lunch_prompts("Tertiary", "2026-10-14T12:00:30"), [])
 
     def test_a_label_is_asked_at_its_own_lunch_time(self):
         self.assertEqual(self.lunch_prompts("Late lunch", "2026-10-14T13:30:30"), ["Lunch time"])

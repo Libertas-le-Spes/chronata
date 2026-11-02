@@ -10,8 +10,8 @@ from tests.fakes import Fixture, hours
 class SavingEverywhere(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T17:40:00")
-        self.f.app.labels.create("Northwind", hours("08:00", "17:00", "12:00", "60"))
-        self.f.app.corrections.add("2026-10-13", "08:02:11", "17:31:40", "written later", "release prep", "Northwind")
+        self.f.app.labels.create("Primary", hours("08:00", "17:00", "12:00", "60"))
+        self.f.app.corrections.add("2026-10-13", "08:02:11", "17:31:40", "written later", "release prep", "Primary")
         self.f.app.corrections.add("2026-10-14", "06:00", "07:00", "written later", None)
         self.folder = Path(tempfile.mkdtemp())
         self.vault = Path(tempfile.mkdtemp())
@@ -21,16 +21,16 @@ class SavingEverywhere(unittest.TestCase):
 
     def test_every_place_and_the_log_folder_get_a_folder_per_label(self):
         for where in (self.folder, self.vault / "Chronata", self.f.data):
-            self.assertIn("release prep", (where / "Northwind" / "Days" / "2026-10-13.md").read_text())
-            self.assertIn("Tuesday 13 October 2026", (where / "Northwind" / "Chronata time log.md").read_text())
+            self.assertIn("release prep", (where / "Primary" / "Days" / "2026-10-13.md").read_text())
+            self.assertIn("Tuesday 13 October 2026", (where / "Primary" / "Chronata time log.md").read_text())
             self.assertTrue((where / "No label" / "Days" / "2026-10-14.md").exists())
-            self.assertIn("[Northwind]", (where / "README.md").read_text())
+            self.assertIn("[Primary]", (where / "README.md").read_text())
         self.assertTrue((self.folder / "sealed" / "ledger.jsonl").exists())
 
     def test_relabelling_moves_the_note_and_removes_the_old_one(self):
         unlabelled = next(s for s in self.f.app.log.shifts() if not s.label)
-        self.f.app.labels.label_shifts([unlabelled.id], "Northwind")
-        self.assertTrue((self.folder / "Northwind" / "Days" / "2026-10-14.md").exists())
+        self.f.app.labels.label_shifts([unlabelled.id], "Primary")
+        self.assertTrue((self.folder / "Primary" / "Days" / "2026-10-14.md").exists())
         self.assertFalse((self.folder / "No label").exists())
 
     def test_a_saved_copy_checks_out_on_its_own(self):

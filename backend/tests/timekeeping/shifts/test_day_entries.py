@@ -6,7 +6,7 @@ from chronata.timekeeping.shifts.shifts import Break, Shift
 from tests.fakes import at
 
 
-def shift(seq: int, start: str, end: str | None, label: str = "Northwind") -> Shift:
+def shift(seq: int, start: str, end: str | None, label: str = "Primary") -> Shift:
     return Shift(seq, at(start), at(end) if end else None, timedelta(), label)
 
 
@@ -21,8 +21,8 @@ class OneEntryPerDayAndLabel(unittest.TestCase):
         self.assertEqual(today.worked(at("2026-10-15T14:00:00")), timedelta(hours=4, minutes=13, seconds=35))
 
     def test_another_label_the_same_day_is_its_own_entry(self):
-        entries = day_entries([shift(1, "2026-10-15T08:00:00", "2026-10-15T12:00:00"), shift(2, "2026-10-15T18:00:00", "2026-10-15T20:00:00", "Acme")])
-        self.assertEqual([(e.label, e.worked(at("2026-10-15T21:00:00"))) for e in entries], [("Northwind", timedelta(hours=4)), ("Acme", timedelta(hours=2))])
+        entries = day_entries([shift(1, "2026-10-15T08:00:00", "2026-10-15T12:00:00"), shift(2, "2026-10-15T18:00:00", "2026-10-15T20:00:00", "Secondary")])
+        self.assertEqual([(e.label, e.worked(at("2026-10-15T21:00:00"))) for e in entries], [("Primary", timedelta(hours=4)), ("Secondary", timedelta(hours=2))])
 
     def test_a_piece_marked_as_a_mistake_stays_in_the_entry_but_is_not_counted(self):
         mistake = shift(2, "2026-10-15T13:00:00", "2026-10-15T14:00:00")

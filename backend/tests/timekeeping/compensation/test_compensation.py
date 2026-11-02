@@ -10,7 +10,7 @@ from chronata.timekeeping.shifts.shifts import Shift
 from tests.fakes import SAST, at
 
 NO_LUNCH = WorkingDay(time(8), time(16))
-NORTHWIND_FIRST = LabelHours("Northwind")
+PRIMARY_FIRST = LabelHours("Primary")
 
 
 def overtime_on(*days: tuple[str, str, str]):
@@ -77,31 +77,31 @@ class LatenessComesOffTheUncompensatedTotal(unittest.TestCase):
         self.assertEqual(result.unpaid, timedelta(minutes=-20))
 
     def test_every_labels_lateness_is_in_the_totals(self):
-        weeks_per_label = {"Northwind": overtime_on(("2026-10-05", "08:15", "16:00")), "Acme": overtime_on(("2026-10-06", "08:05", "16:00"))}
-        everything = all_labels(reconcile_by_label([], weeks_per_label, NORTHWIND_FIRST))
+        weeks_per_label = {"Primary": overtime_on(("2026-10-05", "08:15", "16:00")), "Secondary": overtime_on(("2026-10-06", "08:05", "16:00"))}
+        everything = all_labels(reconcile_by_label([], weeks_per_label, PRIMARY_FIRST))
         self.assertEqual(everything.uncovered_lateness, timedelta(minutes=20))
 
 
 class EachLabelIsCompensatedForItsOwnOvertime(unittest.TestCase):
-    weeks_per_label = {"Northwind": overtime_on(("2026-10-05", "08:00", "19:00")), "Acme": overtime_on(("2026-10-11", "09:00", "11:00"))}
+    weeks_per_label = {"Primary": overtime_on(("2026-10-05", "08:00", "19:00")), "Secondary": overtime_on(("2026-10-11", "09:00", "11:00"))}
 
     def test_compensation_from_one_label_never_covers_another(self):
-        result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3, label="Acme")], self.weeks_per_label, NORTHWIND_FIRST)
-        self.assertEqual((result["Northwind"].compensated, result["Northwind"].unmatched_overtime.earned), (timedelta(), timedelta(hours=3)))
-        self.assertEqual((result["Acme"].owed.earned, result["Acme"].compensated), (timedelta(hours=2), timedelta(hours=3)))
+        result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3, label="Secondary")], self.weeks_per_label, PRIMARY_FIRST)
+        self.assertEqual((result["Primary"].compensated, result["Primary"].unmatched_overtime.earned), (timedelta(), timedelta(hours=3)))
+        self.assertEqual((result["Secondary"].owed.earned, result["Secondary"].compensated), (timedelta(hours=2), timedelta(hours=3)))
 
     def test_compensation_without_a_label_belongs_to_the_default(self):
-        result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3)], self.weeks_per_label, NORTHWIND_FIRST)
-        self.assertEqual((result["Northwind"].shortfall, list(result)), (timedelta(), ["Northwind", "Acme"]))
+        result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3)], self.weeks_per_label, PRIMARY_FIRST)
+        self.assertEqual((result["Primary"].shortfall, list(result)), (timedelta(), ["Primary", "Secondary"]))
 
     def test_labels_after_the_default_are_in_the_same_order_every_time(self):
         weeks_per_label = {}
-        for spelling in ("acme", "aCme", "ACME", "Acme", "acmE"):
+        for spelling in ("secondary", "sEcondary", "SECONDARY", "Secondary", "secondarY"):
             weeks_per_label[spelling] = overtime_on(("2026-10-11", "09:00", "10:00"))
-        self.assertEqual(list(reconcile_by_label([], weeks_per_label, NORTHWIND_FIRST)), ["ACME", "Acme", "aCme", "acmE", "acme"])
+        self.assertEqual(list(reconcile_by_label([], weeks_per_label, PRIMARY_FIRST)), ["SECONDARY", "Secondary", "sEcondary", "secondarY", "secondary"])
 
     def test_the_totals_add_up_every_label(self):
-        everything = all_labels(reconcile_by_label([compensated("2026-10-01", "2026-10-31", 1, label="Acme")], self.weeks_per_label, NORTHWIND_FIRST))
+        everything = all_labels(reconcile_by_label([compensated("2026-10-01", "2026-10-31", 1, label="Secondary")], self.weeks_per_label, PRIMARY_FIRST))
         self.assertEqual((everything.owed.earned, everything.compensated, everything.shortfall), (timedelta(hours=5), timedelta(hours=1), timedelta(hours=1)))
 
 
