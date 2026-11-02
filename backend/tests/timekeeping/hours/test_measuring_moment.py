@@ -21,6 +21,9 @@ class HowFarADayIsMeasured(unittest.TestCase):
     def test_clocked_out_before_the_shift_ends_today_is_measured_up_to_the_last_clock_out(self):
         self.assertEqual(MeasuringMoment(at("2026-10-15T12:30:00"), False).judged_at(MORNING, HOURS), time(11))
 
+    def test_at_the_moment_the_shift_ends_today_is_measured_in_full(self):
+        self.assertIsNone(MeasuringMoment(at("2026-10-15T17:00:00"), False).judged_at(MORNING, HOURS))
+
     def test_once_the_shift_is_over_today_is_measured_in_full(self):
         self.assertIsNone(MeasuringMoment(at("2026-10-15T17:30:00"), False).judged_at(MORNING, HOURS))
 

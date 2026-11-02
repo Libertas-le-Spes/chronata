@@ -67,11 +67,10 @@ def _made_up(day: Day) -> str:
 def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str, Reconciliation], today: date) -> list[str]:
     lines = []
     for label, reconciliation in compensation.items():
-        lines += [f"{label or '(no label)'}", f"  {'week of':10}  {'worked':>7}  {'overtime':>8}"]
+        lines += [_label_heading(label), f"  {'week of':10}  {'worked':>7}  {'overtime':>8}"]
         for week in weeks_per_label.get(label, []):
-            running = "  (week still running)" if week.end >= today else ""
-            lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime.earned):>8}{running}")
-            lines += [f"    {day.date:%a %d %b}: {note}" for day in week.days if (note := punctuality(day))]
+            lines.append(f"  {week.start:%Y-%m-%d}  {hours(week.worked):>7}  {hours(week.overtime.earned):>8}{_still_running(week, today)}")
+            lines += _punctuality_lines(week)
         lines += _compensation_lines(label, reconciliation) + [""]
     everything = all_labels(compensation)
     return lines + [
@@ -81,6 +80,27 @@ def report_lines(weeks_per_label: dict[str, list[Week]], compensation: dict[str,
         f"  No compensation recorded yet:     {hours(everything.unmatched_overtime.earned):>8}",
         f"  Uncompensated so far:             {hours(everything.shortfall):>8}",
     ]
+
+
+def _label_heading(label: str) -> str:
+    if label:
+        return label
+    return "(no label)"
+
+
+def _still_running(week: Week, today: date) -> str:
+    if week.end >= today:
+        return "  (week still running)"
+    return ""
+
+
+def _punctuality_lines(week: Week) -> list[str]:
+    lines = []
+    for day in week.days:
+        note = punctuality(day)
+        if note:
+            lines.append(f"    {day.date:%a %d %b}: {note}")
+    return lines
 
 
 def _compensation_lines(label: str, reconciliation: Reconciliation) -> list[str]:

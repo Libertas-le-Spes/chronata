@@ -93,6 +93,16 @@ class LabelsWithTheirOwnHours(unittest.TestCase):
         whole = combined(by_label, "Northwind")[0].days[0]
         self.assertEqual((whole.worked, whole.overtime.earned), (timedelta(hours=11), timedelta()))
 
+    def test_a_day_on_two_labels_runs_from_the_first_clock_in_to_the_last_clock_out(self):
+        by_label = weeks_by_label(split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", "21:00", "Acme")], self.hours)
+        whole = combined(by_label, "Northwind")[0].days[0]
+        self.assertEqual((whole.first_in, whole.last_out), (at("2026-10-05T08:00:00"), at("2026-10-05T21:00:00")))
+
+    def test_a_day_on_two_labels_is_running_while_either_is_clocked_in(self):
+        shifts = [shift("2026-10-05", "06:00", "07:00", "Acme"), shift("2026-10-05", "08:00", None, "Northwind")]
+        whole = combined(weeks_by_label(shifts, self.hours, at("2026-10-05T10:00:00")), "Northwind")[0].days[0]
+        self.assertTrue(whole.running)
+
     def test_unlabelled_time_counts_as_the_default_labels(self):
         self.assertEqual(list(weeks_by_label([shift("2026-10-05", "08:00", "12:00")], self.hours)), ["Northwind"])
 
@@ -125,6 +135,11 @@ class MakingUpALateStart(unittest.TestCase):
         lunch = ("08:40", "12:10")
         self.assertEqual(self.today_at("20:00:00", lunch, ("13:10", "17:40")).overtime.earned, timedelta())
         self.assertEqual(self.today_at("20:00:00", lunch, ("13:10", "17:50")).overtime.earned, timedelta(minutes=10))
+
+    def test_while_clocked_in_on_a_day_off_it_is_still_running(self):
+        saturday = shift("2026-10-17", "09:00", None, "Northwind")
+        day = days_so_far([saturday], self.hours, at("2026-10-17T11:00:00"))[(at("2026-10-17T00:00:00").date(), "Northwind")]
+        self.assertEqual((day.running, day.overtime.earned), (True, timedelta(hours=2)))
 
     def test_a_full_day_after_a_late_start_is_made_up_once_the_day_is_over(self):
         day = self.today_at("18:00:00", ("08:40", "12:10"), ("13:10", "17:40"))

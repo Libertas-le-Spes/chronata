@@ -12,8 +12,11 @@ class MeasuringOvertime(unittest.TestCase):
         days = [Overtime(timedelta(minutes=20)), Overtime(timedelta(minutes=40)), Overtime()]
         self.assertEqual(total(days), Overtime(timedelta(hours=1)))
 
-    def test_a_day_without_overtime_earned_none(self):
-        self.assertEqual((Overtime().earned_some, Overtime(timedelta(minutes=1)).earned_some), (False, True))
+    def test_no_overtime_is_none_earned(self):
+        self.assertFalse(Overtime().earned_some)
+
+    def test_a_single_minute_is_some_earned(self):
+        self.assertTrue(Overtime(timedelta(minutes=1)).earned_some)
 
 
 if __name__ == "__main__":

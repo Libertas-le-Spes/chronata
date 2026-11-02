@@ -27,9 +27,10 @@ def compensated(start: str, end: str, hours: float, kind: str = "paid", label: s
 
 
 class Reconciling(unittest.TestCase):
-    def test_a_period_ending_mid_week_takes_only_its_own_days(self):
-        result = reconcile(compensations([compensated("2026-09-26", "2026-10-09", 0)]), overtime_on(("2026-10-09", "08:00", "10:00"), ("2026-10-10", "09:00", "12:00")))
-        self.assertEqual(result.periods[0].shortfall, timedelta())
+    def test_a_period_takes_its_first_and_last_days_and_nothing_after(self):
+        worked = overtime_on(("2026-09-26", "09:00", "10:00"), ("2026-10-09", "08:00", "18:00"), ("2026-10-10", "09:00", "12:00"))
+        result = reconcile(compensations([compensated("2026-09-26", "2026-10-09", 0)]), worked)
+        self.assertEqual(result.periods[0].owed.earned, timedelta(hours=3))
         self.assertEqual([d.date for d in result.unmatched], [date(2026, 10, 10)])
 
     def test_unpaid_overtime_shows_as_a_shortfall(self):

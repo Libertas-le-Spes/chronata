@@ -24,6 +24,12 @@ class MakingUp(unittest.TestCase):
     def test_a_late_start_still_short_is_not_made_up(self):
         self.assertFalse(Punctuality(timedelta(minutes=10), timedelta(minutes=4)).made_up)
 
+    def test_arriving_late_alone_is_worth_noting(self):
+        self.assertTrue(Punctuality(timedelta(minutes=10)).worth_noting)
+
+    def test_leaving_early_alone_is_worth_noting(self):
+        self.assertTrue(Punctuality(timedelta(), timedelta(minutes=10)).worth_noting)
+
     def test_arriving_on_time_is_nothing_to_make_up(self):
         self.assertEqual((Punctuality().made_up, Punctuality().worth_noting), (False, False))
 

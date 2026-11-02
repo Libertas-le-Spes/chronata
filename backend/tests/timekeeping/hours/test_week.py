@@ -19,6 +19,9 @@ class WeekStart(unittest.TestCase):
     def test_a_week_starts_on_the_monday_before(self):
         self.assertEqual(week_starting(date(2026, 9, 10)), MONDAYS[0])
 
+    def test_a_week_ends_on_the_sunday(self):
+        self.assertEqual(Week(MONDAYS[0], ()).end, date(2026, 9, 13))
+
 
 if __name__ == "__main__":
     unittest.main()
