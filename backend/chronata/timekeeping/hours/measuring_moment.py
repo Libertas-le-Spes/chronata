@@ -18,3 +18,6 @@ class MeasuringMoment:
         if self.now.time() < working_day.shift_end:
             return clocked.last_out.time()
         return None
+
+    def running(self, clocked: ClockedDay, working_day: WorkingDay) -> bool:
+        return self.judged_at(clocked, working_day) is not None

@@ -2,10 +2,12 @@ from datetime import datetime
 from functools import wraps
 from typing import Callable
 
-from chronata.timekeeping.compensation.compensation import Reconciliation, reconcile_by_label
+from chronata.timekeeping.compensation.compensation import reconcile_by_label
+from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.entries.new_entry import NewEntry
+from chronata.timekeeping.hours.all_labels import combined
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.timesheet import combined, weeks_by_label
+from chronata.timekeeping.hours.timesheet import weeks_by_label
 from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession, pc_sessions
 from chronata.timekeeping.shifts.replay import shifts
@@ -46,7 +48,7 @@ class Log:
         return weeks_by_label(self.shifts(), self.hours, self.clock())
 
     def compensation(self, weeks_per_label: dict[str, list[Week]]) -> dict[str, Reconciliation]:
-        return reconcile_by_label(self.record.entries(), weeks_per_label, self.hours.default_label)
+        return reconcile_by_label(self.record.entries(), weeks_per_label, self.hours)
 
     def pc_sessions(self) -> list[PcSession]:
         return pc_sessions(self.record.entries())

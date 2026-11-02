@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+NONE = timedelta()
+
 
 def hours(span: timedelta) -> str:
     total = round(span.total_seconds() / 60)

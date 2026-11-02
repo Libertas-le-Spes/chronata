@@ -4,10 +4,11 @@ from datetime import date, datetime, timedelta
 
 from chronata.presenters.day.day_story import DayRecords, Line, day_story
 from chronata.presenters.text.text_report import punctuality
-from chronata.timekeeping.hours.label_hours import LabelHours
+from chronata.timekeeping.hours.all_labels import combined
 from chronata.timekeeping.hours.day import Day
-from chronata.timekeeping.hours.timesheet import combined, days_so_far, weeks_by_label
-from chronata.timekeeping.hours.week import Week
+from chronata.timekeeping.hours.label_hours import LabelHours
+from chronata.timekeeping.hours.timesheet import days_so_far, weeks_by_label
+from chronata.timekeeping.hours.week import Week, latest_weeks
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp, latest
 from chronata.timekeeping.shifts.day_entries import DayEntry, day_entries, pc_share
@@ -18,6 +19,7 @@ OVERVIEW = "README.md"
 WHOLE_LOG = "Chronata time log.md"
 DAYS = "Days"
 NO_LABEL = "No label"
+RECENT_WEEKS = 8
 KEPT_BESIDE_LABELS = {OVERVIEW, WHOLE_LOG, DAYS, "sealed", "ledger.jsonl", "rules.json", "timestamps", "checked-receipts.json", "git", "chronata-files"}
 
 
@@ -55,12 +57,16 @@ def _overview(all_weeks: list[Week], totals: dict[str, timedelta], stamps: list[
     lines += ["", "## Recent weeks, all labels", ""]
     if all_weeks:
         lines += ["| Week of | Worked | Overtime |", "|---|---|---|"]
-        lines += [f"| {week.start:%d %b %Y} | {hours(week.worked)} | {hours(week.overtime.earned)} |" for week in reversed(all_weeks[-8:])]
+        lines += [_week_row(week) for week in reversed(latest_weeks(all_weeks, RECENT_WEEKS))]
     else:
         lines.append("No finished shifts yet.")
     lines += ["", "The sealed record covers every label: `ledger.jsonl` with its `timestamps` (inside `sealed/` in saved copies). "
               "Check any copy with `chronata verify --folder <this folder>`."]
     return "\n".join(lines) + "\n"
+
+
+def _week_row(week: Week) -> str:
+    return f"| {week.start:%d %b %Y} | {hours(week.worked)} | {hours(week.overtime.earned)} |"
 
 
 def _label_overview(folder: str, days: dict[date, str], worked: timedelta, stamps: list[Stamp], entries: int) -> str:

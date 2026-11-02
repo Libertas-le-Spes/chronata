@@ -1,13 +1,15 @@
 from datetime import date, datetime
 
 from chronata.presenters.day.day_story import DayRecords, Line, day_story
-from chronata.timekeeping.compensation.compensation import Period, Reconciliation, all_labels
+from chronata.timekeeping.compensation.compensation import all_labels
+from chronata.timekeeping.compensation.period import Period
+from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.hours.day import Day
-from chronata.timekeeping.hours.overtime import NONE
 from chronata.timekeeping.hours.week import Week
 from chronata.timekeeping.pc.pc_sessions import PcSession
 from chronata.timekeeping.record.stamps import Stamp
 from chronata.timekeeping.shifts.day_entries import DayEntry, pc_share
+from chronata.timekeeping.shifts.durations import NONE
 from chronata.timekeeping.shifts.durations import hours
 from chronata.timekeeping.shifts.shifts import named
 
@@ -35,10 +37,10 @@ def _story_line(line: Line, entry: DayEntry) -> str:
 
 
 def punctuality(day: Day) -> str | None:
-    late = day.punctuality.late
-    if late > NONE:
-        return f"arrived {hours(late)} late, {_after_arriving_late(day)}"
-    if day.punctuality.short > NONE:
+    punctuality = day.punctuality
+    if punctuality.arrived_late:
+        return f"arrived {hours(punctuality.late)} late, {_after_arriving_late(day)}"
+    if punctuality.short > NONE:
         return _behind(day)
     return None
 

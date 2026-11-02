@@ -1,9 +1,10 @@
 import unittest
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 
 from chronata.presenters.text.text_report import punctuality
+from chronata.timekeeping.hours.all_labels import combined
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.timesheet import combined, days_so_far, weeks, weeks_by_label
+from chronata.timekeeping.hours.timesheet import days_so_far, weeks, weeks_by_label
 from chronata.timekeeping.hours.working_day import Lunch, WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
 from tests.fakes import at
@@ -14,7 +15,13 @@ def working_day(workdays: range = range(5)) -> WorkingDay:
 
 
 def shift(day: str, start: str, end: str | None, label: str = "") -> Shift:
-    return Shift(1, at(f"{day}T{start}"), at(f"{day}T{end}") if end else None, timedelta(), label)
+    return Shift(1, at(f"{day}T{start}"), _ended(day, end), timedelta(), label)
+
+
+def _ended(day: str, end: str | None) -> datetime | None:
+    if end is None:
+        return None
+    return at(f"{day}T{end}")
 
 
 def split_day(day: str, start: str, end: str) -> list[Shift]:

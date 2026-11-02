@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
-from chronata.timekeeping.hours.overtime import NONE
+from chronata.timekeeping.shifts.durations import NONE
 from chronata.timekeeping.shifts.shifts import Shift
 
 

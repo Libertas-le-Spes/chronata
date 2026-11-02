@@ -1,5 +1,7 @@
 from chronata.presenters.page.facts import PageFacts
-from chronata.timekeeping.compensation.compensation import Period, Reconciliation, all_labels
+from chronata.timekeeping.compensation.compensation import all_labels
+from chronata.timekeeping.compensation.period import Period
+from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.hours.day import Day
 from chronata.timekeeping.shifts.durations import minutes
 
@@ -9,12 +11,13 @@ def state(facts: PageFacts) -> dict:
     shown = []
     for label, reconciliation in per_label.items():
         if reconciliation.periods or reconciliation.unmatched:
-            shown.append({"label": label, **_reconciliation(reconciliation)})
+            shown.append(_labelled(label, reconciliation))
     return {"compensation": shown, "totals": _totals(all_labels(per_label))}
 
 
-def _reconciliation(reconciliation: Reconciliation) -> dict:
+def _labelled(label: str, reconciliation: Reconciliation) -> dict:
     return {
+        "label": label,
         "periods": [_period(period) for period in reversed(reconciliation.periods)],
         "unmatched": [_unmatched(day) for day in reconciliation.unmatched],
         "totals": _totals(reconciliation),

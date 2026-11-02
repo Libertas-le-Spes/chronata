@@ -16,8 +16,11 @@ class Compensated:
     label: str = ""
 
     def data(self) -> dict:
-        return {"from": self.start.isoformat(), "to": self.end.isoformat(), "hours": self.given.hours, **with_label(self.label),
-                "kind": self.given.kind, "reference": self.given.reference}
+        data = {"from": self.start.isoformat(), "to": self.end.isoformat(), "hours": self.given.hours}
+        data.update(with_label(self.label))
+        data["kind"] = self.given.kind
+        data["reference"] = self.given.reference
+        return data
 
     @staticmethod
     def of(entry: Entry) -> "Compensated":

@@ -2,19 +2,22 @@ from datetime import datetime, time, timedelta
 
 from chronata.timekeeping.hours.clocked_day import ClockedDay
 from chronata.timekeeping.hours.day import Day
-from chronata.timekeeping.hours.overtime import NONE, beyond
+from chronata.timekeeping.hours.measuring_moment import MeasuringMoment
+from chronata.timekeeping.hours.overtime import beyond
 from chronata.timekeeping.hours.punctuality import judged
 from chronata.timekeeping.hours.weekly_allowance import WeeklyAllowance
 from chronata.timekeeping.hours.working_day import WorkingDay
+from chronata.timekeeping.shifts.durations import NONE
 
 
 class Workday:
     def __init__(self, working_day: WorkingDay):
         self.working_day = working_day
 
-    def measure(self, clocked: ClockedDay, allowance: WeeklyAllowance, judged_at: time | None) -> Day:
+    def measure(self, clocked: ClockedDay, allowance: WeeklyAllowance, moment: MeasuringMoment) -> Day:
         worked = clocked.worked
         full_day = timedelta(hours=self.working_day.daily_hours)
+        judged_at = moment.judged_at(clocked, self.working_day)
         short_of_due = max(self._due(full_day, judged_at) - worked, NONE)
         punctuality = judged(self._late(clocked), short_of_due, self.working_day.early_leave_grace)
         overtime = beyond(worked, allowance.normal_part(worked, full_day))

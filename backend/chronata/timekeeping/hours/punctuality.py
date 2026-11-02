@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from chronata.timekeeping.hours.overtime import NONE
+from chronata.timekeeping.shifts.durations import NONE
 
 
 @dataclass(frozen=True)
@@ -10,8 +10,12 @@ class Punctuality:
     short: timedelta = NONE
 
     @property
+    def arrived_late(self) -> bool:
+        return self.late > NONE
+
+    @property
     def made_up(self) -> bool:
-        return self.late > NONE and self.short == NONE
+        return self.arrived_late and self.short == NONE
 
     @property
     def worth_noting(self) -> bool:

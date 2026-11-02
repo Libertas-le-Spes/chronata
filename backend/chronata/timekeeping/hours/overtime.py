@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Iterable
 
-NONE = timedelta()
+from chronata.timekeeping.shifts.durations import NONE
 
 
 @dataclass(frozen=True)
