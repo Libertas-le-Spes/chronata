@@ -4,6 +4,7 @@ from datetime import date, time, timedelta
 from chronata.presenters.text.text_report import report_lines
 from chronata.timekeeping.compensation.compensation import reconcile_by_label
 from chronata.timekeeping.hours.label_hours import LabelHours
+from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
 from tests.fakes import at
@@ -28,6 +29,13 @@ class LatenessInTheReport(unittest.TestCase):
                                   "  Compensated:                   -0:00",
                                   "  Lateness not covered:          -0:07",
                                   "  Unpaid:                         1:53"])
+
+
+class APeriodPaidBeyondItsOvertime(unittest.TestCase):
+    def test_the_extra_is_shown_on_its_own_line(self):
+        paid = Entry(1, "compensation", at("2026-10-20T09:00:00"), {"from": "2026-10-05", "to": "2026-10-11", "hours": 3, "kind": "paid"})
+        lines = report_lines(WEEKS, reconcile_by_label([paid], WEEKS, HOURS), date(2026, 10, 20))
+        self.assertIn("  Given beyond a period's overtime, not carried to other periods: 1:00", lines)
 
 
 if __name__ == "__main__":

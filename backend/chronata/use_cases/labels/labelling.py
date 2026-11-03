@@ -32,7 +32,7 @@ class Labelling:
         affected = [shift for shift in all_shifts if shift.label == current]
         now = self.log.clock()
         for shift in affected:
-            self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current}"), now)
+            self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current}", renamed=True), now)
         merged = target in self.in_use(all_shifts)
         message = (f"merged {current} into {target}" if merged else f"renamed label {current} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
         return self.log.commit(message + self._carry_hours_and_default(current, target))

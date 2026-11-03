@@ -1,4 +1,3 @@
-from dataclasses import replace
 from datetime import datetime
 
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
@@ -40,15 +39,20 @@ class Corrections:
         if any(span_start >= span_end for span_start, span_end in spans.values()):
             raise UserError("a shift has to end after it starts")
         written = typed_input.required(reason)
-        first = pieces[0]
-        others = _apart_from(self.log.shifts(), pieces)
-        first_answer = start_answer(self.log.hours, first.label, begins, others, _keeping_earlier_answers(answers, first, begins))
+        first_answer = self._first_answer(pieces, begins, answers)
         changed = _changed(pieces, spans, written, first_answer)
         if not changed:
             raise UserError("those are already the times on record")
         for correction in changed:
             self.log.append(correction, now)
         return self.log.commit(f"corrected {named(pieces)} to {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}")
+
+    def _first_answer(self, pieces: list[Shift], begins: datetime, answers: Answers) -> StartAnswer:
+        first = pieces[0]
+        if begins == first.start:
+            return first.start_answer
+        others = _apart_from(self.log.shifts(), pieces)
+        return start_answer(self.log.hours, first.label, begins, others, answers)
 
     @one_writer_at_a_time
     def mark_mistake(self, shift_ids: list[int], reason: str) -> Outcome:
@@ -75,10 +79,16 @@ class Corrections:
 def _changed(pieces: list[Shift], spans: dict[int, tuple[datetime, datetime]], reason: str, first_answer: StartAnswer) -> list[ShiftCorrected]:
     changed = []
     for shift in pieces:
-        span = spans.get(shift.id)
-        if span is not None and span != (shift.start, shift.end):
-            changed.append(ShiftCorrected(shift.id, span[0], span[1], reason, _answer_for(shift, pieces[0], first_answer)))
+        if _moved(shift, spans):
+            new_start, new_end = spans[shift.id]
+            changed.append(ShiftCorrected(shift.id, new_start, new_end, reason, _answer_for(shift, pieces[0], first_answer)))
     return changed
+
+
+def _moved(shift: Shift, spans: dict[int, tuple[datetime, datetime]]) -> bool:
+    if shift.id not in spans:
+        return False
+    return spans[shift.id] != (shift.start, shift.end)
 
 
 def _answer_for(shift: Shift, first: Shift, first_answer: StartAnswer) -> StartAnswer:
@@ -93,17 +103,6 @@ def _apart_from(all_shifts: list[Shift], pieces: list[Shift]) -> list[Shift]:
         if shift not in pieces:
             others.append(shift)
     return others
-
-
-def _keeping_earlier_answers(answers: Answers, first: Shift, begins: datetime) -> Answers:
-    if begins != first.start:
-        return answers
-    kept = first.start_answer
-    if not answers.late and not answers.other_project:
-        answers = replace(answers, late=kept.late is True, other_project=kept.late is False)
-    if not answers.overtime and not answers.normal_hours:
-        answers = replace(answers, overtime=kept.overtime_after_shift is True, normal_hours=kept.overtime_after_shift is False)
-    return answers
 
 
 def _new_day(pieces: list[Shift], start: str | None, end: str | None, now: datetime) -> tuple[datetime, datetime]:

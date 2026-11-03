@@ -65,6 +65,65 @@ class AnEarlierShiftWithNoLabel(unittest.TestCase):
         self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_in")
 
 
+class MovingAnAnsweredShift(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T07:00:00")
+        self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.labels.create("Secondary", hours("10:00", "17:00", new_label=True))
+        self.f.app.labels.create("Tertiary", hours("08:00", "17:00", new_label=True))
+        self.f.app.clocking.clock_in(None, None, "Primary")
+        self.f.at("2026-10-14T09:30:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.f.at("2026-10-14T10:40:00")
+        self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True, late=True))
+        self.f.at("2026-10-14T12:00:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.answered = self.f.app.log.shifts()[-1].id
+
+    def answer(self):
+        return self.f.app.log.shift(self.answered).start_answer
+
+    def test_renaming_the_label_keeps_the_answer(self):
+        self.f.app.labels.rename("Secondary", "Evenings", Answers())
+        self.assertTrue(self.answer().said_late)
+
+    def test_moving_the_shift_to_another_label_clears_the_answer(self):
+        self.f.app.labels.label_shifts([self.answered], "Tertiary", Answers())
+        self.assertFalse(self.answer().said_late)
+
+    def test_correcting_only_the_end_after_moving_it_brings_no_answer_back(self):
+        self.f.app.labels.label_shifts([self.answered], "Tertiary", Answers())
+        self.f.at("2026-10-14T13:00:00")
+        self.f.app.corrections.correct([self.answered], None, "12:30", "left a little later")
+        self.assertFalse(self.answer().said_late)
+
+
+    def test_correcting_only_a_later_piece_keeps_the_first_pieces_answer_without_asking(self):
+        self.f.at("2026-10-14T12:15:00")
+        self.f.app.clocking.clock_in(None, None, "Primary")
+        self.f.at("2026-10-14T12:30:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.f.at("2026-10-14T12:45:00")
+        self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True))
+        self.f.at("2026-10-14T13:30:00")
+        self.f.app.clocking.clock_out(None, None)
+        later_piece = self.f.app.log.shifts()[-1].id
+        self.f.at("2026-10-14T14:00:00")
+        self.f.app.corrections.correct([self.answered, later_piece], None, "13:45", "left a little later")
+        self.assertTrue(self.answer().said_late)
+
+
+class AnUnlabelledShiftAfterTheShift(unittest.TestCase):
+    def test_answering_overtime_counts_it_as_overtime_for_the_default_label(self):
+        self.f = Fixture("2026-10-14T18:30:00")
+        self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.clocking.clock_in(None, None, "", Answers(off_default=True, overtime=True))
+        self.f.at("2026-10-14T20:30:00")
+        self.f.app.clocking.clock_out(None, None)
+        day = self.f.app.log.weeks_per_label()["Primary"][0].days[0]
+        self.assertEqual(day.overtime.earned, day.worked)
+
+
 class AnswersNobodyAskedFor(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T09:00:00")
@@ -144,17 +203,17 @@ class CorrectingAShift(unittest.TestCase):
 
     def test_the_answer_is_kept_with_the_correction(self):
         self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
-        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
+        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime)
 
     def test_moving_the_start_back_into_the_shift_clears_the_earlier_answer(self):
         self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
         self.f.app.corrections.correct([self.shift], "08:30", "20:30", "it was the morning after all")
-        self.assertFalse(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
+        self.assertFalse(self.f.app.log.shifts()[0].start_answer.said_overtime)
 
     def test_correcting_only_the_end_keeps_the_answer_without_asking_again(self):
         self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
         self.f.app.corrections.correct([self.shift], None, "20:45", "left a little later")
-        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
+        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime)
 
 
 if __name__ == "__main__":
