@@ -9,6 +9,7 @@ from chronata.timekeeping.shifts.shifts import Shift
 class ClockedDay:
     date: date
     shifts: tuple[Shift, ...]
+    opened_the_day: bool
 
     @property
     def worked(self) -> timedelta:
@@ -21,3 +22,21 @@ class ClockedDay:
     @property
     def last_out(self) -> datetime:
         return max(shift.end for shift in self.shifts)
+
+    @property
+    def first_shift(self) -> Shift:
+        return min(self.shifts, key=_start_of)
+
+    @property
+    def lateness_counts(self) -> bool:
+        if self.opened_the_day:
+            return True
+        return self.first_shift.start_answer.late
+
+    @property
+    def worked_as_overtime(self) -> bool:
+        return self.first_shift.start_answer.overtime
+
+
+def _start_of(shift: Shift) -> datetime:
+    return shift.start

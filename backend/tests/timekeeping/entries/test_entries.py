@@ -7,6 +7,7 @@ from chronata.timekeeping.entries.compensation import Compensated
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
 from chronata.timekeeping.entries.labels import ShiftLabelled
 from chronata.timekeeping.entries.pc import PcOffBreak, PowerSession
+from chronata.timekeeping.shifts.start_answer import StartAnswer
 from tests.fakes import at
 
 NINE = at("2026-10-15T09:00:00")
@@ -28,6 +29,8 @@ class WhatEachEntryRecords(unittest.TestCase):
             ShiftLabelled(66, "Secondary Ltd", "label renamed from Secondary"): ("shift_labelled", {"shift": 66, "label": "Secondary Ltd", "reason": "label renamed from Secondary"}),
             PowerSession("boot", NINE, None): ("pc_session", {"boot": "boot", "on": NINE.isoformat(), "off": None}),
             PowerSession("boot", NINE, TEN, True): ("pc_session", {"boot": "boot", "on": NINE.isoformat(), "off": TEN.isoformat(), "exact": True}),
+            ClockIn(NINE, "boot", "Secondary", None, StartAnswer(late=True)): ("clock_in", {"at": NINE.isoformat(), "boot": "boot", "label": "Secondary", "late": True}),
+            ClockIn(NINE, "boot", "", None, StartAnswer(overtime=True)): ("clock_in", {"at": NINE.isoformat(), "boot": "boot", "after_shift": "overtime"}),
             PcOffBreak(66, NINE, TEN): ("pc_off_break", {"shift": 66, "start": NINE.isoformat(), "end": TEN.isoformat()}),
             Compensated(date(2026, 10, 1), date(2026, 10, 31), Payment(2, "payslip"), "Secondary"):
                 ("compensation", {"from": "2026-10-01", "to": "2026-10-31", "hours": 2, "label": "Secondary", "kind": "paid", "reference": "payslip"}),

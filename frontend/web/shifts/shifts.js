@@ -14,6 +14,9 @@ function pcChip(entry) {
 }
 
 function punctualityText(day) {
+  if (day.afterShift) {
+    return "Started after the shift ended · not counted as late, check this day";
+  }
   const gap = day.running ? `${hours(day.short)} behind so far` : `${hours(day.short)} short`;
   if (!day.late) return day.running ? gap : `${hours(day.short)} short of a full day`;
   if (day.madeUp) return day.running ? `Late ${hours(day.late)} · made up so far` : `Late ${hours(day.late)} · made up, left ${clockTime(day.lastOut).slice(0, 5)}`;

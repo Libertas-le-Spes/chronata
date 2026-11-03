@@ -7,6 +7,7 @@ from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.timesheet import days_so_far, weeks, weeks_by_label
 from chronata.timekeeping.hours.working_day import Lunch, WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
+from chronata.timekeeping.shifts.start_answer import StartAnswer
 from tests.fakes import at
 
 
@@ -111,6 +112,44 @@ class LabelsWithTheirOwnHours(unittest.TestCase):
 
     def test_unlabelled_time_counts_as_the_default_labels(self):
         self.assertEqual(list(weeks_by_label([shift("2026-10-05", "08:00", "12:00")], self.hours)), ["Primary"])
+
+
+def answered(piece: Shift, answer: StartAnswer) -> Shift:
+    piece.start_answer = answer
+    return piece
+
+
+class LatenessOnASecondLabel(unittest.TestCase):
+    hours = LabelHours("Primary", {"Primary": WorkingDay(time(8), time(12)), "Secondary": WorkingDay(time(8), time(17))})
+
+    def secondary_day(self, answer: StartAnswer):
+        pieces = [shift("2026-10-05", "07:00", "08:00", "Primary"), answered(shift("2026-10-05", "13:00", "17:00", "Secondary"), answer)]
+        return weeks_by_label(pieces, self.hours)["Secondary"][0].days[0]
+
+    def test_starting_a_different_project_later_in_the_day_is_not_late(self):
+        self.assertEqual(self.secondary_day(StartAnswer(other_project=True)).punctuality.late, timedelta())
+
+    def test_saying_you_are_late_for_it_counts_the_lateness(self):
+        self.assertEqual(self.secondary_day(StartAnswer(late=True)).punctuality.late, timedelta(hours=5))
+
+    def test_the_label_you_clocked_in_on_first_counts_its_lateness_without_asking(self):
+        pieces = [shift("2026-10-05", "08:20", "12:00", "Primary"), shift("2026-10-05", "13:00", "17:00", "Secondary")]
+        self.assertEqual(weeks_by_label(pieces, self.hours)["Primary"][0].days[0].punctuality.late, timedelta(minutes=20))
+
+
+class StartingAfterTheShiftEnded(unittest.TestCase):
+    def evening(self, answer: StartAnswer):
+        return only_day([answered(shift("2026-10-05", "18:00", "20:00"), answer)])
+
+    def test_normal_hours_after_the_shift_are_not_counted_as_late(self):
+        day = self.evening(StartAnswer(normal_hours=True))
+        self.assertEqual((day.punctuality.late, day.punctuality.started_after_shift), (timedelta(), True))
+
+    def test_a_start_after_the_shift_is_listed_to_check(self):
+        self.assertIn("started after the shift ended", punctuality(self.evening(StartAnswer())))
+
+    def test_overtime_after_the_shift_counts_every_hour_as_overtime(self):
+        self.assertEqual(self.evening(StartAnswer(overtime=True)).overtime.earned, timedelta(hours=2))
 
 
 class MakingUpALateStart(unittest.TestCase):

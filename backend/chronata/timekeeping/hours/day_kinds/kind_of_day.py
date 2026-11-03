@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Protocol
 
 from chronata.timekeeping.hours.clocked_day import ClockedDay
@@ -15,9 +14,11 @@ class KindOfDay(Protocol):
     def measure(self, clocked: ClockedDay, allowance: WeeklyAllowance, moment: MeasuringMoment) -> Day: ...
 
 
-def kind_of_day(working_day: WorkingDay | None, day: date) -> KindOfDay:
+def kind_of_day(working_day: WorkingDay | None, clocked: ClockedDay) -> KindOfDay:
     if working_day is None:
         return HoursNotSet()
-    if day.weekday() in working_day.workdays:
-        return Workday(working_day)
-    return DayOff(working_day)
+    if clocked.date.weekday() not in working_day.workdays:
+        return DayOff(working_day)
+    if clocked.worked_as_overtime:
+        return DayOff(working_day)
+    return Workday(working_day)

@@ -13,6 +13,10 @@ class Answers:
     lunch_start: str = ""
     lunch_minutes: str = ""
     no_set_hours: bool = False
+    late: bool = False
+    other_project: bool = False
+    overtime: bool = False
+    normal_hours: bool = False
 
     @classmethod
     def from_dict(cls, given: dict) -> "Answers":
@@ -93,3 +97,17 @@ class OffDefaultLabel(Question):
         chosen = f"Clock in on “{label}”" if label else "Clock in with no label"
         super().__init__(f"Today is a workday, and “{default_label}” is your default. {chosen} instead?",
                          [Choice(f"Use “{default_label}”", label=default_label), Choice(chosen, answers={"off_default": True})])
+
+
+class LateOrOtherProject(Question):
+    def __init__(self, label: str):
+        self.label = label
+        super().__init__(f"Are you late for “{label}”, or starting on a different project?",
+                         [Choice(f"I'm late for “{label}”", answers={"late": True}), Choice("Starting a different project", answers={"other_project": True})])
+
+
+class AfterShift(Question):
+    def __init__(self, label: str, shift_end: str):
+        self.label = label
+        super().__init__(f"Your shift on “{label}” ended at {shift_end}. Is this overtime?",
+                         [Choice("Yes, overtime", answers={"overtime": True}), Choice("No, normal hours", answers={"normal_hours": True})])

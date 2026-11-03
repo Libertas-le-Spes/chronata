@@ -4,6 +4,7 @@ from chronata.timekeeping.entries.clocking import ClockIn, ClockOut, ClockResume
 from chronata.timekeeping.shifts.durations import hours
 from chronata.timekeeping.shifts.shifts import Shift, open_shift
 from chronata.timekeeping.shifts.today import resumable, unclocked_since
+from chronata.use_cases.clocking.start_questions import start_answer
 from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log, one_writer_at_a_time
 from chronata.use_cases.log.outcome import Outcome, UserError
@@ -30,8 +31,9 @@ class Clocking:
             message = f"back on today's shift at {start:%H:%M:%S} after a {hours(start - carried_on.end)} break"
             return self.log.write(ClockResumed(carried_on.id, start, self.pc.current_boot_id(), note), message, now)
         self._confirm_off_default(chosen, start, answers)
+        answered = start_answer(self.log.hours, chosen, start, all_shifts, answers)
         message = f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {chosen}" if chosen else "")
-        return self.log.write(ClockIn(start, self.pc.current_boot_id(), chosen, note), message, now)
+        return self.log.write(ClockIn(start, self.pc.current_boot_id(), chosen, note, answered), message, now)
 
     def _chosen_label(self, label: str | None, all_shifts: list[Shift], answers: Answers) -> str:
         if label is None:
