@@ -4,9 +4,9 @@ from datetime import date, time, timedelta
 from chronata.presenters.text.text_report import report_lines
 from chronata.timekeeping.compensation.compensation import reconcile_by_label
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.timesheet import weeks
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
+from tests.one_label import weeks
 from tests.fakes import at
 
 HOURS = LabelHours("Primary")

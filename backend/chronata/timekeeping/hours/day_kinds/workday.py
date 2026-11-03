@@ -29,7 +29,7 @@ class Workday:
         return judged(self._late(clocked), short_of_due, self.working_day.early_leave_grace)
 
     def _late(self, clocked: ClockedDay) -> timedelta:
-        if not clocked.lateness_counts:
+        if not clocked.lateness_counts(self.working_day.shift_start, self.working_day.shift_end):
             return NONE
         shift_start = datetime.combine(clocked.date, self.working_day.shift_start, clocked.first_in.tzinfo)
         return max(clocked.first_in - shift_start, NONE)

@@ -33,10 +33,14 @@ class StartingOnASecondLabel(unittest.TestCase):
         self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True))
         self.assertNotIn("late", self.f.app.log.record.entries()[-1].data)
 
-
     def test_clocking_in_on_a_label_already_worked_today_asks_nothing(self):
+        self.f.at("2026-10-14T09:45:00")
+        self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True))
+        self.f.at("2026-10-14T10:20:00")
+        self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-14T10:40:00")
         self.f.app.clocking.clock_in(None, None, "Primary", Answers(late=True))
+        self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_in")
         self.assertNotIn("late", self.f.app.log.record.entries()[-1].data)
 
     def test_after_its_shift_has_ended_nothing_is_asked(self):
@@ -47,6 +51,18 @@ class StartingOnASecondLabel(unittest.TestCase):
     def test_both_answers_at_once_are_refused(self):
         with self.assertRaises(UserError):
             self.clock_in_on_secondary("2026-10-14T10:40:00", Answers(late=True, other_project=True))
+
+
+class AnEarlierShiftWithNoLabel(unittest.TestCase):
+    def test_counts_as_the_default_label_so_nothing_is_asked(self):
+        self.f = Fixture("2026-10-14T07:00:00")
+        self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.clocking.clock_in(None, None, "", Answers(off_default=True))
+        self.f.at("2026-10-14T09:30:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.f.at("2026-10-14T10:40:00")
+        self.f.app.clocking.clock_in(None, None, "Primary")
+        self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_in")
 
 
 class AnswersNobodyAskedFor(unittest.TestCase):
@@ -93,7 +109,6 @@ class FirstClockInAfterTheShift(unittest.TestCase):
         self.f.at("2026-10-14T18:30:00")
         self.f.app.clocking.clock_in(None, None, "Primary")
         self.assertNotIn("overtime_after_shift", self.f.app.log.record.entries()[-1].data)
-
 
     def test_both_answers_at_once_are_refused(self):
         with self.assertRaises(UserError):

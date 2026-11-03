@@ -13,10 +13,6 @@ from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift, completed, open_shift
 
 
-def weeks(only_label_shifts: list[Shift], working_day: WorkingDay | None) -> list[Week]:
-    return _label_weeks(only_label_shifts, working_day, MeasuringMoment(None, False), _day_starts(only_label_shifts))
-
-
 def _label_weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, moment: MeasuringMoment,
                  day_starts: dict[date, datetime]) -> list[Week]:
     found = []

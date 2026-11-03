@@ -3,10 +3,10 @@ from datetime import date, datetime, time, timedelta
 
 from chronata.timekeeping.compensation.compensation import all_labels, compensations, reconcile, reconcile_by_label
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.timesheet import weeks
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.shifts.shifts import Shift
+from tests.one_label import weeks
 from tests.fakes import SAST, at
 
 NO_LUNCH = WorkingDay(time(8), time(16))
@@ -62,8 +62,12 @@ class LatenessComesOffTheUncompensatedTotal(unittest.TestCase):
 
     def test_lateness_a_weekly_limit_already_absorbed_is_not_taken_off_again(self):
         weekly_limit = WorkingDay(time(8), time(16), weekly_limit=32)
-        worked = weeks([Shift(1, at("2026-10-05T08:10:00"), at("2026-10-05T16:00:00"), timedelta())]
-                       + [Shift(1, at(f"2026-10-0{d}T08:00:00"), at(f"2026-10-0{d}T16:00:00"), timedelta()) for d in range(6, 10)], weekly_limit)
+        late_monday = Shift(1, at("2026-10-05T08:10:00"), at("2026-10-05T16:00:00"), timedelta())
+        tuesday = Shift(2, at("2026-10-06T08:00:00"), at("2026-10-06T16:00:00"), timedelta())
+        wednesday = Shift(3, at("2026-10-07T08:00:00"), at("2026-10-07T16:00:00"), timedelta())
+        thursday = Shift(4, at("2026-10-08T08:00:00"), at("2026-10-08T16:00:00"), timedelta())
+        friday = Shift(5, at("2026-10-09T08:00:00"), at("2026-10-09T16:00:00"), timedelta())
+        worked = weeks([late_monday, tuesday, wednesday, thursday, friday], weekly_limit)
         result = reconcile([], worked)
         self.assertEqual((result.unmatched_overtime.earned, result.uncovered_lateness, result.unpaid),
                          (timedelta(hours=7, minutes=50), timedelta(), timedelta(hours=7, minutes=50)))

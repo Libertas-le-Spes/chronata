@@ -15,6 +15,21 @@ function renderTotals(totals) {
   $("#t-unpaid").parentElement.classList.toggle("has-value", totals.unpaid > 0);
 }
 
+function unpaidItem(day) {
+  return el("li", {}, `${dayLabel(day.date)} · ${hours(day.overtime)}`);
+}
+
+function unpaidCard(unmatched, name) {
+  if (unmatched.length === 0) {
+    return null;
+  }
+  return el("div", { class: "card" },
+    el("h2", {}, "Unpaid overtime"),
+    el("p", { class: "muted small" }, `When ${name} compensates these days, record it above.`),
+    el("ul", { class: "days" }, unmatched.map(unpaidItem)),
+  );
+}
+
 function latenessItem(late) {
   return el("li", {}, `${dayLabel(late.date)} · ${takenOff(late.late)}`);
 }
@@ -60,11 +75,7 @@ function labelSection(section) {
       el("span", { class: "sum" }, el("strong", {}, hours(section.totals.owed)), " overtime · ",
         el("strong", {}, hours(section.totals.compensated)), " compensated"),
     ),
-    section.unmatched.length ? el("div", { class: "card" },
-      el("h2", {}, "Unpaid overtime"),
-      el("p", { class: "muted small" }, `When ${name} compensates these days, record it above.`),
-      el("ul", { class: "days" }, section.unmatched.map((day) => el("li", {}, `${dayLabel(day.date)} · ${hours(day.overtime)}`))),
-    ) : null,
+    unpaidCard(section.unmatched, name),
     latenessCard(section.lateness),
     ...section.periods.map(periodCard),
   );

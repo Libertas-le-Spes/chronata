@@ -4,10 +4,11 @@ from datetime import datetime, time, timedelta
 from chronata.presenters.text.text_report import punctuality
 from chronata.timekeeping.hours.all_labels import combined
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.timesheet import days_so_far, weeks, weeks_by_label
+from chronata.timekeeping.hours.timesheet import days_so_far, weeks_by_label
 from chronata.timekeeping.hours.working_day import Lunch, WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
 from chronata.timekeeping.shifts.start_answer import StartAnswer
+from tests.one_label import weeks
 from tests.fakes import at
 
 
@@ -131,6 +132,10 @@ class LatenessOnASecondLabel(unittest.TestCase):
 
     def test_saying_you_are_late_for_it_counts_the_lateness(self):
         self.assertEqual(self.secondary_day(StartAnswer(late=True)).punctuality.late, timedelta(hours=5))
+
+    def test_a_late_answer_stops_counting_once_the_shift_is_moved_past_its_hours(self):
+        pieces = [shift("2026-10-05", "07:00", "08:00", "Primary"), answered(shift("2026-10-05", "18:00", "19:00", "Secondary"), StartAnswer(late=True))]
+        self.assertEqual(weeks_by_label(pieces, self.hours)["Secondary"][0].days[0].punctuality.late, timedelta())
 
     def test_the_label_you_clocked_in_on_first_counts_its_lateness_without_asking(self):
         pieces = [shift("2026-10-05", "08:20", "12:00", "Primary"), shift("2026-10-05", "13:00", "17:00", "Secondary")]

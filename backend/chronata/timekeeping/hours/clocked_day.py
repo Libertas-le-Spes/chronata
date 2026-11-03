@@ -27,11 +27,12 @@ class ClockedDay:
     def first_shift(self) -> Shift:
         return min(self.shifts, key=_start_of)
 
-    @property
-    def lateness_counts(self) -> bool:
+    def lateness_counts(self, shift_start: time, shift_end: time) -> bool:
         if self.opened_the_day:
             return True
-        return self.first_shift.start_answer.said_late
+        if not self.first_shift.start_answer.said_late:
+            return False
+        return shift_start < self.first_in.time() < shift_end
 
     @property
     def worked_as_overtime(self) -> bool:

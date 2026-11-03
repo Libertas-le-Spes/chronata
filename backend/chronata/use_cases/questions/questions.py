@@ -32,8 +32,8 @@ class Answers:
 
 
 def _checked(answer: Field, value):
-    if answer.type is bool and not isinstance(value, bool):
-        raise UserError(f"the answer “{answer.name.replace('_', ' ')}” has to be yes or no")
+    if not isinstance(value, answer.type):
+        raise UserError(f"the answer “{answer.name.replace('_', ' ')}” is not the kind of answer it should be")
     return value
 
 

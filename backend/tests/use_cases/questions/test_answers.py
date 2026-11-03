@@ -12,6 +12,10 @@ class AnswersFromThePage(unittest.TestCase):
     def test_true_and_false_are_taken_as_given(self):
         self.assertEqual(Answers.from_dict({"overtime": True, "late": False}), Answers(overtime=True))
 
+    def test_a_text_answer_that_is_not_text_is_refused(self):
+        with self.assertRaises(UserError):
+            Answers.from_dict({"shift_start": 830})
+
     def test_text_answers_stay_text(self):
         self.assertEqual(Answers.from_dict({"shift_start": "0830"}).shift_start, "0830")
 
