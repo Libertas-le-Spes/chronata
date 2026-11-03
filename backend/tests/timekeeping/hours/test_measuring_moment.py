@@ -8,7 +8,7 @@ from chronata.timekeeping.shifts.shifts import Shift
 from tests.fakes import at
 
 HOURS = WorkingDay(time(8), time(17))
-MORNING = ClockedDay(at("2026-10-15T08:00:00").date(), (Shift(1, at("2026-10-15T08:00:00"), at("2026-10-15T11:00:00"), timedelta()),), True)
+MORNING = ClockedDay(at("2026-10-15T08:00:00").date(), "", (Shift(1, at("2026-10-15T08:00:00"), at("2026-10-15T11:00:00"), timedelta()),), True)
 
 
 class HowFarADayIsMeasured(unittest.TestCase):

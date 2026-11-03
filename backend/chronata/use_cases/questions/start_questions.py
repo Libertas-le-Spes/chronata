@@ -16,14 +16,15 @@ def start_answer(hours: LabelHours, label: str, start: datetime, all_shifts: lis
         return StartAnswer()
     if start.weekday() not in working_day.workdays:
         return StartAnswer()
+    counted = hours.counted_under(label)
     earlier = _earlier_today(all_shifts, start)
     if not earlier:
-        return _first_of_the_day(working_day, label, start, answers)
+        return _first_of_the_day(working_day, counted, start, answers)
     if _on_label(hours, earlier, label):
         return StartAnswer()
     if not _during_shift(working_day, start):
         return StartAnswer()
-    return _late_or_other_project(label, answers)
+    return _late_or_other_project(counted, answers)
 
 
 def _refuse_both(one: bool, other: bool, choice: str) -> None:
@@ -35,17 +36,17 @@ def _first_of_the_day(working_day: WorkingDay, label: str, start: datetime, answ
     if start.time() < working_day.shift_end:
         return StartAnswer()
     if answers.overtime:
-        return StartAnswer(overtime_after_shift=True)
+        return StartAnswer(overtime_after_shift=True, label=label)
     if answers.normal_hours:
-        return StartAnswer(overtime_after_shift=False)
+        return StartAnswer(overtime_after_shift=False, label=label)
     raise AfterShift(label, f"{working_day.shift_end:%H:%M}")
 
 
 def _late_or_other_project(label: str, answers: Answers) -> StartAnswer:
     if answers.late:
-        return StartAnswer(late=True)
+        return StartAnswer(late=True, label=label)
     if answers.other_project:
-        return StartAnswer(late=False)
+        return StartAnswer(late=False, label=label)
     raise LateOrOtherProject(label)
 
 

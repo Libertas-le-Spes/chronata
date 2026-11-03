@@ -8,6 +8,7 @@ from chronata.timekeeping.shifts.shifts import Shift
 @dataclass(frozen=True)
 class ClockedDay:
     date: date
+    label: str
     shifts: tuple[Shift, ...]
     opened_the_day: bool
 
@@ -30,13 +31,13 @@ class ClockedDay:
     def lateness_counts(self, shift_start: time, shift_end: time) -> bool:
         if self.opened_the_day:
             return True
-        if not self.first_shift.start_answer.said_late:
+        if not self.first_shift.start_answer.said_late_for(self.label):
             return False
         return shift_start < self.first_in.time() < shift_end
 
     @property
     def worked_as_overtime(self) -> bool:
-        return self.first_shift.start_answer.said_overtime
+        return self.first_shift.start_answer.said_overtime_for(self.label)
 
     def started_after(self, shift_end: time) -> bool:
         if not self.opened_the_day:

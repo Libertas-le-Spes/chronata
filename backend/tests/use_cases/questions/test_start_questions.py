@@ -83,20 +83,35 @@ class MovingAnAnsweredShift(unittest.TestCase):
     def answer(self):
         return self.f.app.log.shift(self.answered).start_answer
 
+    def counted(self) -> str:
+        return self.f.app.log.hours.counted_under(self.f.app.log.shift(self.answered).label)
+
+    def test_merging_into_an_existing_label_leaves_the_answer_behind(self):
+        self.f.app.clocking.clock_in(None, None, "Tertiary", Answers(off_default=True, other_project=True))
+        self.f.at("2026-10-14T12:20:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.f.app.labels.rename("Secondary", "Tertiary", Answers())
+        self.assertFalse(self.answer().said_late_for(self.counted()))
+
+    def test_correcting_only_the_end_keeps_a_later_pieces_answer(self):
+        self.f.at("2026-10-14T13:00:00")
+        first = self.f.app.log.shifts()[0].id
+        self.f.app.corrections.correct([first, self.answered], None, "12:30", "left a little later")
+        self.assertTrue(self.answer().said_late_for(self.counted()))
+
     def test_renaming_the_label_keeps_the_answer(self):
         self.f.app.labels.rename("Secondary", "Evenings", Answers())
-        self.assertTrue(self.answer().said_late)
+        self.assertTrue(self.answer().said_late_for(self.counted()))
 
     def test_moving_the_shift_to_another_label_clears_the_answer(self):
         self.f.app.labels.label_shifts([self.answered], "Tertiary", Answers())
-        self.assertFalse(self.answer().said_late)
+        self.assertFalse(self.answer().said_late_for(self.counted()))
 
     def test_correcting_only_the_end_after_moving_it_brings_no_answer_back(self):
         self.f.app.labels.label_shifts([self.answered], "Tertiary", Answers())
         self.f.at("2026-10-14T13:00:00")
         self.f.app.corrections.correct([self.answered], None, "12:30", "left a little later")
-        self.assertFalse(self.answer().said_late)
-
+        self.assertFalse(self.answer().said_late_for(self.counted()))
 
     def test_correcting_only_a_later_piece_keeps_the_first_pieces_answer_without_asking(self):
         self.f.at("2026-10-14T12:15:00")
@@ -110,18 +125,41 @@ class MovingAnAnsweredShift(unittest.TestCase):
         later_piece = self.f.app.log.shifts()[-1].id
         self.f.at("2026-10-14T14:00:00")
         self.f.app.corrections.correct([self.answered, later_piece], None, "13:45", "left a little later")
-        self.assertTrue(self.answer().said_late)
+        self.assertTrue(self.answer().said_late_for(self.counted()))
 
 
 class AnUnlabelledShiftAfterTheShift(unittest.TestCase):
-    def test_answering_overtime_counts_it_as_overtime_for_the_default_label(self):
+    def setUp(self):
         self.f = Fixture("2026-10-14T18:30:00")
         self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.labels.create("Tertiary", hours("08:00", "17:00", new_label=True))
         self.f.app.clocking.clock_in(None, None, "", Answers(off_default=True, overtime=True))
         self.f.at("2026-10-14T20:30:00")
         self.f.app.clocking.clock_out(None, None)
-        day = self.f.app.log.weeks_per_label()["Primary"][0].days[0]
-        self.assertEqual(day.overtime.earned, day.worked)
+        self.shift = self.f.app.log.shifts()[0].id
+
+    def overtime_under(self, label: str):
+        day = self.f.app.log.weeks_per_label()[label][0].days[0]
+        return day.overtime.earned, day.worked
+
+    def test_answering_overtime_counts_it_as_overtime_for_the_default_label(self):
+        earned, worked = self.overtime_under("Primary")
+        self.assertEqual(earned, worked)
+
+    def test_giving_it_the_default_label_by_name_keeps_the_answer(self):
+        self.f.app.labels.label_shifts([self.shift], "Primary", Answers())
+        earned, worked = self.overtime_under("Primary")
+        self.assertEqual(earned, worked)
+
+    def test_renaming_the_default_label_keeps_the_answer(self):
+        self.f.app.labels.rename("Primary", "Main", Answers())
+        earned, worked = self.overtime_under("Main")
+        self.assertEqual(earned, worked)
+
+    def test_making_another_label_the_default_leaves_the_answer_behind(self):
+        self.f.app.labels.set_default("Tertiary", Answers())
+        earned, worked = self.overtime_under("Tertiary")
+        self.assertNotEqual(earned, worked)
 
 
 class AnswersNobodyAskedFor(unittest.TestCase):
@@ -203,17 +241,17 @@ class CorrectingAShift(unittest.TestCase):
 
     def test_the_answer_is_kept_with_the_correction(self):
         self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
-        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime)
+        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
 
     def test_moving_the_start_back_into_the_shift_clears_the_earlier_answer(self):
         self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
         self.f.app.corrections.correct([self.shift], "08:30", "20:30", "it was the morning after all")
-        self.assertFalse(self.f.app.log.shifts()[0].start_answer.said_overtime)
+        self.assertFalse(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
 
     def test_correcting_only_the_end_keeps_the_answer_without_asking_again(self):
         self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
         self.f.app.corrections.correct([self.shift], None, "20:45", "left a little later")
-        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime)
+        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
 
 
 if __name__ == "__main__":

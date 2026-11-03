@@ -13,10 +13,10 @@ from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift, completed, open_shift
 
 
-def _label_weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, moment: MeasuringMoment,
+def _label_weeks(label: str, finished_shifts: list[Shift], working_day: WorkingDay | None, moment: MeasuringMoment,
                  day_starts: dict[date, datetime]) -> list[Week]:
     found = []
-    for start, clocked_days in _clocked_days_by_week(finished_shifts, day_starts):
+    for start, clocked_days in _clocked_days_by_week(label, finished_shifts, day_starts):
         days, allowance = _measured(clocked_days, working_day, moment)
         found.append(Week(start, days, allowance.left))
     return found
@@ -35,7 +35,7 @@ def weeks_by_label(all_shifts: list[Shift], hours: LabelHours, now: datetime | N
     day_starts = _day_starts(counted)
     by_label = {}
     for label, label_shifts in grouped.items():
-        by_label[label] = _label_weeks(label_shifts, hours.for_label(label), MeasuringMoment(now, label == clocked_in_on), day_starts)
+        by_label[label] = _label_weeks(label, label_shifts, hours.for_label(label), MeasuringMoment(now, label == clocked_in_on), day_starts)
     return by_label
 
 
@@ -48,7 +48,7 @@ def days_so_far(all_shifts: list[Shift], hours: LabelHours, now: datetime) -> di
     return found
 
 
-def _clocked_days_by_week(shifts: list[Shift], day_starts: dict[date, datetime]) -> list[tuple[date, list[ClockedDay]]]:
+def _clocked_days_by_week(label: str, shifts: list[Shift], day_starts: dict[date, datetime]) -> list[tuple[date, list[ClockedDay]]]:
     per_day: dict[date, list[Shift]] = defaultdict(list)
     for shift in shifts:
         per_day[shift.start.date()].append(shift)
@@ -56,7 +56,7 @@ def _clocked_days_by_week(shifts: list[Shift], day_starts: dict[date, datetime])
     for day in sorted(per_day):
         clocked = tuple(per_day[day])
         opened_the_day = min(shift.start for shift in clocked) <= day_starts[day]
-        per_week[week_starting(day)].append(ClockedDay(day, clocked, opened_the_day))
+        per_week[week_starting(day)].append(ClockedDay(day, label, clocked, opened_the_day))
     return sorted(per_week.items())
 
 

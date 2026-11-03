@@ -94,7 +94,7 @@ def _moved(shift: Shift, spans: dict[int, tuple[datetime, datetime]]) -> bool:
 def _answer_for(shift: Shift, first: Shift, first_answer: StartAnswer) -> StartAnswer:
     if shift is first:
         return first_answer
-    return StartAnswer()
+    return shift.start_answer
 
 
 def _apart_from(all_shifts: list[Shift], pieces: list[Shift]) -> list[Shift]:
