@@ -22,7 +22,7 @@ export async function changeHours(label) {
       { caption: "Save hours", style: "primary", inputs: hours.hoursInputs },
     ],
   });
-  if (answer) act("/api/labels/hours", { label, ...answer.answers });
+  if (answer) act("/api/labels/hours", { label, answers: answer.answers });
 }
 
 export function render(state) {

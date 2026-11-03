@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 PACKAGE = Path(__file__).parent.parent / "chronata"
+REACHES_OUTSIDE = {"subprocess", "urllib", "http", "socket", "os", "fcntl", "webbrowser", "threading", "pathlib", "shutil", "tempfile", "ssl", "requests"}
 
 MAY_IMPORT = {
     "timekeeping": {"timekeeping"},
@@ -24,8 +25,21 @@ def imports_of(path: Path) -> list[tuple[int, str]]:
         if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("chronata."):
             found.append((node.lineno, node.module))
         if isinstance(node, ast.Import):
-            found += [(node.lineno, alias.name) for alias in node.names if alias.name.startswith("chronata.")]
+            for alias in node.names:
+                if alias.name.startswith("chronata."):
+                    found.append((node.lineno, alias.name))
     return found
+
+
+def modules_imported_by(path: Path) -> list[str]:
+    names = []
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                names.append(alias.name)
+        if isinstance(node, ast.ImportFrom) and node.module is not None:
+            names.append(node.module)
+    return names
 
 
 class DependenciesPointInward(unittest.TestCase):
@@ -41,13 +55,13 @@ class DependenciesPointInward(unittest.TestCase):
                     breaches.append(f"{path.relative_to(PACKAGE.parent)}:{line} ({ring_of(module)}) imports {imported}")
         self.assertEqual(breaches, [])
 
-    def test_the_core_needs_nothing_but_the_standard_library(self):
-        outside = {"subprocess", "urllib", "http", "socket", "os", "fcntl", "webbrowser", "threading", "pathlib"}
-        for path in (PACKAGE / "timekeeping").glob("*.py"):
-            for node in ast.walk(ast.parse(path.read_text())):
-                names = [a.name for a in node.names] if isinstance(node, ast.Import) else [node.module or ""] if isinstance(node, ast.ImportFrom) else []
-                for name in names:
-                    self.assertNotIn(name.split(".")[0], outside, f"{path.name} reaches outside with {name}")
+    def test_the_core_reaches_nothing_outside_this_computers_memory(self):
+        reaching_out = []
+        for path in sorted((PACKAGE / "timekeeping").rglob("*.py")):
+            for name in modules_imported_by(path):
+                if name.split(".")[0] in REACHES_OUTSIDE:
+                    reaching_out.append(f"{path.relative_to(PACKAGE.parent)} imports {name}")
+        self.assertEqual(reaching_out, [])
 
 
 if __name__ == "__main__":
