@@ -4,8 +4,8 @@ from unittest.mock import create_autospec
 
 from chronata.presenters.page.compensation import state
 from chronata.presenters.page.facts import PageFacts
-from chronata.timekeeping.compensation.uncovered_lateness import UncoveredLateness
 from chronata.timekeeping.compensation.reconciliation import Reconciliation
+from chronata.timekeeping.compensation.uncovered_lateness import UncoveredLateness
 
 ONLY_LATENESS = Reconciliation([], [], [UncoveredLateness(date(2026, 10, 6), timedelta(minutes=7))])
 

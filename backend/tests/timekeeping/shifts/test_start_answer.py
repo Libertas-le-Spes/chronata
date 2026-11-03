@@ -5,7 +5,7 @@ from chronata.timekeeping.shifts.start_answer import StartAnswer, start_answer_i
 
 class WhatTheLogKeeps(unittest.TestCase):
     def test_each_answer_is_read_back_as_it_was_given(self):
-        for answer in (StartAnswer(late=True), StartAnswer(late=False), StartAnswer(overtime_after_shift=True), StartAnswer(overtime_after_shift=False)):
+        for answer in (StartAnswer(late=True, label="Secondary"), StartAnswer(late=False, label="Secondary"), StartAnswer(overtime_after_shift=True, label="Primary"), StartAnswer(overtime_after_shift=False, label="Primary")):
             self.assertEqual(start_answer_in(answer.data()), answer)
 
     def test_no_answer_leaves_nothing_in_the_log(self):

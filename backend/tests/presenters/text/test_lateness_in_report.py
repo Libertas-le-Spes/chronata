@@ -6,8 +6,8 @@ from chronata.timekeeping.compensation.compensation import reconcile_by_label
 from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
-from tests.one_label import weeks
 from tests.fakes import at
+from tests.one_label import weeks
 
 HOURS = LabelHours("Primary")
 WEEKS = {"Primary": weeks([Shift(1, at("2026-10-05T08:00:00"), at("2026-10-05T18:00:00"), timedelta()),

@@ -46,9 +46,12 @@ class ShiftCorrected:
     start: datetime
     end: datetime
     reason: str
+    answer: StartAnswer = StartAnswer()
 
     def data(self) -> dict:
-        return {"shift": self.shift, "start": self.start.isoformat(), "end": self.end.isoformat(), "reason": self.reason}
+        data = {"shift": self.shift, "start": self.start.isoformat(), "end": self.end.isoformat(), "reason": self.reason}
+        data.update(self.answer.data())
+        return data
 
     @staticmethod
     def apply(found: dict[int, Shift], entry: Entry) -> None:
@@ -57,6 +60,7 @@ class ShiftCorrected:
         start, end = datetime.fromisoformat(data["start"]), datetime.fromisoformat(data["end"])
         shift.changes.append(f"{entry.recorded_at:%Y-%m-%d %H:%M} changed {_span(shift.start, shift.end)} to {_span(start, end)}: {data['reason']}")
         shift.start, shift.end = start, end
+        shift.start_answer = start_answer_in(data)
         shift.corrections.append(Correction(entry.recorded_at, data["reason"]))
 
 

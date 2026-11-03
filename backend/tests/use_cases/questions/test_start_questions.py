@@ -129,5 +129,33 @@ class AddingAMissedShift(unittest.TestCase):
         self.assertIs(self.f.app.log.record.entries()[-1].data["overtime_after_shift"], True)
 
 
+class CorrectingAShift(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:30:00")
+        self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.clocking.clock_in(None, None)
+        self.f.at("2026-10-14T21:00:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.shift = self.f.app.log.shifts()[0].id
+
+    def test_moving_the_start_after_the_shift_asks_whether_it_was_overtime(self):
+        with self.assertRaises(AfterShift):
+            self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning")
+
+    def test_the_answer_is_kept_with_the_correction(self):
+        self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
+        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
+
+    def test_moving_the_start_back_into_the_shift_clears_the_earlier_answer(self):
+        self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
+        self.f.app.corrections.correct([self.shift], "08:30", "20:30", "it was the morning after all")
+        self.assertFalse(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
+
+    def test_correcting_only_the_end_keeps_the_answer_without_asking_again(self):
+        self.f.app.corrections.correct([self.shift], "18:30", "20:30", "clocked in by mistake in the morning", Answers(overtime=True))
+        self.f.app.corrections.correct([self.shift], None, "20:45", "left a little later")
+        self.assertTrue(self.f.app.log.shifts()[0].start_answer.said_overtime_for("Primary"))
+
+
 if __name__ == "__main__":
     unittest.main()

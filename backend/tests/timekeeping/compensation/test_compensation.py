@@ -6,8 +6,8 @@ from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.shifts.shifts import Shift
-from tests.one_label import weeks
 from tests.fakes import SAST, at
+from tests.one_label import weeks
 
 NO_LUNCH = WorkingDay(time(8), time(16))
 PRIMARY_FIRST = LabelHours("Primary")
@@ -76,6 +76,12 @@ class LatenessComesOffTheUncompensatedTotal(unittest.TestCase):
         worked = overtime_on(("2026-10-05", "08:10", "16:00"), ("2026-10-06", "08:00", "18:00"))
         self.assertEqual(reconcile([], worked).unpaid, timedelta(hours=1, minutes=50))
 
+    def test_an_overpaid_period_still_leaves_a_total_that_adds_up(self):
+        worked = overtime_on(("2026-10-05", "08:00", "18:00"), ("2026-10-06", "08:20", "16:00"), ("2026-10-12", "08:00", "11:00"))
+        result = reconcile(compensations([compensated("2026-10-01", "2026-10-07", 5)]), worked)
+        self.assertEqual(result.owed.earned - result.compensated - result.uncovered_lateness, result.unpaid)
+        self.assertEqual(result.beyond_owed, timedelta(hours=3))
+
     def test_more_lateness_than_overtime_goes_below_zero(self):
         result = reconcile([], overtime_on(("2026-10-05", "08:00", "16:10"), ("2026-10-06", "08:30", "16:00")))
         self.assertEqual(result.unpaid, timedelta(minutes=-20))
@@ -92,7 +98,8 @@ class EachLabelIsCompensatedForItsOwnOvertime(unittest.TestCase):
     def test_compensation_from_one_label_never_covers_another(self):
         result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3, label="Secondary")], self.weeks_per_label, PRIMARY_FIRST)
         self.assertEqual((result["Primary"].compensated, result["Primary"].unmatched_overtime.earned), (timedelta(), timedelta(hours=3)))
-        self.assertEqual((result["Secondary"].owed.earned, result["Secondary"].compensated), (timedelta(hours=2), timedelta(hours=3)))
+        self.assertEqual((result["Secondary"].owed.earned, result["Secondary"].compensated, result["Secondary"].beyond_owed),
+                         (timedelta(hours=2), timedelta(hours=2), timedelta(hours=1)))
 
     def test_compensation_without_a_label_belongs_to_the_default(self):
         result = reconcile_by_label([compensated("2026-10-01", "2026-10-31", 3)], self.weeks_per_label, PRIMARY_FIRST)

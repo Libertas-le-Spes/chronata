@@ -12,14 +12,19 @@ def start_answer(hours: LabelHours, label: str, start: datetime, all_shifts: lis
     _refuse_both(answers.late, answers.other_project, "late or a different project")
     _refuse_both(answers.overtime, answers.normal_hours, "overtime or normal hours")
     working_day = hours.for_label(label)
-    if working_day is None or start.weekday() not in working_day.workdays:
+    if working_day is None:
         return StartAnswer()
+    if start.weekday() not in working_day.workdays:
+        return StartAnswer()
+    counted = hours.counted_under(label)
     earlier = _earlier_today(all_shifts, start)
     if not earlier:
-        return _first_of_the_day(working_day, label, start, answers)
-    if _on_label(hours, earlier, label) or not _during_shift(working_day, start):
+        return _first_of_the_day(working_day, counted, start, answers)
+    if _on_label(hours, earlier, label):
         return StartAnswer()
-    return _late_or_other_project(label, answers)
+    if not _during_shift(working_day, start):
+        return StartAnswer()
+    return _late_or_other_project(counted, answers)
 
 
 def _refuse_both(one: bool, other: bool, choice: str) -> None:
@@ -31,17 +36,17 @@ def _first_of_the_day(working_day: WorkingDay, label: str, start: datetime, answ
     if start.time() < working_day.shift_end:
         return StartAnswer()
     if answers.overtime:
-        return StartAnswer(overtime_after_shift=True)
+        return StartAnswer(overtime_after_shift=True, label=label)
     if answers.normal_hours:
-        return StartAnswer(overtime_after_shift=False)
+        return StartAnswer(overtime_after_shift=False, label=label)
     raise AfterShift(label, f"{working_day.shift_end:%H:%M}")
 
 
 def _late_or_other_project(label: str, answers: Answers) -> StartAnswer:
     if answers.late:
-        return StartAnswer(late=True)
+        return StartAnswer(late=True, label=label)
     if answers.other_project:
-        return StartAnswer(late=False)
+        return StartAnswer(late=False, label=label)
     raise LateOrOtherProject(label)
 
 

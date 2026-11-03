@@ -5,7 +5,7 @@ from chronata.timekeeping.compensation.period import Period
 from chronata.timekeeping.compensation.reconciliation import Reconciliation
 from chronata.timekeeping.compensation.uncovered_lateness import UncoveredLateness
 from chronata.timekeeping.hours.day import Day
-from chronata.timekeeping.shifts.durations import hours
+from chronata.timekeeping.shifts.durations import NONE, hours
 
 
 def label_compensation(label: str, reconciliation: Reconciliation) -> list[str]:
@@ -14,13 +14,20 @@ def label_compensation(label: str, reconciliation: Reconciliation) -> list[str]:
 
 def totals(compensation: dict[str, Reconciliation]) -> list[str]:
     everything = all_labels(compensation)
-    return [
+    lines = [
         "All labels",
         f"  Overtime worked:            {hours(everything.owed.earned):>8}",
         f"  Compensated:                {_taken_off(everything.compensated):>8}",
         f"  Lateness not covered:       {_taken_off(everything.uncovered_lateness):>8}",
         f"  Unpaid:                     {hours(everything.unpaid):>8}",
     ]
+    return lines + _beyond_owed(everything)
+
+
+def _beyond_owed(everything: Reconciliation) -> list[str]:
+    if everything.beyond_owed <= NONE:
+        return []
+    return [f"  Given beyond a period's overtime, not carried to other periods: {hours(everything.beyond_owed)}"]
 
 
 def _periods(label: str, reconciliation: Reconciliation) -> list[str]:

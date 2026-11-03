@@ -32,7 +32,8 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/default-label": lambda body: app.labels.set_default(body.get("label", ""), _answers(body)),
         "/api/labels/hours": lambda body: app.setup.set_hours(body.get("label", ""), _answers(body)),
         "/api/labels/rename": lambda body: app.labels.rename(body.get("from", ""), body.get("to", ""), _answers(body)),
-        "/api/correct": lambda body: app.corrections.correct(_ids(body), body.get("start"), body.get("end"), body.get("reason")),
+        "/api/correct": lambda body: app.corrections.correct(_ids(body), body.get("start"), body.get("end"), body.get("reason"),
+                                                                 _answers(body)),
         "/api/mistake": lambda body: app.corrections.mark_mistake(_ids(body), body.get("reason")),
         "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
         "/api/compensation": lambda body: app.compensations.record(

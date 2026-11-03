@@ -1,14 +1,16 @@
+from dataclasses import replace
 from datetime import datetime
 
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
 from chronata.timekeeping.shifts.durations import hours
 from chronata.timekeeping.shifts.shifts import Shift, named
-from chronata.use_cases.questions.start_questions import start_answer
+from chronata.timekeeping.shifts.start_answer import StartAnswer
 from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log, one_writer_at_a_time
 from chronata.use_cases.log.outcome import Outcome, UserError
 from chronata.use_cases.questions import typed_input
 from chronata.use_cases.questions.questions import Answers
+from chronata.use_cases.questions.start_questions import start_answer
 
 
 class Corrections:
@@ -30,7 +32,7 @@ class Corrections:
         return self.log.write(added, f"added {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}, worked {hours(ends - begins)}", now)
 
     @one_writer_at_a_time
-    def correct(self, shift_ids: list[int], start: str | None, end: str | None, reason: str) -> Outcome:
+    def correct(self, shift_ids: list[int], start: str | None, end: str | None, reason: str, answers: Answers = Answers()) -> Outcome:
         now = self.log.clock()
         pieces = self.log.shifts_with(shift_ids)
         begins, ends = _new_day(pieces, start, end, now)
@@ -38,8 +40,10 @@ class Corrections:
         if any(span_start >= span_end for span_start, span_end in spans.values()):
             raise UserError("a shift has to end after it starts")
         written = typed_input.required(reason)
-        recorded = {shift.id: (shift.start, shift.end) for shift in pieces}
-        changed = [ShiftCorrected(shift_id, *span, written) for shift_id, span in spans.items() if span != recorded[shift_id]]
+        first = pieces[0]
+        others = _apart_from(self.log.shifts(), pieces)
+        first_answer = start_answer(self.log.hours, first.label, begins, others, _keeping_earlier_answers(answers, first, begins))
+        changed = _changed(pieces, spans, written, first_answer)
         if not changed:
             raise UserError("those are already the times on record")
         for correction in changed:
@@ -66,6 +70,40 @@ class Corrections:
             raise UserError(f"shift {shift_id} has no break starting at {start}")
         message = f"noted why the PC was off from {gap.start:%H:%M}: {typed_input.required(reason)}"
         return self.log.write(BreakExplained(shift.id, start, reason.strip()), message, self.log.clock())
+
+
+def _changed(pieces: list[Shift], spans: dict[int, tuple[datetime, datetime]], reason: str, first_answer: StartAnswer) -> list[ShiftCorrected]:
+    changed = []
+    for shift in pieces:
+        span = spans.get(shift.id)
+        if span is not None and span != (shift.start, shift.end):
+            changed.append(ShiftCorrected(shift.id, span[0], span[1], reason, _answer_for(shift, pieces[0], first_answer)))
+    return changed
+
+
+def _answer_for(shift: Shift, first: Shift, first_answer: StartAnswer) -> StartAnswer:
+    if shift is first:
+        return first_answer
+    return StartAnswer()
+
+
+def _apart_from(all_shifts: list[Shift], pieces: list[Shift]) -> list[Shift]:
+    others = []
+    for shift in all_shifts:
+        if shift not in pieces:
+            others.append(shift)
+    return others
+
+
+def _keeping_earlier_answers(answers: Answers, first: Shift, begins: datetime) -> Answers:
+    if begins != first.start:
+        return answers
+    kept = first.start_answer
+    if not answers.late and not answers.other_project:
+        answers = replace(answers, late=kept.late is True, other_project=kept.late is False)
+    if not answers.overtime and not answers.normal_hours:
+        answers = replace(answers, overtime=kept.overtime_after_shift is True, normal_hours=kept.overtime_after_shift is False)
+    return answers
 
 
 def _new_day(pieces: list[Shift], start: str | None, end: str | None, now: datetime) -> tuple[datetime, datetime]:

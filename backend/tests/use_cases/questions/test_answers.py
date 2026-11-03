@@ -9,6 +9,10 @@ class AnswersFromThePage(unittest.TestCase):
         with self.assertRaises(UserError):
             Answers.from_dict({"overtime": "no"})
 
+    def test_a_yes_or_no_answer_sent_as_a_number_is_refused(self):
+        with self.assertRaises(UserError):
+            Answers.from_dict({"late": 1})
+
     def test_true_and_false_are_taken_as_given(self):
         self.assertEqual(Answers.from_dict({"overtime": True, "late": False}), Answers(overtime=True))
 

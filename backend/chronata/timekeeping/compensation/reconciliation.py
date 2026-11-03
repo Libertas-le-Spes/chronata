@@ -20,7 +20,11 @@ class Reconciliation:
 
     @property
     def compensated(self) -> timedelta:
-        return sum((period.paid + period.time_off for period in self.periods), NONE)
+        return sum((period.counted_against_owed for period in self.periods), NONE)
+
+    @property
+    def beyond_owed(self) -> timedelta:
+        return sum((period.beyond_owed for period in self.periods), NONE)
 
     @property
     def shortfall(self) -> timedelta:

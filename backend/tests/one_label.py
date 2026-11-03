@@ -6,7 +6,8 @@ from chronata.timekeeping.shifts.shifts import Shift
 
 
 def weeks(shifts: list[Shift], working_day: WorkingDay | None) -> list[Week]:
-    hours = LabelHours("", {shift.label: working_day for shift in shifts})
-    for label_weeks in weeks_by_label(shifts, hours).values():
-        return label_weeks
-    return []
+    labels = {shift.label for shift in shifts}
+    if len(labels) != 1:
+        raise ValueError("these weeks are for shifts on exactly one label")
+    label = labels.pop()
+    return weeks_by_label(shifts, LabelHours("", {label: working_day}))[label]
