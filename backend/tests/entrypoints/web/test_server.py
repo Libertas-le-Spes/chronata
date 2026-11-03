@@ -184,7 +184,6 @@ class ChangesFromThePage(ServedPage):
         reply = self.request("POST", "/api/places/remove", self.page_request(cookie, token, self.origin), b'{"id": "x"}')
         self.assertNotIn(reply.status, (401, 403))
 
-
     def test_a_change_that_is_not_named_fields_is_refused_not_crashed(self):
         cookie, token = self.enter()
         reply = self.request("POST", "/api/places/remove", self.page_request(cookie, token, self.origin), b'["x"]')

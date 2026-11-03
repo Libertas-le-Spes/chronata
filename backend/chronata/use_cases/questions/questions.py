@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import Field, dataclass, field, fields, replace
 
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.use_cases.log.outcome import UserError
@@ -16,11 +16,24 @@ class Answers:
 
     @classmethod
     def from_dict(cls, given: dict) -> "Answers":
-        return cls(**{answer.name: given[answer.name] for answer in fields(cls) if answer.name in given})
+        picked = {}
+        for answer in fields(cls):
+            if answer.name in given:
+                picked[answer.name] = _checked(answer, given[answer.name])
+        return cls(**picked)
 
     @property
     def gave_hours(self) -> bool:
         return self.no_set_hours or bool(self.shift_start.strip())
+
+
+def _checked(answer: Field, value):
+    if not isinstance(value, answer.type):
+        raise UserError(f"the answer “{answer.name.replace('_', ' ')}” has to be {ANSWER_KINDS[answer.type]}")
+    return value
+
+
+ANSWER_KINDS = {bool: "yes or no", str: "text"}
 
 
 @dataclass(frozen=True)
