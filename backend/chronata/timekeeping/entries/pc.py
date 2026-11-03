@@ -33,6 +33,6 @@ class PcOffBreak:
     def apply(found: dict[int, Shift], entry: Entry) -> None:
         gap = Break(datetime.fromisoformat(entry.data["start"]), datetime.fromisoformat(entry.data["end"]), PC_OFF)
         shift = found[entry.data["shift"]]
-        shift.breaks.append(gap)
+        shift.add_break(gap)
         shift.changes.append(f"PC off {gap.start:%H:%M:%S}–{gap.end:%H:%M:%S}, not counted as work")
         shift.happenings.append(Happening(gap.start, "PC off", f"{gap.start:%H:%M:%S} – {gap.end:%H:%M:%S}, not counted"))

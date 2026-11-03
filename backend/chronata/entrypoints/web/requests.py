@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable
 
 from chronata.entrypoints.web.page_facts import page_facts
@@ -35,6 +36,8 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/correct": lambda body: app.corrections.correct(_ids(body), body.get("start"), body.get("end"), body.get("reason"),
                                                                  _answers(body)),
         "/api/mistake": lambda body: app.corrections.mark_mistake(_ids(body), body.get("reason")),
+        "/api/waive": partial(_waive, app),
+        "/api/withdraw-waiver": partial(_withdraw_waiver, app),
         "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
         "/api/compensation": lambda body: app.compensations.record(
             body.get("label", ""), body.get("from"), body.get("to"), float(body.get("hours", "")), body.get("kind", ""),
@@ -46,6 +49,21 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
         "/api/setup": lambda body: app.setup.configure(_answers(body), body.get("label")),
     }
+
+
+def _waive(app, body: dict) -> Outcome:
+    return app.waivers.waive(_ids(body), body.get("start"), body.get("end"), body.get("reason"))
+
+
+def _withdraw_waiver(app, body: dict) -> Outcome:
+    return app.waivers.withdraw(_shift_id(body), body.get("start", ""), body.get("reason"))
+
+
+def _shift_id(body: dict) -> int:
+    given = body.get("id")
+    if isinstance(given, bool) or not isinstance(given, int):
+        raise UserError("choose a shift")
+    return given
 
 
 def _ids(body: dict) -> list[int]:

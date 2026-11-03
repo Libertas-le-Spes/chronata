@@ -52,7 +52,7 @@ class ClockResumed:
     def apply(found: dict[int, Shift], entry: Entry) -> None:
         shift = found[entry.data["shift"]]
         gap = Break(shift.end, datetime.fromisoformat(entry.data["at"]), CLOCKED_OUT)
-        shift.breaks.append(gap)
+        shift.add_break(gap)
         shift.changes.append(f"break {gap.start:%H:%M:%S}–{gap.end:%H:%M:%S}, not counted as work")
         not_counted = f"{gap.start:%H:%M}–{gap.end:%H:%M} not counted"
         shift.happenings.append(Happening(gap.end, MANUAL_CLOCK_IN, detail(not_counted, quoted(entry.data.get("note")))))

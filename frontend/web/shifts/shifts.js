@@ -39,7 +39,29 @@ function chips(entry, day) {
   if (!entry.voided) found.push(pcChip(entry));
   const corrections = entry.pieces.reduce((sum, piece) => sum + piece.corrections, 0);
   if (corrections) found.push(el("span", { class: "chip" }, corrections === 1 ? "Corrected" : `Corrected ${corrections}×`));
+  const waived = waivedMinutes(entry);
+  if (waived) found.push(el("span", { class: "chip" }, `Waived ${hours(waived)}`));
   return found;
+}
+
+function waivedMinutes(entry) {
+  let total = 0;
+  for (const waiver of entry.waivers) total += waiver.minutes;
+  return total;
+}
+
+function waiverItem(waiver) {
+  return el("li", { class: "line" },
+    el("span", { class: "what" }, "Waived"),
+    el("span", { class: "at" }, `${clockTime(waiver.start)} – ${clockTime(waiver.end)}`),
+    el("span", { class: "detail" }, waiver.reason),
+    el("button", { type: "button", class: "link", onclick: () => countAgain(waiver) }, "Count again"),
+  );
+}
+
+function waiverList(entry) {
+  if (!entry.waivers.length) return null;
+  return el("ul", { class: "trail day waivers" }, entry.waivers.map(waiverItem));
 }
 
 function lineItem(line) {
@@ -56,6 +78,7 @@ function dayTools(entry) {
   return el("div", { class: "tools day-tools" },
     el("button", { type: "button", class: "link", onclick: () => relabel(entry) }, "Label"),
     entry.end ? el("button", { type: "button", class: "link", onclick: () => correct(entry) }, "Correct") : null,
+    el("button", { type: "button", class: "link", onclick: () => waive(entry) }, "Waive time"),
     el("button", { type: "button", class: "link", onclick: () => markMistake(entry.ids, "The whole day stops counting") }, "Mark as mistake"),
   );
 }
@@ -71,6 +94,7 @@ function entryCard(entry, day) {
     el("details", { class: "explanation" },
       el("summary", {}, "Full explanation"),
       el("ul", { class: "trail day" }, entry.lines.map(lineItem)),
+      waiverList(entry),
       dayTools(entry),
     ),
   );
@@ -96,6 +120,33 @@ async function correct(entry) {
     ] }],
   });
   if (answer) act("/api/correct", { ids: entry.ids, ...answer.answers });
+}
+
+async function waive(entry) {
+  const answer = await ask({
+    title: "Waive time",
+    text: "Stop counting a stretch you were not working, such as after forgetting to clock out. The clocked times stay on record, with the waived stretch and your reason shown beside them.",
+    choices: [{ caption: "Waive", style: "primary", inputs: [
+      { name: "start", prompt: "Not working from", type: "time", required: true },
+      { name: "end", prompt: "Until", type: "time", value: waiveUntil(entry), required: true },
+      { name: "reason", prompt: "Reason", required: true },
+    ] }],
+  });
+  if (answer) act("/api/waive", { ids: entry.ids, ...answer.answers });
+}
+
+function waiveUntil(entry) {
+  if (!entry.end) return "";
+  return entry.end.slice(11, 19);
+}
+
+async function countAgain(waiver) {
+  const answer = await ask({
+    title: "Count again",
+    text: `${clockTime(waiver.start)} – ${clockTime(waiver.end)} counts as work again. The waiver and this change both stay on record.`,
+    choices: [{ caption: "Count again", style: "primary", inputs: [{ name: "reason", prompt: "Reason", required: true }] }],
+  });
+  if (answer) act("/api/withdraw-waiver", { id: waiver.shift, start: waiver.start, reason: answer.answers.reason });
 }
 
 async function markMistake(ids, consequence) {

@@ -5,6 +5,7 @@ from chronata.timekeeping.shifts.start_answer import StartAnswer
 
 CLOCKED_OUT = "clocked out"
 PC_OFF = "PC off"
+WAIVED = "waived"
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,13 @@ class Break:
     @property
     def unexplained_pc_off(self) -> bool:
         return self.cause == PC_OFF and not self.reason
+
+    @property
+    def waived(self) -> bool:
+        return self.cause == WAIVED
+
+    def overlaps(self, start: datetime, end: datetime) -> bool:
+        return self.start < end and start < self.end
 
 
 @dataclass(frozen=True)
@@ -56,6 +64,16 @@ class Shift:
     def since(self) -> datetime:
         return self.breaks[-1].end if self.breaks else self.start
 
+    def add_break(self, gap: Break) -> None:
+        self.breaks.append(gap)
+        self.breaks.sort(key=_break_start)
+
+    def waived_from(self, start: datetime) -> Break | None:
+        for gap in self.breaks:
+            if gap.waived and gap.start == start:
+                return gap
+        return None
+
     def worked(self, until: datetime) -> timedelta:
         return sum((ends - begins for begins, ends in self.segments(until)), timedelta())
 
@@ -64,9 +82,13 @@ class Shift:
         pieces, cursor = [], self.start
         for gap in self.breaks:
             pieces.append((cursor, gap.start))
-            cursor = gap.end
+            cursor = max(cursor, gap.end)
         pieces.append((cursor, finish))
         return [(begins, ends) for begins, ends in pieces if ends > begins]
+
+
+def _break_start(gap: Break) -> datetime:
+    return gap.start
 
 
 def open_shift(all_shifts: list[Shift]) -> Shift | None:
