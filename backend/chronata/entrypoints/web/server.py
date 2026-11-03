@@ -17,6 +17,7 @@ from chronata.entrypoints.web.door_proof import ANSWERED_BY_THE_PAGE, ASKED_BY_T
 from chronata.entrypoints.web.page_door import DOOR_PATH, LAUNCH_CODE_PATH, PageDoor
 from chronata.entrypoints.web.refusals import refusal
 from chronata.entrypoints.web.visits import Visit, Visits
+from chronata.use_cases.log.outcome import UserError
 from chronata.use_cases.log.ports import PrivateFolder
 
 PAGE_FILE = re.compile(r"^/([a-z_]+/)?[a-z_]+\.(js|css)$")
@@ -156,6 +157,8 @@ def _handler(app, port: int, key: str, visits: Visits, owner_check: OwnerCheck) 
             self._answer(lambda: self._changed(json.loads(self.rfile.read(size) or b"{}")))
 
         def _changed(self, body: dict) -> None:
+            if not isinstance(body, dict):
+                raise UserError("a change has to be sent as named fields")
             if self.path in dialogs:
                 return self._json(200, dialogs[self.path](body))
             outcome = changes[self.path](body)

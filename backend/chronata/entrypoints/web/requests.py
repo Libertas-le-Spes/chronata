@@ -3,7 +3,7 @@ from typing import Callable
 from chronata.entrypoints.web.page_facts import page_facts
 from chronata.presenters.page.page_state import page_state
 from chronata.presenters.readable_copy.readable_copy import label_folder
-from chronata.use_cases.log.outcome import Outcome
+from chronata.use_cases.log.outcome import Outcome, UserError
 from chronata.use_cases.log.verification import verify
 from chronata.use_cases.questions.questions import Answers
 
@@ -53,7 +53,10 @@ def _ids(body: dict) -> list[int]:
 
 
 def _answers(body: dict) -> Answers:
-    return Answers.from_dict({**body, **body.get("answers", {})})
+    given = body.get("answers", {})
+    if not isinstance(given, dict):
+        raise UserError("the answers have to be sent as named answers")
+    return Answers.from_dict(given)
 
 
 def _label_check(app, typed: str) -> dict:

@@ -16,10 +16,17 @@ export function render(state) {
   if (setup.needed) $("#setup").hidden = false;
 }
 
+function setupBody(form) {
+  const answers = fields(form);
+  const label = answers.label;
+  delete answers.label;
+  return { label, answers };
+}
+
 export function wire() {
   $("#setup-form").addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (await act("/api/setup", fields(event.target), event.target)) $("#setup").hidden = true;
+    if (await act("/api/setup", setupBody(event.target), event.target)) $("#setup").hidden = true;
   });
   $("#setup-cancel").addEventListener("click", () => ($("#setup").hidden = true));
 }
