@@ -43,12 +43,19 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
             body.get("label", ""), body.get("from"), body.get("to"), float(body.get("hours", "")), body.get("kind", ""),
             body.get("reference"), _answers(body)
         ),
+        "/api/reminders": partial(_reminders, app),
         "/api/save": lambda body: app.log.save_now(),
         "/api/places/add": lambda body: app.saving.add_place(app.log, body.get("kind", ""), body.get("name", ""), body.get("target", ""),
                                                              body.get("username", ""), body.get("password", ""), body.get("folder", "")),
         "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
         "/api/setup": lambda body: app.setup.configure(_answers(body), body.get("label")),
     }
+
+
+def _reminders(app, body: dict) -> Outcome:
+    if body.get("off") is True:
+        return app.reminder_setting.turn_off()
+    return app.reminder_setting.remind_every(body.get("every"))
 
 
 def _explain(app, body: dict) -> Outcome:

@@ -12,7 +12,8 @@ def run(app, port: int) -> None:
     if server is None:
         print(f"port {port} is taken by another program, so the page is not served; the door will not open it", file=sys.stderr)
     try:
-        Reminders(app.log, app.clocking, app.pc, app.desktop, PageDoor(app.desktop, port, app.running)).run_forever()
+        Reminders(app.log, app.clocking, app.pc, app.desktop, PageDoor(app.desktop, port, app.running),
+                  app.reminder_setting).run_forever()
     finally:
         if server is not None:
             close(server, app.running)
