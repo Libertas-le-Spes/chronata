@@ -9,6 +9,7 @@ from chronata.timekeeping.record.stamps import Stamp
 from chronata.timekeeping.shifts.shifts import Shift
 from chronata.use_cases.log.ports import Place, PlaceKindDescription
 from chronata.use_cases.pc.pc_records import Interrupted
+from chronata.use_cases.reminders.reminder_pace import ReminderPace
 
 
 @dataclass(frozen=True)
@@ -31,3 +32,4 @@ class PageFacts:
     place_kinds: dict[str, PlaceKindDescription]
     newest_stamped: int | None
     stamped_by: list[Stamp]
+    reminder_pace: ReminderPace = ReminderPace()

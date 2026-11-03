@@ -8,6 +8,7 @@ import * as integrity from "./safekeeping/integrity.js";
 import * as labels from "./labels/labels.js";
 import * as pcBreaks from "./shifts/pc_breaks.js";
 import * as places from "./safekeeping/places.js";
+import * as reminders from "./reminders/reminders.js";
 import { syncWith } from "./shared/server_time.js";
 import * as setup from "./hours/setup.js";
 import * as shifts from "./shifts/shifts.js";
@@ -15,7 +16,7 @@ import * as tabs from "./shared/tabs.js";
 import { timeFields } from "./time_picker/time_field.js";
 import { toast } from "./shared/toast.js";
 
-const sections = [clock, integrity, compensation, shifts, chart, pcBreaks, hours, labels, places, setup];
+const sections = [clock, integrity, compensation, shifts, chart, pcBreaks, hours, labels, places, setup, reminders];
 
 async function refresh() {
   try {

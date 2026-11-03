@@ -19,6 +19,7 @@ from chronata.adapters.storage.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.storage.label_hours_file import LabelHoursFile
 from chronata.adapters.storage.ledger_file import LedgerFile
 from chronata.adapters.storage.owner_only_folder import OwnerOnlyFolder
+from chronata.adapters.storage.reminder_pace_file import ReminderPaceFile
 from chronata.adapters.storage.write_lock import write_lock
 from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
 from chronata.presenters.readable_copy.readable_copy import readable_files
@@ -30,6 +31,7 @@ from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log
 from chronata.use_cases.log.ports import Clock, Desktop, History, PowerHistory, Secrets, Timestamper
 from chronata.use_cases.pc.pc_records import PcRecords
+from chronata.use_cases.reminders.reminder_setting import ClockOutReminderSetting
 from chronata.use_cases.saving.saving import Saving
 from chronata.use_cases.waivers.waivers import Waivers
 
@@ -45,6 +47,7 @@ class App:
     compensations: Compensations
     setup: WorkingDaySetup
     saving: Saving
+    reminder_setting: ClockOutReminderSetting
     history: History
     timestamper: Timestamper
     desktop: Desktop
@@ -82,8 +85,9 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     log.publish = saving
     labels = Labelling(log)
     pc = PcRecords(log, power)
+    reminder_setting = ClockOutReminderSetting(ReminderPaceFile(settings / "reminders.json"))
     return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), Waivers(log), pc, Compensations(log, labels), WorkingDaySetup(log, labels),
-               saving, history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder(), running)
+               saving, reminder_setting, history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder(), running)
 
 
 def open_saved_copy(folder: Path) -> tuple[LedgerFile, Rfc3161Timestamper]:

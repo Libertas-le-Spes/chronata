@@ -7,19 +7,21 @@ from chronata.use_cases.log.outcome import UserError
 from chronata.use_cases.log.ports import Desktop, Page
 from chronata.use_cases.pc.pc_records import PcRecords
 from chronata.use_cases.reminders.at_login import NeedsSetUp, PcOffUnexplained, ShiftLeftOpen
+from chronata.use_cases.reminders.clock_out import ClockOut
 from chronata.use_cases.reminders.during_the_day import LongShift, LunchOver, LunchTime, NotClockedIn
+from chronata.use_cases.reminders.reminder_setting import ClockOutReminderSetting
 from chronata.use_cases.reminders.situation import Actions, Nudge, Situation
 
 
 class Reminders:
-    def __init__(self, log: Log, clocking: Clocking, pc: PcRecords, desktop: Desktop, page: Page):
+    def __init__(self, log: Log, clocking: Clocking, pc: PcRecords, desktop: Desktop, page: Page, setting: ClockOutReminderSetting):
         self.log = log
         self.clocking = clocking
         self.pc = pc
         self.desktop = desktop
         self.page = page
         self.at_login = [NeedsSetUp(), PcOffUnexplained(), ShiftLeftOpen()]
-        self.during_the_day = [LunchTime(), LongShift(), LunchOver(), NotClockedIn()]
+        self.during_the_day = [LunchTime(), LongShift(setting), LunchOver(), NotClockedIn(), ClockOut(setting)]
         self.actions = Actions(self._clock_in, self._clock_out, self._open)
 
     def on_login(self) -> None:

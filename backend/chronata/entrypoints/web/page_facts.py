@@ -12,4 +12,5 @@ def page_facts(app) -> PageFacts:
         unclocked_since=app.clocking.unclocked_since(), suggested_label=app.labels.suggested(), stamps=app.timestamper.stamps(),
         entry_count=log.entry_count(), problems=log.problems(), compensation=log.compensation(log.weeks_per_label()),
         places=app.saving.statuses(), place_kinds=app.saving.places.kinds(), newest_stamped=newest, stamped_by=by,
+        reminder_pace=app.reminder_setting.current(),
     )
