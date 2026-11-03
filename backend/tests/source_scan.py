@@ -26,6 +26,29 @@ class Source:
                 names.append(node.module)
         return names
 
+    def names_imported_from(self) -> list[tuple[str, str]]:
+        found = []
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module is not None:
+                for alias in node.names:
+                    found.append((node.module, alias.name))
+        return found
+
+    def modules_bound(self) -> dict[str, str]:
+        bound = {}
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    bound[_bound_name(alias)] = alias.name
+        return bound
+
+    def attributes_of(self, name: str) -> list[str]:
+        found = []
+        for node in ast.walk(self.tree):
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == name:
+                found.append(node.attr)
+        return found
+
     def has_relative_import(self) -> bool:
         for node in ast.walk(self.tree):
             if isinstance(node, ast.ImportFrom) and node.level > 0:
@@ -45,6 +68,12 @@ class Source:
             if isinstance(node, ast.Attribute):
                 used.add(node.attr)
         return used
+
+
+def _bound_name(alias: ast.alias) -> str:
+    if alias.asname is not None:
+        return alias.asname
+    return alias.name.split(".")[0]
 
 
 def _from_names(node: ast.ImportFrom) -> list[str]:

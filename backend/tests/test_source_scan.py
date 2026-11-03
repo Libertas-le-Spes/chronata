@@ -28,5 +28,13 @@ class ReadingWhatCodeUses(unittest.TestCase):
         self.assertIn("sys", Source("import dataclasses\ndataclasses.sys.modules\n").attributes_used())
 
 
+    def test_a_module_brought_in_with_a_from_import_is_seen(self):
+        self.assertEqual(Source("from json import codecs\n").names_imported_from(), [("json", "codecs")])
+
+    def test_what_is_reached_through_an_imported_module_is_seen(self):
+        source = Source("import json as j\nj.codecs.open\n")
+        self.assertEqual((source.modules_bound(), source.attributes_of("j")), ({"j": "json"}, ["codecs"]))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,3 +1,5 @@
+import importlib
+import inspect
 import unittest
 from pathlib import Path
 
@@ -36,7 +38,35 @@ def shown(path: Path) -> str:
 def core_may_import(name: str) -> bool:
     if name == "chronata.timekeeping" or name.startswith("chronata.timekeeping."):
         return True
-    return name.split(".")[0] in CORE_MAY_IMPORT
+    return name in CORE_MAY_IMPORT
+
+
+def plain_part_of(module: str, name: str) -> bool:
+    if name.startswith("_"):
+        return False
+    part = getattr(importlib.import_module(module), name, None)
+    if part is None:
+        return False
+    return not inspect.ismodule(part)
+
+
+def reached_from_allowed_modules(source: Source) -> list[str]:
+    reached = []
+    for module, name in source.names_imported_from():
+        if module in CORE_MAY_IMPORT and not plain_part_of(module, name):
+            reached.append(f"{module}.{name}")
+    for bound, module in source.modules_bound().items():
+        if module in CORE_MAY_IMPORT:
+            reached += _reached_through(source, bound, module)
+    return reached
+
+
+def _reached_through(source: Source, bound: str, module: str) -> list[str]:
+    reached = []
+    for name in source.attributes_of(bound):
+        if not plain_part_of(module, name):
+            reached.append(f"{module}.{name}")
+    return reached
 
 
 class DependenciesPointInward(unittest.TestCase):
@@ -73,14 +103,21 @@ class TheCoreStaysInsideThisProgram(unittest.TestCase):
         not_allowed = []
         for path in sorted(CORE.rglob("*.py")):
             for name in sorted(source_of(path).names_used() & CORE_MAY_NOT_NAME):
-                not_allowed.append(f"{shown(path)} names {name}")
+                not_allowed.append(f"{shown(path)} names {name}, refused even as a local name")
         self.assertEqual(not_allowed, [])
 
-    def test_the_core_reaches_nothing_through_an_allowed_module(self):
+    def test_the_core_reaches_nothing_known_to_lead_outside(self):
         not_allowed = []
         for path in sorted(CORE.rglob("*.py")):
             for name in sorted(source_of(path).attributes_used() & CORE_MAY_NOT_REACH):
                 not_allowed.append(f"{shown(path)} reaches .{name}")
+        self.assertEqual(not_allowed, [])
+
+    def test_the_core_takes_only_plain_functions_and_classes_from_allowed_modules(self):
+        not_allowed = []
+        for path in sorted(CORE.rglob("*.py")):
+            for name in reached_from_allowed_modules(source_of(path)):
+                not_allowed.append(f"{shown(path)} takes {name}")
         self.assertEqual(not_allowed, [])
 
 
