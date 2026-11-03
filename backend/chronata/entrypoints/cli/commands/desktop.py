@@ -20,6 +20,14 @@ def bar_toggle(args, app: App) -> None:
     clock_button.toggle(app, PageDoor(app.desktop, DEFAULT_PORT, app.running))
 
 
+def away(args, app: App) -> None:
+    app.away.began(args.idle_seconds)
+
+
+def back(args, app: App) -> None:
+    app.away.ended()
+
+
 def service(args, app: App) -> None:
     from chronata.entrypoints.service.background_service import run
     run(app, args.port)
@@ -40,6 +48,13 @@ def register(commands) -> None:
 
     command = commands.add_parser("toggle", help="clock in or out from the bar")
     command.set_defaults(run=bar_toggle)
+
+    command = commands.add_parser("away", help="note that the PC has had no input, so the bar can ask about it (run by the bar)")
+    command.add_argument("idle_seconds", type=int, help="how long there has been no input")
+    command.set_defaults(run=away)
+
+    command = commands.add_parser("back", help="note that input has come back after being away (run by the bar)")
+    command.set_defaults(run=back)
 
     command = commands.add_parser("service", help="run in the background: the page, PC on/off records and reminders")
     command.add_argument("--port", type=int, default=DEFAULT_PORT)

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Ui
 
 BarWidget {
@@ -13,6 +14,7 @@ BarWidget {
 
   readonly property string ownCommand: decodeURIComponent(Qt.resolvedUrl("../../backend/bin/chronata").toString().replace(/^file:\/\//, ""))
   readonly property string command: String(setting("command", ownCommand))
+  readonly property int awayAfterSeconds: 600
   readonly property color statusColor: status === "in" ? (palette.blue || "#89b4fa")
     : status === "interrupted" ? (palette.yellow || "#f9e2af")
     : (palette.red || "#f38ba8")
@@ -44,6 +46,12 @@ BarWidget {
 
   function quoted(value) {
     return "'" + String(value).replace(/'/g, "'\\''") + "'"
+  }
+
+  function noteAway(idle) {
+    if (!root.bar) return
+    if (idle) root.bar.run(root.quoted(root.command) + " away " + root.awayAfterSeconds)
+    else root.bar.run(root.quoted(root.command) + " back")
   }
 
   function refresh() {
@@ -79,6 +87,13 @@ BarWidget {
     stdout: StdioCollector {
       onStreamFinished: root.update(text)
     }
+  }
+
+  IdleMonitor {
+    enabled: root.status === "in"
+    timeout: root.awayAfterSeconds
+    respectInhibitors: true
+    onIsIdleChanged: root.noteAway(isIdle)
   }
 
   FileView {

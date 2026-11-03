@@ -18,11 +18,13 @@ from chronata.adapters.storage import data_folder, locations
 from chronata.adapters.storage.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.storage.label_hours_file import LabelHoursFile
 from chronata.adapters.storage.ledger_file import LedgerFile
+from chronata.adapters.storage.away_file import AwayFile
 from chronata.adapters.storage.owner_only_folder import OwnerOnlyFolder
 from chronata.adapters.storage.reminder_pace_file import ReminderPaceFile
 from chronata.adapters.storage.write_lock import write_lock
 from chronata.adapters.timestamping.rfc3161 import Rfc3161Timestamper
 from chronata.presenters.readable_copy.readable_copy import readable_files
+from chronata.use_cases.away.away import Away
 from chronata.use_cases.clocking.clocking import Clocking
 from chronata.use_cases.compensation.compensations import Compensations
 from chronata.use_cases.corrections.corrections import Corrections
@@ -48,6 +50,7 @@ class App:
     setup: WorkingDaySetup
     saving: Saving
     reminder_setting: ClockOutReminderSetting
+    away: Away
     history: History
     timestamper: Timestamper
     desktop: Desktop
@@ -62,7 +65,7 @@ def local_now() -> datetime:
 
 def open_app(data: Path | None = None, config: Path | None = None, clock: Clock = local_now,
              power: PowerHistory | None = None, timestamper: Timestamper | None = None, desktop: Desktop | None = None,
-             secrets: Secrets | None = None, git: GitTransport | None = None) -> App:
+             secrets: Secrets | None = None, git: GitTransport | None = None, runtime: Path | None = None) -> App:
     folder = DataFolder(data or locations.log_folder())
     power = power or this_machine.power_history()
     settings = config or locations.settings_folder()
@@ -73,7 +76,7 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
              WebDavServer(save_record, secrets or SecretService())]
     places = PlaceBook(settings, kinds)
     history = OptionalHistory(folder.directory, data_folder.LEDGER, places.needs_local_history)
-    running = OwnerOnlyFolder(locations.runtime_folder())
+    running = OwnerOnlyFolder(_runtime_folder(runtime))
     ledger = LedgerFile(folder.ledger)
     timestamper = timestamper or Rfc3161Timestamper(folder.timestamps, ledger.hash_of, folder.directory / data_folder.CHECKED_RECEIPTS)
     log = Log(ledger, history, LabelHoursFile(folder.rules), write_lock(running, locations.lock_name(folder.directory)), clock)
@@ -87,7 +90,13 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     pc = PcRecords(log, power)
     reminder_setting = ClockOutReminderSetting(ReminderPaceFile(settings / "reminders.json"))
     return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), Waivers(log), pc, Compensations(log, labels), WorkingDaySetup(log, labels),
-               saving, reminder_setting, history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder(), running)
+               saving, reminder_setting, Away(log, AwayFile(running)), history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder(), running)
+
+
+def _runtime_folder(chosen: Path | None) -> Path:
+    if chosen is None:
+        return locations.runtime_folder()
+    return chosen
 
 
 def open_saved_copy(folder: Path) -> tuple[LedgerFile, Rfc3161Timestamper]:

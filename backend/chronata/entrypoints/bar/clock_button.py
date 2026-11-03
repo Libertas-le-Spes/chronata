@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from chronata.entrypoints.bar.after_away import ask_after_away
 from chronata.entrypoints.bar.clock_in_questions import ask_and_clock_in
 from chronata.timekeeping.shifts.durations import hours
 from chronata.timekeeping.shifts.shifts import Shift, open_shift
@@ -50,6 +51,10 @@ def toggle(app, page: Page) -> None:
     current = open_shift(app.log.shifts())
     if current is None:
         ask_and_clock_in(app, page)
+        return
+    stretch = app.away.to_ask_about()
+    if stretch is not None and app.desktop.can_ask():
+        ask_after_away(app, stretch)
         return
     if app.log.hours.before_end_of_workday(current.label, app.log.clock()):
         page.open("confirm-out")
