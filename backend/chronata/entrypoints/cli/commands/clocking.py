@@ -14,7 +14,7 @@ def clock_out(args, app: App) -> Outcome:
 def register(commands) -> None:
     command = commands.add_parser("in", help="clock in now, or carry on today's shift")
     command.add_argument("--at", help="when you actually started, if you forgot (e.g. 08:04)")
-    command.add_argument("--label", help="client or project, e.g. 'Acme website'; each label gets its own folder")
+    command.add_argument("--label", help="client or project, e.g. 'client website'; each label gets its own folder")
     clock_in_options(command)
     command.add_argument("--note")
     command.set_defaults(run=clock_in)

@@ -46,35 +46,35 @@ class LinuxDialogTools(unittest.TestCase):
     def test_with_neither_it_says_it_cannot_ask(self):
         desktop = self.desktop_with()
         self.assertFalse(desktop.can_ask())
-        self.assertIsNone(desktop.ask("Which label?", "Northwind"))
+        self.assertIsNone(desktop.ask("Which label?", "Primary"))
 
 
 class Zenity_(unittest.TestCase):
     def test_cancel_is_no_answer(self):
         with answering("Cancel\n", 1):
-            self.assertIsNone(Zenity().choose("Chronata", "Sure?", ["Use Northwind"]))
+            self.assertIsNone(Zenity().choose("Chronata", "Sure?", ["Use Primary"]))
 
     def test_an_empty_answer_means_no_label_and_closing_means_no_answer(self):
         with answering("\n"):
-            self.assertEqual(Zenity().ask("Chronata", "Which label?", "Northwind"), "")
+            self.assertEqual(Zenity().ask("Chronata", "Which label?", "Primary"), "")
         with answering("", 1):
-            self.assertIsNone(Zenity().ask("Chronata", "Which label?", "Northwind"))
+            self.assertIsNone(Zenity().ask("Chronata", "Which label?", "Primary"))
 
 
 class KDialog_(unittest.TestCase):
     def test_choices_are_offered_as_a_menu_and_the_chosen_one_comes_back(self):
         with answering("0\n") as run:
-            self.assertEqual(KDialog().choose("Chronata", "Sure?", ["Use Northwind", "Clock in on Acme"]), "Use Northwind")
+            self.assertEqual(KDialog().choose("Chronata", "Sure?", ["Use Primary", "Clock in on Secondary"]), "Use Primary")
         self.assertEqual(run.call_args.args[0],
-                         ["kdialog", "--title", "Chronata", "--menu", "Sure?", "0", "Use Northwind", "1", "Clock in on Acme"])
+                         ["kdialog", "--title", "Chronata", "--menu", "Sure?", "0", "Use Primary", "1", "Clock in on Secondary"])
 
     def test_a_choice_that_starts_with_a_dash_can_still_be_picked(self):
         with answering("1\n"):
-            self.assertEqual(KDialog().choose("Chronata", "Which?", ["Acme", "-Made-up"]), "-Made-up")
+            self.assertEqual(KDialog().choose("Chronata", "Which?", ["Secondary", "-Made-up"]), "-Made-up")
 
     def test_cancelling_the_menu_is_no_answer(self):
         with answering("", 1):
-            self.assertIsNone(KDialog().choose("Chronata", "Sure?", ["Use Northwind"]))
+            self.assertIsNone(KDialog().choose("Chronata", "Sure?", ["Use Primary"]))
 
 
 if __name__ == "__main__":

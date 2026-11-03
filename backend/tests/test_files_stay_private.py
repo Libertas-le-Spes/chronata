@@ -33,8 +33,8 @@ def shared_with_others(folder: Path) -> list[str]:
 class EverythingChronataKeeps(unittest.TestCase):
     def test_only_its_owner_can_open(self):
         f = Fixture("2026-10-14T17:40:00")
-        f.app.labels.create("Northwind", hours("08:00", "17:00", "12:00", "60"))
-        f.app.corrections.add("2026-10-13", "08:00", "17:00", "written later", "made-up note", "Northwind")
+        f.app.labels.create("Primary", hours("08:00", "17:00", "12:00", "60"))
+        f.app.corrections.add("2026-10-13", "08:00", "17:00", "written later", "made-up note", "Primary")
         place = Path(tempfile.mkdtemp())
         f.app.saving.add_place(f.app.log, "folder", "Copy", str(place))
         f.app.log.save_now()

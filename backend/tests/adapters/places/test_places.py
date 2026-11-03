@@ -90,7 +90,7 @@ class FoldersInAGitRepository(unittest.TestCase):
         self.folders = GitFolders(Path(tempfile.mkdtemp()), saves(), GitTransport())
 
     def test_only_the_chosen_folder_is_written_and_nothing_else_changes(self):
-        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"logs", "Northwind/Days/2026-10-14.md": b"day"})
+        self.folders.save("p1", str(self.remote), "Work Logs", {"README.md": b"logs", "Primary/Days/2026-10-14.md": b"day"})
         changed = git("show", "--name-only", "--format=", "main", cwd=self.remote).splitlines()
         self.assertTrue(changed and all(path.startswith("Work Logs/") for path in changed))
         self.assertEqual(git("show", "main:Portfolio/note.md", cwd=self.remote), "my own note\n")

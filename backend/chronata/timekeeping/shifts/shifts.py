@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+from chronata.timekeeping.shifts.start_answer import StartAnswer
+
 CLOCKED_OUT = "clocked out"
 PC_OFF = "PC off"
 
@@ -45,6 +47,7 @@ class Shift:
     first_start: datetime | None = None
     happenings: list[Happening] = field(default_factory=list)
     corrections: list[Correction] = field(default_factory=list)
+    start_answer: StartAnswer = field(default_factory=StartAnswer)
 
     def __post_init__(self):
         self.first_start = self.first_start or self.start

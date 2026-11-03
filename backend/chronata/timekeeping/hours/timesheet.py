@@ -8,16 +8,17 @@ from chronata.timekeeping.hours.day_kinds.kind_of_day import kind_of_day
 from chronata.timekeeping.hours.label_hours import LabelHours
 from chronata.timekeeping.hours.measuring_moment import MeasuringMoment
 from chronata.timekeeping.hours.week import Week, week_starting
-from chronata.timekeeping.hours.weekly_allowance import allowance_of
+from chronata.timekeeping.hours.weekly_allowance import WeeklyAllowance, allowance_of
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift, completed, open_shift
 
 
-def weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, now: datetime | None = None, clocked_in: bool = False) -> list[Week]:
-    moment = MeasuringMoment(now, clocked_in)
+def _label_weeks(label: str, finished_shifts: list[Shift], working_day: WorkingDay | None, moment: MeasuringMoment,
+                 day_starts: dict[date, datetime]) -> list[Week]:
     found = []
-    for start, clocked_days in _clocked_days_by_week(finished_shifts):
-        found.append(Week(start, _measured(clocked_days, working_day, moment)))
+    for start, clocked_days in _clocked_days_by_week(label, finished_shifts, day_starts):
+        days, allowance = _measured(clocked_days, working_day, moment)
+        found.append(Week(start, days, allowance.left))
     return found
 
 
@@ -31,9 +32,10 @@ def weeks_by_label(all_shifts: list[Shift], hours: LabelHours, now: datetime | N
     grouped: dict[str, list[Shift]] = defaultdict(list)
     for shift in counted:
         grouped[hours.counted_under(shift.label)].append(shift)
+    day_starts = _day_starts(counted)
     by_label = {}
     for label, label_shifts in grouped.items():
-        by_label[label] = weeks(label_shifts, hours.for_label(label), now, label == clocked_in_on)
+        by_label[label] = _label_weeks(label, label_shifts, hours.for_label(label), MeasuringMoment(now, label == clocked_in_on), day_starts)
     return by_label
 
 
@@ -46,24 +48,41 @@ def days_so_far(all_shifts: list[Shift], hours: LabelHours, now: datetime) -> di
     return found
 
 
-def _clocked_days_by_week(shifts: list[Shift]) -> list[tuple[date, list[ClockedDay]]]:
+def _clocked_days_by_week(label: str, shifts: list[Shift], day_starts: dict[date, datetime]) -> list[tuple[date, list[ClockedDay]]]:
     per_day: dict[date, list[Shift]] = defaultdict(list)
     for shift in shifts:
         per_day[shift.start.date()].append(shift)
     per_week: dict[date, list[ClockedDay]] = defaultdict(list)
     for day in sorted(per_day):
-        per_week[week_starting(day)].append(ClockedDay(day, tuple(per_day[day])))
+        clocked = tuple(per_day[day])
+        opened_the_day = min(shift.start for shift in clocked) <= day_starts[day]
+        per_week[week_starting(day)].append(ClockedDay(day, label, clocked, opened_the_day))
     return sorted(per_week.items())
 
 
-def _measured(clocked_days: list[ClockedDay], working_day: WorkingDay | None, moment: MeasuringMoment) -> tuple[Day, ...]:
+def _earlier_than_known(starts: dict[date, datetime], day: date, start: datetime) -> bool:
+    if day not in starts:
+        return True
+    return start < starts[day]
+
+
+def _day_starts(shifts: list[Shift]) -> dict[date, datetime]:
+    starts: dict[date, datetime] = {}
+    for shift in shifts:
+        day = shift.start.date()
+        if _earlier_than_known(starts, day, shift.start):
+            starts[day] = shift.start
+    return starts
+
+
+def _measured(clocked_days: list[ClockedDay], working_day: WorkingDay | None, moment: MeasuringMoment) -> tuple[tuple[Day, ...], WeeklyAllowance]:
     allowance = allowance_of(working_day)
     days = []
     for clocked in clocked_days:
-        day = kind_of_day(working_day, clocked.date).measure(clocked, allowance, moment)
+        day = kind_of_day(working_day, clocked).measure(clocked, allowance, moment)
         allowance = allowance.after(day.normal)
         days.append(day)
-    return tuple(days)
+    return tuple(days), allowance
 
 
 def _running_today(all_shifts: list[Shift], now: datetime | None) -> Shift | None:

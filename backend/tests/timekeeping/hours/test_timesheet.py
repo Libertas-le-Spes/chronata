@@ -4,10 +4,12 @@ from datetime import datetime, time, timedelta
 from chronata.presenters.text.text_report import punctuality
 from chronata.timekeeping.hours.all_labels import combined
 from chronata.timekeeping.hours.label_hours import LabelHours
-from chronata.timekeeping.hours.timesheet import days_so_far, weeks, weeks_by_label
+from chronata.timekeeping.hours.timesheet import days_so_far, weeks_by_label
 from chronata.timekeeping.hours.working_day import Lunch, WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift
+from chronata.timekeeping.shifts.start_answer import StartAnswer
 from tests.fakes import at
+from tests.one_label import weeks
 
 
 def working_day(workdays: range = range(5)) -> WorkingDay:
@@ -81,44 +83,124 @@ class EarlyLeaving(unittest.TestCase):
 
 
 class LabelsWithTheirOwnHours(unittest.TestCase):
-    hours = LabelHours("Northwind", {"Northwind": WorkingDay(time(8), time(17), Lunch(time(12), 60)), "Acme": None})
+    hours = LabelHours("Primary", {"Primary": WorkingDay(time(8), time(17), Lunch(time(12), 60)), "Secondary": None})
 
     def test_a_label_with_no_set_hours_only_counts_time(self):
-        day = weeks([shift("2026-10-05", "18:00", "23:00", "Acme")], None)[0].days[0]
+        day = weeks([shift("2026-10-05", "18:00", "23:00", "Secondary")], None)[0].days[0]
         self.assertEqual((day.worked, day.overtime.earned, day.punctuality.late, day.punctuality.short), (timedelta(hours=5), timedelta(), timedelta(), timedelta()))
 
     def test_evening_side_work_is_not_overtime_for_the_main_job(self):
-        by_label = weeks_by_label(split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", "21:00", "Acme")], self.hours)
-        self.assertEqual({label: w[0].overtime.earned for label, w in by_label.items()}, {"Northwind": timedelta(), "Acme": timedelta()})
-        whole = combined(by_label, "Northwind")[0].days[0]
+        by_label = weeks_by_label(split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", "21:00", "Secondary")], self.hours)
+        self.assertEqual({label: w[0].overtime.earned for label, w in by_label.items()}, {"Primary": timedelta(), "Secondary": timedelta()})
+        whole = combined(by_label, "Primary")[0].days[0]
         self.assertEqual((whole.worked, whole.overtime.earned), (timedelta(hours=11), timedelta()))
 
     def test_a_day_on_two_labels_runs_from_the_first_clock_in_to_the_last_clock_out(self):
-        by_label = weeks_by_label(split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", "21:00", "Acme")], self.hours)
-        whole = combined(by_label, "Northwind")[0].days[0]
+        by_label = weeks_by_label(split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", "21:00", "Secondary")], self.hours)
+        whole = combined(by_label, "Primary")[0].days[0]
         self.assertEqual((whole.first_in, whole.last_out), (at("2026-10-05T08:00:00"), at("2026-10-05T21:00:00")))
 
     def test_a_day_on_two_labels_is_running_while_the_main_label_is_clocked_in(self):
-        shifts = [shift("2026-10-05", "06:00", "07:00", "Acme"), shift("2026-10-05", "08:00", None, "Northwind")]
-        whole = combined(weeks_by_label(shifts, self.hours, at("2026-10-05T10:00:00")), "Northwind")[0].days[0]
+        shifts = [shift("2026-10-05", "06:00", "07:00", "Secondary"), shift("2026-10-05", "08:00", None, "Primary")]
+        whole = combined(weeks_by_label(shifts, self.hours, at("2026-10-05T10:00:00")), "Primary")[0].days[0]
         self.assertTrue(whole.running)
 
     def test_a_day_on_two_labels_is_running_while_only_the_other_label_is_clocked_in(self):
-        both_with_hours = LabelHours("Northwind", {"Northwind": WorkingDay(time(8), time(17), Lunch(time(12), 60)), "Acme": WorkingDay(time(18), time(22))})
-        shifts = split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", None, "Acme")]
-        whole = combined(weeks_by_label(shifts, both_with_hours, at("2026-10-05T19:00:00")), "Northwind")[0].days[0]
+        both_with_hours = LabelHours("Primary", {"Primary": WorkingDay(time(8), time(17), Lunch(time(12), 60)), "Secondary": WorkingDay(time(18), time(22))})
+        shifts = split_day("2026-10-05", "08:00", "17:00") + [shift("2026-10-05", "18:00", None, "Secondary")]
+        whole = combined(weeks_by_label(shifts, both_with_hours, at("2026-10-05T19:00:00")), "Primary")[0].days[0]
         self.assertTrue(whole.running)
 
     def test_unlabelled_time_counts_as_the_default_labels(self):
-        self.assertEqual(list(weeks_by_label([shift("2026-10-05", "08:00", "12:00")], self.hours)), ["Northwind"])
+        self.assertEqual(list(weeks_by_label([shift("2026-10-05", "08:00", "12:00")], self.hours)), ["Primary"])
+
+
+def answered(piece: Shift, answer: StartAnswer) -> Shift:
+    piece.start_answer = answer
+    return piece
+
+
+class LatenessOnASecondLabel(unittest.TestCase):
+    hours = LabelHours("Primary", {"Primary": WorkingDay(time(8), time(12)), "Secondary": WorkingDay(time(8), time(17))})
+
+    def secondary_day(self, answer: StartAnswer):
+        pieces = [shift("2026-10-05", "07:00", "08:00", "Primary"), answered(shift("2026-10-05", "13:00", "17:00", "Secondary"), answer)]
+        return weeks_by_label(pieces, self.hours)["Secondary"][0].days[0]
+
+    def test_starting_a_different_project_later_in_the_day_is_not_late(self):
+        self.assertEqual(self.secondary_day(StartAnswer(late=False, label="Secondary")).punctuality.late, timedelta())
+
+    def test_saying_you_are_late_for_it_counts_the_lateness(self):
+        self.assertEqual(self.secondary_day(StartAnswer(late=True, label="Secondary")).punctuality.late, timedelta(hours=5))
+
+    def test_a_late_answer_on_a_shift_that_starts_after_its_hours_does_not_count(self):
+        evening = answered(shift("2026-10-05", "18:00", "19:00", "Secondary"), StartAnswer(late=True, label="Secondary"))
+        pieces = [shift("2026-10-05", "07:00", "08:00", "Primary"), evening]
+        self.assertEqual(weeks_by_label(pieces, self.hours)["Secondary"][0].days[0].punctuality.late, timedelta())
+
+    def test_the_label_you_clocked_in_on_first_counts_its_lateness_without_asking(self):
+        pieces = [shift("2026-10-05", "08:20", "12:00", "Primary"), shift("2026-10-05", "13:00", "17:00", "Secondary")]
+        self.assertEqual(weeks_by_label(pieces, self.hours)["Primary"][0].days[0].punctuality.late, timedelta(minutes=20))
+
+
+class StartingAfterTheShiftEnded(unittest.TestCase):
+    def evening(self, answer: StartAnswer):
+        return only_day([answered(shift("2026-10-05", "18:00", "20:00"), answer)])
+
+    def test_normal_hours_after_the_shift_are_not_counted_as_late(self):
+        day = self.evening(StartAnswer(overtime_after_shift=False, label=""))
+        self.assertEqual((day.punctuality.late, day.punctuality.started_after_shift), (timedelta(), True))
+
+    def test_a_start_after_the_shift_is_listed_to_check(self):
+        self.assertIn("started after the shift ended", punctuality(self.evening(StartAnswer())))
+
+    def test_overtime_after_the_shift_is_still_marked_to_check(self):
+        self.assertTrue(self.evening(StartAnswer(overtime_after_shift=True, label="")).punctuality.started_after_shift)
+
+    def test_a_later_label_after_its_shift_is_not_marked_when_nothing_was_asked(self):
+        both = LabelHours("Primary", {"Primary": WorkingDay(time(8), time(17)), "Secondary": WorkingDay(time(8), time(16))})
+        pieces = [shift("2026-10-05", "08:00", "17:00", "Primary"), shift("2026-10-05", "17:00", "18:00", "Secondary")]
+        self.assertFalse(weeks_by_label(pieces, both)["Secondary"][0].days[0].punctuality.started_after_shift)
+
+    def test_a_later_stretch_answered_normal_hours_is_not_counted_as_overtime(self):
+        later = answered(shift("2026-10-05", "19:30", "21:30"), StartAnswer(overtime_after_shift=False, label=""))
+        day = only_day([answered(shift("2026-10-05", "18:00", "19:00"), StartAnswer(overtime_after_shift=True, label="")), later])
+        self.assertEqual(day.overtime.earned, timedelta(hours=1))
+
+    def test_overtime_after_the_shift_counts_every_hour_as_overtime(self):
+        self.assertEqual(self.evening(StartAnswer(overtime_after_shift=True, label="")).overtime.earned, timedelta(hours=2))
+
+
+class ComingBackAfterTheShift(unittest.TestCase):
+    def late_day_and_evening(self, answer: StartAnswer, evening_start: str = "19:00"):
+        evening = answered(shift("2026-10-05", evening_start, "20:00"), answer)
+        return only_day([shift("2026-10-05", "08:12", "12:00"), shift("2026-10-05", "13:00", "17:00"), evening])
+
+    def test_answering_overtime_counts_the_whole_evening_as_overtime(self):
+        self.assertEqual(self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="")).overtime.earned, timedelta(hours=1))
+
+    def test_answering_overtime_leaves_the_late_start_not_made_up(self):
+        self.assertEqual(self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="")).uncovered_lateness, timedelta(minutes=12))
+
+    def test_answering_normal_hours_makes_up_the_late_start_first(self):
+        day = self.late_day_and_evening(StartAnswer(overtime_after_shift=False, label=""))
+        self.assertEqual((day.overtime.earned, day.uncovered_lateness), (timedelta(minutes=48), timedelta()))
+
+    def test_an_overtime_answer_given_for_another_label_does_not_count(self):
+        day = self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="Secondary"))
+        self.assertEqual((day.overtime.earned, day.uncovered_lateness), (timedelta(minutes=48), timedelta()))
+
+    def test_an_overtime_answer_on_a_stretch_starting_during_the_shift_does_not_count(self):
+        day = self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label=""), evening_start="16:30")
+        self.assertEqual(day.uncovered_lateness, timedelta())
 
 
 class MakingUpALateStart(unittest.TestCase):
-    hours = LabelHours("Northwind", {"Northwind": WorkingDay(time(8, 30), time(17, 30), Lunch(time(12), 60))})
+    hours = LabelHours("Primary", {"Primary": WorkingDay(time(8, 30), time(17, 30), Lunch(time(12), 60))})
 
     def today_at(self, moment: str, *pieces: tuple[str, str | None]):
-        shifts = [shift("2026-10-15", start, end, "Northwind") for start, end in pieces]
-        return days_so_far(shifts, self.hours, at(f"2026-10-15T{moment}"))[(at("2026-10-15T00:00:00").date(), "Northwind")]
+        shifts = [shift("2026-10-15", start, end, "Primary") for start, end in pieces]
+        return days_so_far(shifts, self.hours, at(f"2026-10-15T{moment}"))[(at("2026-10-15T00:00:00").date(), "Primary")]
 
     def test_ten_minutes_late_is_made_up_by_going_to_lunch_ten_minutes_later(self):
         day = self.today_at("12:30:00", ("08:40", "12:10"))
@@ -143,9 +225,17 @@ class MakingUpALateStart(unittest.TestCase):
         self.assertEqual(self.today_at("20:00:00", lunch, ("13:10", "17:50")).overtime.earned, timedelta(minutes=10))
 
     def test_while_clocked_in_on_a_day_off_it_is_still_running(self):
-        saturday = shift("2026-10-17", "09:00", None, "Northwind")
-        day = days_so_far([saturday], self.hours, at("2026-10-17T11:00:00"))[(at("2026-10-17T00:00:00").date(), "Northwind")]
+        saturday = shift("2026-10-17", "09:00", None, "Primary")
+        day = days_so_far([saturday], self.hours, at("2026-10-17T11:00:00"))[(at("2026-10-17T00:00:00").date(), "Primary")]
         self.assertEqual((day.running, day.overtime.earned), (True, timedelta(hours=2)))
+
+    def test_lateness_is_not_taken_off_while_the_day_is_still_running(self):
+        day = self.today_at("12:30:00", ("08:40", "12:00"))
+        self.assertEqual((day.punctuality.uncovered_lateness, day.uncovered_lateness), (timedelta(minutes=10), timedelta()))
+
+    def test_lateness_left_uncovered_is_taken_off_once_the_day_is_over(self):
+        day = self.today_at("18:00:00", ("08:40", "12:10"), ("13:10", "17:35"))
+        self.assertEqual(day.uncovered_lateness, timedelta(minutes=5))
 
     def test_a_full_day_after_a_late_start_is_made_up_once_the_day_is_over(self):
         day = self.today_at("18:00:00", ("08:40", "12:10"), ("13:10", "17:40"))

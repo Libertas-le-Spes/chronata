@@ -1,0 +1,70 @@
+from datetime import datetime
+
+from chronata.timekeeping.hours.label_hours import LabelHours
+from chronata.timekeeping.hours.working_day import WorkingDay
+from chronata.timekeeping.shifts.shifts import Shift, completed
+from chronata.timekeeping.shifts.start_answer import StartAnswer
+from chronata.use_cases.log.outcome import UserError
+from chronata.use_cases.questions.questions import AfterShift, Answers, LateOrOtherProject
+
+
+def start_answer(hours: LabelHours, label: str, start: datetime, all_shifts: list[Shift], answers: Answers) -> StartAnswer:
+    _refuse_both(answers.late, answers.other_project, "late or a different project")
+    _refuse_both(answers.overtime, answers.normal_hours, "overtime or normal hours")
+    working_day = hours.for_label(label)
+    if working_day is None:
+        return StartAnswer()
+    if start.weekday() not in working_day.workdays:
+        return StartAnswer()
+    counted = hours.counted_under(label)
+    if start.time() >= working_day.shift_end:
+        return _overtime_or_normal_hours(working_day, counted, answers)
+    earlier = _earlier_today(all_shifts, start)
+    if not earlier:
+        return StartAnswer()
+    if _on_label(hours, earlier, label):
+        return StartAnswer()
+    if not _during_shift(working_day, start):
+        return StartAnswer()
+    return _late_or_other_project(counted, answers)
+
+
+def _refuse_both(one: bool, other: bool, choice: str) -> None:
+    if one and other:
+        raise UserError(f"choose one: {choice}")
+
+
+def _overtime_or_normal_hours(working_day: WorkingDay, label: str, answers: Answers) -> StartAnswer:
+    if answers.overtime:
+        return StartAnswer(overtime_after_shift=True, label=label)
+    if answers.normal_hours:
+        return StartAnswer(overtime_after_shift=False, label=label)
+    raise AfterShift(label, f"{working_day.shift_end:%H:%M}")
+
+
+def _late_or_other_project(label: str, answers: Answers) -> StartAnswer:
+    if answers.late:
+        return StartAnswer(late=True, label=label)
+    if answers.other_project:
+        return StartAnswer(late=False, label=label)
+    raise LateOrOtherProject(label)
+
+
+def _earlier_today(all_shifts: list[Shift], start: datetime) -> list[Shift]:
+    found = []
+    for shift in completed(all_shifts):
+        if shift.start.date() == start.date() and shift.start < start:
+            found.append(shift)
+    return found
+
+
+def _on_label(hours: LabelHours, shifts: list[Shift], label: str) -> bool:
+    counted = hours.counted_under(label)
+    for shift in shifts:
+        if hours.counted_under(shift.label) == counted:
+            return True
+    return False
+
+
+def _during_shift(working_day: WorkingDay, start: datetime) -> bool:
+    return working_day.shift_start < start.time() < working_day.shift_end

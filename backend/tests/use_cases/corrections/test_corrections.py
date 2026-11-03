@@ -8,9 +8,9 @@ from tests.fakes import Fixture, at, hours
 class CorrectingADay(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-15T18:00:00")
-        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Northwind")
-        self.f.app.corrections.add("2026-10-15", "08:41", "09:04", "from when the PC came on", None, "Northwind")
-        self.f.app.corrections.add("2026-10-15", "09:04", "17:00", "forgot to clock", None, "Northwind")
+        self.f.app.setup.configure(hours("08:30", "17:30", "12:00", "60"), "Primary")
+        self.f.app.corrections.add("2026-10-15", "08:41", "09:04", "from when the PC came on", None, "Primary")
+        self.f.app.corrections.add("2026-10-15", "09:04", "17:00", "forgot to clock", None, "Primary")
         self.ids = [shift.id for shift in self.f.app.log.shifts()]
 
     def spans(self) -> list[tuple]:
@@ -40,6 +40,6 @@ class CorrectingADay(unittest.TestCase):
             self.f.app.corrections.mark_mistake(self.ids, " ")
 
     def test_labelling_the_day_labels_every_entry(self):
-        self.f.app.labels.create("Acme", Answers(no_set_hours=True))
-        self.f.app.labels.label_shifts(self.ids, "Acme")
-        self.assertEqual([shift.label for shift in self.f.app.log.shifts()], ["Acme", "Acme"])
+        self.f.app.labels.create("Secondary", Answers(no_set_hours=True))
+        self.f.app.labels.label_shifts(self.ids, "Secondary")
+        self.assertEqual([shift.label for shift in self.f.app.log.shifts()], ["Secondary", "Secondary"])

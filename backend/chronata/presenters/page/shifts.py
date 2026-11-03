@@ -75,7 +75,7 @@ def _punctuality(day: Day | None) -> dict | None:
         return None
     punctuality = day.punctuality
     return {"late": minutes(punctuality.late), "short": minutes(punctuality.short), "madeUp": punctuality.made_up, "running": day.running,
-            "lastOut": day.last_out.isoformat()}
+            "lastOut": day.last_out.isoformat(), "afterShift": punctuality.started_after_shift}
 
 
 def _piece(shift: Shift, sessions: list[PcSession], stamps: list[Stamp], now: datetime) -> dict:

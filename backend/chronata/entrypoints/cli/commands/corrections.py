@@ -1,4 +1,4 @@
-from chronata.entrypoints.cli.answers import answer_options, answers
+from chronata.entrypoints.cli.answers import answer_options, answers, start_options
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
 
@@ -8,7 +8,7 @@ def add(args, app: App) -> Outcome:
 
 
 def correct(args, app: App) -> Outcome:
-    return app.corrections.correct([args.id], args.start, args.end, args.reason)
+    return app.corrections.correct([args.id], args.start, args.end, args.reason, answers(args))
 
 
 def mistake(args, app: App) -> Outcome:
@@ -28,6 +28,7 @@ def register(commands) -> None:
     command.add_argument("--note")
     command.add_argument("--label")
     answer_options(command)
+    start_options(command)
     command.set_defaults(run=add)
 
     command = commands.add_parser("correct", help="fix a shift's times; the original stays on record")
@@ -35,6 +36,7 @@ def register(commands) -> None:
     command.add_argument("--start")
     command.add_argument("--end")
     command.add_argument("--reason", required=True)
+    start_options(command)
     command.set_defaults(run=correct)
 
     command = commands.add_parser("mistake", help="mark a shift as a mistake: it stops counting, and stays on record with your reason")

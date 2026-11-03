@@ -24,6 +24,6 @@ class TheCompensationCommand(unittest.TestCase):
         self.assertEqual(self.recorded_kind(PERIOD + ["--time-off"]), "time_off")
 
     def test_the_period_and_hours_are_passed_on_once(self):
-        args = parser().parse_args(PERIOD + ["--label", "Acme", "--ref", "payslip"])
+        args = parser().parse_args(PERIOD + ["--label", "Secondary", "--ref", "payslip"])
         args.run(args, self.app)
-        self.app.compensations.record.assert_called_once_with("Acme", "2026-10-01", "2026-10-31", 2.0, "paid", "payslip", ANY)
+        self.app.compensations.record.assert_called_once_with("Secondary", "2026-10-01", "2026-10-31", 2.0, "paid", "payslip", ANY)

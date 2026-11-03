@@ -17,7 +17,7 @@ def combined(by_label: dict[str, list[Week]], main_label: str) -> list[Week]:
     per_week: dict[date, list[Day]] = defaultdict(list)
     for day in sorted(per_day):
         per_week[week_starting(day)].append(_merged(day, per_day[day], main_label))
-    return [Week(start, tuple(per_week[start])) for start in sorted(per_week)]
+    return [Week(start, tuple(per_week[start]), NONE) for start in sorted(per_week)]
 
 
 def _merged(day: date, found: list[tuple[str, Day]], main_label: str) -> Day:

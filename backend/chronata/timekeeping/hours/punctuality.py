@@ -8,6 +8,7 @@ from chronata.timekeeping.shifts.durations import NONE
 class Punctuality:
     late: timedelta = NONE
     short: timedelta = NONE
+    started_after_shift: bool = False
 
     @property
     def arrived_late(self) -> bool:
@@ -18,7 +19,13 @@ class Punctuality:
         return self.arrived_late and self.short == NONE
 
     @property
+    def uncovered_lateness(self) -> timedelta:
+        return min(self.late, self.short)
+
+    @property
     def worth_noting(self) -> bool:
+        if self.started_after_shift:
+            return True
         return self.late > NONE or self.short > NONE
 
 
@@ -26,3 +33,7 @@ def judged(late: timedelta, short_of_due: timedelta, early_leave_grace: timedelt
     if late == NONE and short_of_due <= early_leave_grace:
         return Punctuality(late, NONE)
     return Punctuality(late, short_of_due)
+
+
+def started_after_shift(short_of_due: timedelta) -> Punctuality:
+    return Punctuality(NONE, short_of_due, True)

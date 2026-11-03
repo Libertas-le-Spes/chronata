@@ -10,6 +10,7 @@ from chronata.timekeeping.shifts.durations import NONE
 class Week:
     start: date
     days: tuple[Day, ...]
+    unused_allowance: timedelta
 
     @property
     def end(self) -> date:

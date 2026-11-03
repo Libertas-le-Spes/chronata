@@ -19,7 +19,15 @@ def answer_options(command) -> None:
 
 def clock_in_options(command) -> None:
     answer_options(command)
+    start_options(command)
     command.add_argument("--off-default", action="store_true", help="confirm working on a label other than the default on a workday")
+
+
+def start_options(command) -> None:
+    command.add_argument("--late", action="store_true", help="say you are late for this label (asked when starting a second label during its shift)")
+    command.add_argument("--other-project", action="store_true", help="say this is a different project, not lateness (the other answer to --late)")
+    command.add_argument("--overtime", action="store_true", help="count this as overtime (asked when starting after the shift ended)")
+    command.add_argument("--normal-hours", action="store_true", help="count this as normal hours (the other answer to --overtime)")
 
 
 def hours_from(args, current: WorkingDay | None) -> Answers:

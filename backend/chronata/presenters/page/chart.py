@@ -51,10 +51,11 @@ def _day(day: date, week: Week | None, now: datetime, running: Shift | None) -> 
 
 def _hours(found: Day | None) -> dict:
     if found is None:
-        return {"normal": 0, "overtime": 0, "late": 0, "short": 0, "madeUp": False}
+        return {"normal": 0, "overtime": 0, "late": 0, "short": 0, "madeUp": False, "afterShift": False}
     punctuality = found.punctuality
     return {"normal": minutes(found.normal), "overtime": minutes(found.overtime.earned),
-            "late": minutes(punctuality.late), "short": minutes(punctuality.short), "madeUp": punctuality.made_up}
+            "late": minutes(punctuality.late), "short": minutes(punctuality.short), "madeUp": punctuality.made_up,
+            "afterShift": punctuality.started_after_shift}
 
 
 def _found(day: date, week: Week | None) -> Day | None:

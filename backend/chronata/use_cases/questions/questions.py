@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import Field, dataclass, field, fields, replace
 
 from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.use_cases.log.outcome import UserError
@@ -13,14 +13,31 @@ class Answers:
     lunch_start: str = ""
     lunch_minutes: str = ""
     no_set_hours: bool = False
+    late: bool = False
+    other_project: bool = False
+    overtime: bool = False
+    normal_hours: bool = False
 
     @classmethod
     def from_dict(cls, given: dict) -> "Answers":
-        return cls(**{answer.name: given[answer.name] for answer in fields(cls) if answer.name in given})
+        picked = {}
+        for answer in fields(cls):
+            if answer.name in given:
+                picked[answer.name] = _checked(answer, given[answer.name])
+        return cls(**picked)
 
     @property
     def gave_hours(self) -> bool:
         return self.no_set_hours or bool(self.shift_start.strip())
+
+
+def _checked(answer: Field, value):
+    if not isinstance(value, answer.type):
+        raise UserError(f"the answer “{answer.name.replace('_', ' ')}” has to be {ANSWER_KINDS[answer.type]}")
+    return value
+
+
+ANSWER_KINDS = {bool: "yes or no", str: "text"}
 
 
 @dataclass(frozen=True)
@@ -93,3 +110,17 @@ class OffDefaultLabel(Question):
         chosen = f"Clock in on “{label}”" if label else "Clock in with no label"
         super().__init__(f"Today is a workday, and “{default_label}” is your default. {chosen} instead?",
                          [Choice(f"Use “{default_label}”", label=default_label), Choice(chosen, answers={"off_default": True})])
+
+
+class LateOrOtherProject(Question):
+    def __init__(self, label: str):
+        self.label = label
+        super().__init__(f"Are you late for “{label}”, or starting on a different project?",
+                         [Choice(f"I'm late for “{label}”", answers={"late": True}), Choice("Starting a different project", answers={"other_project": True})])
+
+
+class AfterShift(Question):
+    def __init__(self, label: str, shift_end: str):
+        self.label = label
+        super().__init__(f"Your shift on “{label}” ended at {shift_end}. Is this overtime?",
+                         [Choice("Yes, overtime", answers={"overtime": True}), Choice("No, normal hours", answers={"normal_hours": True})])

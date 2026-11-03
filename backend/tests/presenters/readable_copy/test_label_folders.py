@@ -16,12 +16,12 @@ class LabelFolders(unittest.TestCase):
         self.assertLessEqual({name.casefold() for name in kept}, {name.casefold() for name in KEPT_BESIDE_LABELS})
 
     def test_hold_no_control_characters(self):
-        self.assertEqual(label_folder("Acme\x00\n Test"), "Acme- Test")
+        self.assertEqual(label_folder("Secondary\x00\n Test"), "Secondary- Test")
 
 
 class TypedLabels(unittest.TestCase):
     def test_lose_control_and_direction_override_characters(self):
-        self.assertEqual(tidy("Ac\x00me\u202e Test\u2066 "), "Acme Test")
+        self.assertEqual(tidy("Seco\x00ndary\u202e Test\u2066 "), "Secondary Test")
 
     def test_keep_the_joiners_written_languages_and_emoji_need(self):
         for kept in ("\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645", "\U0001f469\u200d\U0001f4bb Dev", "Ro\u00adbotics"):

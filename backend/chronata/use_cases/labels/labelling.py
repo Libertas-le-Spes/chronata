@@ -30,12 +30,21 @@ class Labelling:
         current = self._existing(old, all_shifts)
         target = self._new_name(new, current, all_shifts, answers)
         affected = [shift for shift in all_shifts if shift.label == current]
-        now = self.log.clock()
-        for shift in affected:
-            self.log.append(ShiftLabelled(shift.id, target, f"label renamed from {current}"), now)
         merged = target in self.in_use(all_shifts)
+        now = self.log.clock()
+        for entry in self._rename_entries(affected, all_shifts, current, target, merged):
+            self.log.append(entry, now)
         message = (f"merged {current} into {target}" if merged else f"renamed label {current} to {target}") + f" on {len(affected)} shift{'s' if len(affected) != 1 else ''}"
         return self.log.commit(message + self._carry_hours_and_default(current, target))
+
+    def _rename_entries(self, affected: list[Shift], all_shifts: list[Shift], current: str, target: str, merged: bool) -> list[ShiftLabelled]:
+        reason = f"label renamed from {current}"
+        if merged:
+            return [ShiftLabelled(shift.id, target, reason) for shift in affected]
+        entries = [ShiftLabelled(shift.id, target, reason, current, target) for shift in affected]
+        if self.log.hours.default_label == current:
+            entries += [ShiftLabelled(shift.id, "", reason, current, target) for shift in _unlabelled_with_answers(all_shifts)]
+        return entries
 
     def _existing(self, old: str, all_shifts: list[Shift]) -> str:
         current = choose(old, self.in_use(all_shifts))
@@ -124,3 +133,11 @@ def _looks_like_another(choice: LabelChoice, answers: Answers) -> bool:
 
 def _key_differs(typed: str, label: str) -> bool:
     return tidy(typed).casefold() != label.casefold()
+
+
+def _unlabelled_with_answers(all_shifts: list[Shift]) -> list[Shift]:
+    found = []
+    for shift in all_shifts:
+        if not shift.label and shift.start_answer.data():
+            found.append(shift)
+    return found

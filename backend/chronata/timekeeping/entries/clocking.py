@@ -6,6 +6,7 @@ from chronata.timekeeping.entries.new_entry import with_label, with_note
 from chronata.timekeeping.entries.wording import detail, quoted
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.shifts.shifts import Break, CLOCKED_OUT, Happening, Shift
+from chronata.timekeeping.shifts.start_answer import StartAnswer, start_answer_in
 
 MANUAL_CLOCK_IN = "Manual clock in"
 MANUAL_CLOCK_OUT = "Manual clock out"
@@ -19,14 +20,18 @@ class ClockIn:
     boot: str
     label: str = ""
     note: str | None = None
+    answer: StartAnswer = StartAnswer()
 
     def data(self) -> dict:
-        return with_note({"at": self.at.isoformat(), "boot": self.boot, **with_label(self.label)}, self.note)
+        data = {"at": self.at.isoformat(), "boot": self.boot}
+        data.update(with_label(self.label))
+        data.update(self.answer.data())
+        return with_note(data, self.note)
 
     @staticmethod
     def apply(found: dict[int, Shift], entry: Entry) -> None:
         start = datetime.fromisoformat(entry.data["at"])
-        shift = Shift(entry.seq, start, None, entry.recorded_at - start, entry.data.get("label", ""))
+        shift = Shift(entry.seq, start, None, entry.recorded_at - start, entry.data.get("label", ""), start_answer=start_answer_in(entry.data))
         counted_from = f"counted from {start:%H:%M:%S}" if entry.recorded_at - start >= SAME_MOMENT else ""
         shift.happenings.append(Happening(entry.recorded_at, MANUAL_CLOCK_IN, detail(counted_from, quoted(entry.data.get("note")))))
         found[entry.seq] = shift

@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from chronata.timekeeping.hours.week import Week, latest_weeks, week_starting
 
 MONDAYS = [date(2026, 9, 7) + timedelta(weeks=count) for count in range(4)]
-FOUR_WEEKS = [Week(monday, ()) for monday in MONDAYS]
+FOUR_WEEKS = [Week(monday, (), timedelta()) for monday in MONDAYS]
 
 
 class RecentWeeks(unittest.TestCase):
@@ -20,7 +20,7 @@ class WeekStart(unittest.TestCase):
         self.assertEqual(week_starting(date(2026, 9, 10)), MONDAYS[0])
 
     def test_a_week_ends_on_the_sunday(self):
-        self.assertEqual(Week(MONDAYS[0], ()).end, date(2026, 9, 13))
+        self.assertEqual(Week(MONDAYS[0], (), timedelta()).end, date(2026, 9, 13))
 
 
 if __name__ == "__main__":

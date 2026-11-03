@@ -30,8 +30,20 @@ class Period:
         return tuple(found)
 
     @property
+    def given_in_all(self) -> timedelta:
+        return self.paid + self.time_off
+
+    @property
     def shortfall(self) -> timedelta:
-        return max(self.owed.earned - self.paid - self.time_off, NONE)
+        return max(self.owed.earned - self.given_in_all, NONE)
+
+    @property
+    def counted_against_owed(self) -> timedelta:
+        return min(self.given_in_all, self.owed.earned)
+
+    @property
+    def beyond_owed(self) -> timedelta:
+        return max(self.given_in_all - self.owed.earned, NONE)
 
     def covers(self, day: date) -> bool:
         return self.start <= day <= self.end

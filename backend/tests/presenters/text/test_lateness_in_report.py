@@ -1,0 +1,42 @@
+import unittest
+from datetime import date, time, timedelta
+
+from chronata.presenters.text.text_report import report_lines
+from chronata.timekeeping.compensation.compensation import reconcile_by_label
+from chronata.timekeeping.hours.label_hours import LabelHours
+from chronata.timekeeping.record.record import Entry
+from chronata.timekeeping.hours.working_day import WorkingDay
+from chronata.timekeeping.shifts.shifts import Shift
+from tests.fakes import at
+from tests.one_label import weeks
+
+HOURS = LabelHours("Primary")
+WEEKS = {"Primary": weeks([Shift(1, at("2026-10-05T08:00:00"), at("2026-10-05T18:00:00"), timedelta()),
+                             Shift(2, at("2026-10-06T08:12:00"), at("2026-10-06T16:05:00"), timedelta())], WorkingDay(time(8), time(16)))}
+
+
+class LatenessInTheReport(unittest.TestCase):
+    def setUp(self):
+        self.lines = report_lines(WEEKS, reconcile_by_label([], WEEKS, HOURS), date(2026, 10, 20))
+
+    def test_each_day_with_lateness_not_covered_is_listed_under_its_label(self):
+        self.assertIn("    2026-10-06 Tue: -0:07", self.lines)
+
+    def test_the_totals_take_compensation_and_lateness_off_the_overtime_worked(self):
+        totals = self.lines[self.lines.index("All labels"):]
+        self.assertEqual(totals, ["All labels",
+                                  "  Overtime worked:                2:00",
+                                  "  Compensated:                   -0:00",
+                                  "  Lateness not covered:          -0:07",
+                                  "  Unpaid:                         1:53"])
+
+
+class APeriodPaidBeyondItsOvertime(unittest.TestCase):
+    def test_the_extra_is_shown_on_its_own_line(self):
+        paid = Entry(1, "compensation", at("2026-10-20T09:00:00"), {"from": "2026-10-05", "to": "2026-10-11", "hours": 3, "kind": "paid"})
+        lines = report_lines(WEEKS, reconcile_by_label([paid], WEEKS, HOURS), date(2026, 10, 20))
+        self.assertIn("  Given beyond a period's overtime, not carried to other periods: 1:00", lines)
+
+
+if __name__ == "__main__":
+    unittest.main()

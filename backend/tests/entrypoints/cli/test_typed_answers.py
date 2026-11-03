@@ -48,10 +48,10 @@ class Typing(unittest.TestCase):
         self.assertEqual(asked, ["Shift starts at [0830]: ", "Shift ends at [1730]: ", "Lunch starts at (leave empty for no lunch) [now 1200]: "])
 
     def test_a_new_label_asks_its_choice_then_the_same_four_setup_questions(self):
-        (label, given), asked, said = self.typed(lambda ask: ask_choice(ask, LabelNeedsHours("Globex")), "3", "1", "9", "1500", "")
+        (label, given), asked, said = self.typed(lambda ask: ask_choice(ask, LabelNeedsHours("Tertiary")), "3", "1", "9", "1500", "")
         self.assertEqual((label, given), (None, {"new_label": True, "shift_start": "09:00", "shift_end": "15:00"}))
         self.assertIn("  1) Save its hours\n  2) No set hours", said)
         self.assertIn("type a number from 1 to 2", said)
 
     def test_enter_at_the_choice_cancels(self):
-        self.assertIsNone(self.typed(lambda ask: ask_choice(ask, LabelNeedsHours("Globex")), "")[0])
+        self.assertIsNone(self.typed(lambda ask: ask_choice(ask, LabelNeedsHours("Tertiary")), "")[0])
