@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import create_autospec
 
 from chronata.entrypoints.web.requests import changes
+from chronata.use_cases.corrections.corrections import Corrections
 from chronata.use_cases.log.outcome import UserError
 from chronata.use_cases.waivers.waivers import Waivers
 
@@ -42,6 +43,16 @@ class TheWaiverRequests(unittest.TestCase):
         with self.assertRaises(UserError):
             changes(app)["/api/waive"]({"ids": [5], "start": "17:30", "end": "23:10", "reason": 5})
         app.waivers.waive.assert_not_called()
+
+
+
+class TheExplainRequest(unittest.TestCase):
+    def test_a_shift_number_that_is_not_a_whole_number_is_refused(self):
+        app = SimpleNamespace(corrections=create_autospec(Corrections, instance=True))
+        for given in (True, 5.9, "5"):
+            with self.subTest(given=given), self.assertRaises(UserError):
+                changes(app)["/api/explain"]({"id": given, "start": "2026-10-14T12:00:00+02:00", "reason": "power cut"})
+        app.corrections.explain_break.assert_not_called()
 
 
 if __name__ == "__main__":

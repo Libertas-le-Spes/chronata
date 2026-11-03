@@ -96,9 +96,18 @@ class BreakExplained:
         data = entry.data
         shift = found[data["shift"]]
         started = datetime.fromisoformat(data["start"])
+        if not _has_pc_off_break(shift.breaks, started):
+            return
         shift.breaks = _explained(shift.breaks, started, data["reason"])
         shift.changes.append(f"reason for the break at {started:%H:%M}: {data['reason']}")
         shift.happenings.append(Happening(started, "Why the PC was off", quoted(data["reason"])))
+
+
+def _has_pc_off_break(breaks: list[Break], started: datetime) -> bool:
+    for gap in breaks:
+        if gap.pc_off and gap.start == started:
+            return True
+    return False
 
 
 def _explained(breaks: list[Break], started: datetime, reason: str) -> list[Break]:

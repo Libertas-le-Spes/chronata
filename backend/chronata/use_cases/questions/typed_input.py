@@ -73,7 +73,9 @@ def moment(text: str | None, on_day: date, now: datetime, allow_future: bool = F
 
 def end_after(start: datetime, text: str, now: datetime) -> datetime:
     end = moment(text, start.date(), now, allow_future=True)
-    return end + timedelta(days=1) if time_only(text) and end <= start else end
+    if time_only(text) and end <= start:
+        return end + timedelta(days=1)
+    return end
 
 
 def time_only(text: str) -> bool:

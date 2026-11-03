@@ -38,7 +38,7 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/mistake": lambda body: app.corrections.mark_mistake(_ids(body), body.get("reason")),
         "/api/waive": partial(_waive, app),
         "/api/withdraw-waiver": partial(_withdraw_waiver, app),
-        "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
+        "/api/explain": partial(_explain, app),
         "/api/compensation": lambda body: app.compensations.record(
             body.get("label", ""), body.get("from"), body.get("to"), float(body.get("hours", "")), body.get("kind", ""),
             body.get("reference"), _answers(body)
@@ -49,6 +49,10 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
         "/api/setup": lambda body: app.setup.configure(_answers(body), body.get("label")),
     }
+
+
+def _explain(app, body: dict) -> Outcome:
+    return app.corrections.explain_break(_shift_id(body.get("id")), _text(body, "start"), _text(body, "reason"))
 
 
 def _waive(app, body: dict) -> Outcome:

@@ -60,6 +60,10 @@ class WhatCannotBeWaived(unittest.TestCase):
         with self.assertRaisesRegex(UserError, "reason"):
             self.f.app.waivers.waive([self.shift], "17:30", "23:10", " ")
 
+    def test_a_stretch_ending_before_it_starts(self):
+        with self.assertRaisesRegex(UserError, "end after it starts"):
+            self.f.app.waivers.waive([self.shift], "17:30", "2026-10-14 12:00", "forgot to clock out")
+
     def test_a_stretch_reaching_past_the_clock_out(self):
         self.f.at("2026-10-15T08:00:00")
         with self.assertRaisesRegex(UserError, "not inside one clocked shift"):
@@ -129,6 +133,29 @@ class WaivingPastMidnight(unittest.TestCase):
         self.f.at("2026-10-15T02:00:00")
         self.f.app.waivers.waive([self.f.app.log.shifts()[0].id], "01:00", "02:00", "forgot to clock out")
         self.assertEqual(self.f.app.log.shifts()[0].worked(self.f.now), timedelta(hours=5))
+
+
+class ADayInTwoPieces(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:00:00")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Primary")
+        self.f.app.clocking.clock_in(None, None)
+        self.f.at("2026-10-14T12:00:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.f.at("2026-10-14T20:00:00")
+        self.f.app.clocking.clock_in(None, None, None, Answers(overtime=True))
+        self.f.at("2026-10-15T02:00:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.ids = [shift.id for shift in self.f.app.log.shifts()]
+
+    def test_a_time_after_midnight_is_found_in_the_piece_that_ran_past_it(self):
+        self.f.app.waivers.waive(self.ids, "01:00", "01:30", "forgot to clock out")
+        self.assertEqual(self.f.app.log.shifts()[1].worked(self.f.now), timedelta(hours=5, minutes=30))
+
+    def test_correcting_the_day_start_past_a_waiver_in_the_first_piece_is_refused(self):
+        self.f.app.waivers.waive(self.ids, "09:00", "10:00", "dentist")
+        with self.assertRaisesRegex(UserError, "count it again first"):
+            self.f.app.corrections.correct(self.ids, "09:30", None, "came in later")
 
 
 class WaivingWhileStillClockedIn(unittest.TestCase):

@@ -22,6 +22,8 @@ class TimeWaived:
     def apply(found: dict[int, Shift], entry: Entry) -> None:
         data = entry.data
         gap = Break(datetime.fromisoformat(data["start"]), datetime.fromisoformat(data["end"]), WAIVED, data["reason"])
+        if gap.end <= gap.start:
+            return
         shift = found[data["shift"]]
         shift.add_break(gap)
         span = f"{gap.start:%H:%M:%S} – {gap.end:%H:%M:%S}"
