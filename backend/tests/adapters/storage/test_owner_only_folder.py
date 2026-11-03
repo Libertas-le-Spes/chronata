@@ -49,6 +49,12 @@ class AnOwnerOnlyFolder(unittest.TestCase):
         with self.assertRaises(NotPrivate):
             self.folder.read("page-key-1")
 
+    def test_refuses_a_pipe_put_in_place_of_a_file_without_waiting_on_it(self):
+        self.folder.write("elsewhere", "made-up key")
+        os.mkfifo(self.path / "away.json", 0o600)
+        with self.assertRaises(NotPrivate):
+            self.folder.read("away.json")
+
     def test_will_not_use_a_link_put_in_place_of_the_folder(self):
         real = Path(tempfile.mkdtemp())
         self.path.symlink_to(real)

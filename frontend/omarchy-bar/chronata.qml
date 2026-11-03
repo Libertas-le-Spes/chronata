@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import qs.Ui
 
 BarWidget {
@@ -13,6 +14,7 @@ BarWidget {
 
   readonly property string ownCommand: decodeURIComponent(Qt.resolvedUrl("../../backend/bin/chronata").toString().replace(/^file:\/\//, ""))
   readonly property string command: String(setting("command", ownCommand))
+  readonly property int awayAfterSeconds: 600
   readonly property color statusColor: status === "in" ? (palette.blue || "#89b4fa")
     : status === "interrupted" ? (palette.yellow || "#f9e2af")
     : (palette.red || "#f38ba8")
@@ -44,6 +46,20 @@ BarWidget {
 
   function quoted(value) {
     return "'" + String(value).replace(/'/g, "'\\''") + "'"
+  }
+
+  property var awayNotes: []
+
+  function noteAway(idle) {
+    if (idle) awayNotes.push(["away", String(root.awayAfterSeconds)])
+    else awayNotes.push(["back"])
+    sendAwayNote()
+  }
+
+  function sendAwayNote() {
+    if (awayNote.running || awayNotes.length === 0) return
+    awayNote.command = [root.command].concat(awayNotes.shift())
+    awayNote.running = true
   }
 
   function refresh() {
@@ -80,6 +96,20 @@ BarWidget {
       onStreamFinished: root.update(text)
     }
   }
+
+  IdleMonitor {
+    enabled: true
+    timeout: root.awayAfterSeconds
+    respectInhibitors: true
+    onIsIdleChanged: root.noteAway(isIdle)
+  }
+
+  Process {
+    id: awayNote
+    onExited: root.sendAwayNote()
+  }
+
+  Component.onCompleted: root.noteAway(false)
 
   FileView {
     path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme/colors.toml"

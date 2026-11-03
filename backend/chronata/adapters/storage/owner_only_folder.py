@@ -24,7 +24,7 @@ class OwnerOnlyFolder:
     def read(self, name: str) -> str | None:
         try:
             _require_private(os.lstat(self.path), self.path, stat.S_ISDIR)
-            descriptor = os.open(self.path / name, os.O_RDONLY | os.O_NOFOLLOW)
+            descriptor = os.open(self.path / name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         except FileNotFoundError:
             return None
         except OSError as error:
