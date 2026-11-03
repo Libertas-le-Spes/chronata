@@ -16,11 +16,13 @@ class Workday:
 
     def measure(self, clocked: ClockedDay, allowance: WeeklyAllowance, moment: MeasuringMoment) -> Day:
         worked = clocked.worked
+        answered_overtime = clocked.answered_overtime_after(self.working_day.shift_end)
+        towards_the_day = worked - answered_overtime
         full_day = timedelta(hours=self.working_day.daily_hours)
         judged_at = moment.judged_at(clocked, self.working_day)
-        short_of_due = max(self._due(full_day, judged_at) - worked, NONE)
+        short_of_due = max(self._due(full_day, judged_at) - towards_the_day, NONE)
         punctuality = self._punctuality(clocked, short_of_due)
-        overtime = beyond(worked, allowance.normal_part(worked, full_day))
+        overtime = beyond(worked, allowance.normal_part(towards_the_day, full_day))
         return Day(clocked.date, worked, overtime, clocked.first_in, clocked.last_out, punctuality, judged_at is not None)
 
     def _punctuality(self, clocked: ClockedDay, short_of_due: timedelta) -> Punctuality:

@@ -17,9 +17,11 @@ def start_answer(hours: LabelHours, label: str, start: datetime, all_shifts: lis
     if start.weekday() not in working_day.workdays:
         return StartAnswer()
     counted = hours.counted_under(label)
+    if start.time() >= working_day.shift_end:
+        return _overtime_or_normal_hours(working_day, counted, answers)
     earlier = _earlier_today(all_shifts, start)
     if not earlier:
-        return _first_of_the_day(working_day, counted, start, answers)
+        return StartAnswer()
     if _on_label(hours, earlier, label):
         return StartAnswer()
     if not _during_shift(working_day, start):
@@ -32,9 +34,7 @@ def _refuse_both(one: bool, other: bool, choice: str) -> None:
         raise UserError(f"choose one: {choice}")
 
 
-def _first_of_the_day(working_day: WorkingDay, label: str, start: datetime, answers: Answers) -> StartAnswer:
-    if start.time() < working_day.shift_end:
-        return StartAnswer()
+def _overtime_or_normal_hours(working_day: WorkingDay, label: str, answers: Answers) -> StartAnswer:
     if answers.overtime:
         return StartAnswer(overtime_after_shift=True, label=label)
     if answers.normal_hours:

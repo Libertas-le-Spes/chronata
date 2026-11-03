@@ -39,6 +39,18 @@ class ClockedDay:
     def worked_as_overtime(self) -> bool:
         return self.first_shift.start_answer.said_overtime_for(self.label)
 
+    def answered_overtime_after(self, shift_end: time) -> timedelta:
+        set_aside = NONE
+        for shift in self.shifts:
+            if self._answered_overtime(shift, shift_end):
+                set_aside += shift.worked(shift.end)
+        return set_aside
+
+    def _answered_overtime(self, shift: Shift, shift_end: time) -> bool:
+        if shift.start.time() < shift_end:
+            return False
+        return shift.start_answer.said_overtime_for(self.label)
+
     def started_after(self, shift_end: time) -> bool:
         if not self.opened_the_day:
             return False

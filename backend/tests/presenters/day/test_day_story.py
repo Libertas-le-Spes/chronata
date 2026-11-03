@@ -3,6 +3,7 @@ import unittest
 from chronata.presenters.day.day_story import DayRecords, day_story
 from chronata.timekeeping.pc.pc_sessions import Boot
 from chronata.timekeeping.shifts.day_entries import day_entries
+from chronata.use_cases.questions.questions import Answers
 from tests.fakes import Fixture, at, hours
 
 
@@ -46,7 +47,7 @@ class OneBlockForTheDay(unittest.TestCase):
 
     def test_time_added_later_in_a_clocked_day_can_be_marked_a_mistake_on_its_own(self):
         self.step("2026-10-15T18:00:00", lambda app: app.clocking.clock_out(None, None))
-        self.step("2026-10-16T08:00:00", lambda app: app.corrections.add("2026-10-15", "20:00", "21:00", "forgot", None, "Primary"))
+        self.step("2026-10-16T08:00:00", lambda app: app.corrections.add("2026-10-15", "20:00", "21:00", "forgot", None, "Primary", Answers(normal_hours=True)))
         added = self.lines()[-1]
         self.assertEqual(added[:3], ("Added later", "20:00:00", "20:00:00 – 21:00:00 · written down Fri 16 Oct 08:00 · “forgot”"))
         self.assertIsNotNone(added[3])

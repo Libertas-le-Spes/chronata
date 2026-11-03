@@ -43,10 +43,10 @@ class StartingOnASecondLabel(unittest.TestCase):
         self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_in")
         self.assertNotIn("late", self.f.app.log.record.entries()[-1].data)
 
-    def test_after_its_shift_has_ended_nothing_is_asked(self):
+    def test_after_its_shift_has_ended_it_asks_whether_this_is_overtime(self):
         self.f.at("2026-10-14T17:30:00")
-        self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True, late=True))
-        self.assertNotIn("late", self.f.app.log.record.entries()[-1].data)
+        with self.assertRaises(AfterShift):
+            self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True, late=True))
 
     def test_both_answers_at_once_are_refused(self):
         with self.assertRaises(UserError):
@@ -176,7 +176,7 @@ class AnswersNobodyAskedFor(unittest.TestCase):
         self.assertNotIn("late", self.f.app.log.record.entries()[-1].data)
 
 
-class FirstClockInAfterTheShift(unittest.TestCase):
+class ClockingInAfterTheShift(unittest.TestCase):
     def setUp(self):
         self.f = Fixture("2026-10-14T18:30:00")
         self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
@@ -198,14 +198,34 @@ class FirstClockInAfterTheShift(unittest.TestCase):
         self.f.app.clocking.clock_in(None, None)
         self.assertNotIn("overtime_after_shift", self.f.app.log.record.entries()[-1].data)
 
-    def test_after_working_earlier_that_day_nothing_is_asked(self):
+    def work_the_morning(self):
         self.f.at("2026-10-14T08:00:00")
         self.f.app.clocking.clock_in(None, None)
         self.f.at("2026-10-14T12:00:00")
         self.f.app.clocking.clock_out(None, None)
         self.f.at("2026-10-14T18:30:00")
+
+    def test_after_working_earlier_that_day_it_still_asks(self):
+        self.work_the_morning()
+        with self.assertRaises(AfterShift):
+            self.f.app.clocking.clock_in(None, None, "Primary")
+
+    def test_answering_overtime_after_working_earlier_starts_a_shift_of_its_own(self):
+        self.work_the_morning()
+        self.f.app.clocking.clock_in(None, None, "Primary", Answers(overtime=True))
+        entry = self.f.app.log.record.entries()[-1]
+        self.assertEqual((entry.kind, entry.data["overtime_after_shift"]), ("clock_in", True))
+
+    def test_answering_normal_hours_after_working_earlier_carries_on_the_days_shift(self):
+        self.work_the_morning()
+        self.f.app.clocking.clock_in(None, None, "Primary", Answers(normal_hours=True))
+        self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_resumed")
+
+    def test_coming_back_before_the_shift_ends_carries_on_without_asking(self):
+        self.work_the_morning()
+        self.f.at("2026-10-14T13:00:00")
         self.f.app.clocking.clock_in(None, None, "Primary")
-        self.assertNotIn("overtime_after_shift", self.f.app.log.record.entries()[-1].data)
+        self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_resumed")
 
     def test_both_answers_at_once_are_refused(self):
         with self.assertRaises(UserError):

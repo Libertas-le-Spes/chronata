@@ -166,6 +166,30 @@ class StartingAfterTheShiftEnded(unittest.TestCase):
         self.assertEqual(self.evening(StartAnswer(overtime_after_shift=True, label="")).overtime.earned, timedelta(hours=2))
 
 
+class ComingBackAfterTheShift(unittest.TestCase):
+    def late_day_and_evening(self, answer: StartAnswer, evening_start: str = "19:00"):
+        evening = answered(shift("2026-10-05", evening_start, "20:00"), answer)
+        return only_day([shift("2026-10-05", "08:12", "12:00"), shift("2026-10-05", "13:00", "17:00"), evening])
+
+    def test_answering_overtime_counts_the_whole_evening_as_overtime(self):
+        self.assertEqual(self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="")).overtime.earned, timedelta(hours=1))
+
+    def test_answering_overtime_leaves_the_late_start_not_made_up(self):
+        self.assertEqual(self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="")).uncovered_lateness, timedelta(minutes=12))
+
+    def test_answering_normal_hours_makes_up_the_late_start_first(self):
+        day = self.late_day_and_evening(StartAnswer(overtime_after_shift=False, label=""))
+        self.assertEqual((day.overtime.earned, day.uncovered_lateness), (timedelta(minutes=48), timedelta()))
+
+    def test_an_overtime_answer_given_for_another_label_does_not_count(self):
+        day = self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="Secondary"))
+        self.assertEqual((day.overtime.earned, day.uncovered_lateness), (timedelta(minutes=48), timedelta()))
+
+    def test_an_overtime_answer_on_a_stretch_corrected_to_start_during_the_shift_does_not_count(self):
+        day = self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label=""), evening_start="16:30")
+        self.assertEqual(day.uncovered_lateness, timedelta())
+
+
 class MakingUpALateStart(unittest.TestCase):
     hours = LabelHours("Primary", {"Primary": WorkingDay(time(8, 30), time(17, 30), Lunch(time(12), 60))})
 
