@@ -37,7 +37,7 @@ class ReadingTheTimeAway(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertIsNone(AwayFile(folder_holding(text)).load())
 
-    def test_a_folder_that_is_not_private_reads_as_nothing(self):
+    def test_a_folder_that_is_not_private_or_cannot_be_read_reads_as_nothing(self):
         for failure in (NotPrivate("shared"), OSError("gone"), ValueError("not text")):
             with self.subTest(failure=failure):
                 folder = folder_holding(None)

@@ -52,9 +52,10 @@ def toggle(app, page: Page) -> None:
     if current is None:
         ask_and_clock_in(app, page)
         return
-    stretch = app.away.to_ask_about()
-    if stretch is not None and app.desktop.can_ask():
-        ask_after_away(app, stretch)
+    app.away.ended()
+    away = app.away.to_ask_about()
+    if away is not None and app.desktop.can_ask():
+        ask_after_away(app, away)
         return
     if app.log.hours.before_end_of_workday(current.label, app.log.clock()):
         page.open("confirm-out")

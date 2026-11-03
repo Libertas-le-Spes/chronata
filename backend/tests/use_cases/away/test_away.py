@@ -19,7 +19,13 @@ class AwayFromThePc(unittest.TestCase):
         self.f.app.away.began(600)
         self.f.at(back)
         self.f.app.away.ended()
-        return self.f.app.away.to_ask_about()
+        return self.asked_about()
+
+    def asked_about(self) -> AwayStretch | None:
+        away = self.f.app.away.to_ask_about()
+        if away is None:
+            return None
+        return away.stretch
 
 
 class WhenItIsAskedAbout(AwayFromThePc):
@@ -41,7 +47,7 @@ class WhenItIsAskedAbout(AwayFromThePc):
         self.f.at("2026-10-14T18:10:00")
         self.f.app.away.began(600)
         self.f.at("2026-10-14T19:00:00")
-        self.assertEqual(self.f.app.away.to_ask_about().back, at("2026-10-14T19:00:00"))
+        self.assertEqual(self.asked_about().back, at("2026-10-14T19:00:00"))
 
     def test_on_a_day_off_any_time_away_is_asked_about(self):
         self.start("2026-10-17T09:00:00")
@@ -57,14 +63,47 @@ class WhenItIsAskedAbout(AwayFromThePc):
         self.assertIsNone(self.f.app.away.to_ask_about())
 
 
-class WhatIsKept(AwayFromThePc):
-    def test_being_away_again_before_coming_back_keeps_the_first_time(self):
+class HowItIsWorded(AwayFromThePc):
+    def occasion(self) -> str:
+        return self.f.app.away.to_ask_about().occasion
+
+    def test_on_a_workday_it_says_past_the_end_of_your_shift(self):
         self.start("2026-10-14T08:00:00")
+        self.away_between("2026-10-14T16:50:00", "2026-10-14T17:30:00")
+        self.assertEqual(self.occasion(), "past the end of your shift")
+
+    def test_on_a_day_off_it_says_so(self):
+        self.start("2026-10-17T09:00:00")
+        self.away_between("2026-10-17T10:10:00", "2026-10-17T10:40:00")
+        self.assertEqual(self.occasion(), "on your day off")
+
+    def test_on_a_label_without_set_hours_it_says_so(self):
+        self.start("2026-10-14T08:00:00", "Secondary", Answers(off_default=True))
+        self.away_between("2026-10-14T10:10:00", "2026-10-14T10:40:00")
+        self.assertEqual(self.occasion(), "on a label without set hours")
+
+
+class WhenYouLeftAfterClockingIn(AwayFromThePc):
+    def test_input_stopping_after_the_clock_in_counts_as_leaving_after_it(self):
+        self.start("2026-10-14T08:00:00")
+        self.away_between("2026-10-14T18:10:00", "2026-10-14T18:40:00")
+        self.assertTrue(self.f.app.away.to_ask_about().left_after_clocking_in)
+
+    def test_input_stopping_before_a_fresh_clock_in_does_not(self):
+        self.start("2026-10-14T18:05:00", answers=Answers(overtime=True))
+        self.away_between("2026-10-14T18:10:00", "2026-10-14T18:40:00")
+        self.assertFalse(self.f.app.away.to_ask_about().left_after_clocking_in)
+
+
+class WhatIsKept(AwayFromThePc):
+    def test_being_away_again_without_a_noted_return_starts_afresh_because_you_must_have_come_back(self):
+        self.start("2026-10-14T08:00:00")
+        self.f.at("2026-10-14T11:00:00")
+        self.f.app.away.began(600)
         self.f.at("2026-10-14T18:10:00")
         self.f.app.away.began(600)
         self.f.at("2026-10-14T18:40:00")
-        self.f.app.away.began(600)
-        self.assertEqual(self.f.app.away.to_ask_about().since, at("2026-10-14T18:00:00"))
+        self.assertEqual(self.asked_about().since, at("2026-10-14T18:00:00"))
 
     def test_a_new_time_away_after_coming_back_replaces_the_last(self):
         self.start("2026-10-14T08:00:00")
@@ -76,7 +115,7 @@ class WhatIsKept(AwayFromThePc):
         self.away_between("2026-10-14T18:10:00", "2026-10-14T19:00:00")
         self.f.at("2026-10-14T19:30:00")
         self.f.app.away.ended()
-        self.assertEqual(self.f.app.away.to_ask_about().back, at("2026-10-14T19:00:00"))
+        self.assertEqual(self.asked_about().back, at("2026-10-14T19:00:00"))
 
     def test_the_time_away_never_starts_before_the_last_clock_in(self):
         self.start("2026-10-14T18:05:00", answers=Answers(overtime=True))

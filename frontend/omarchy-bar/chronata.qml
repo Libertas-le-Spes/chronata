@@ -48,10 +48,18 @@ BarWidget {
     return "'" + String(value).replace(/'/g, "'\\''") + "'"
   }
 
+  property var awayNotes: []
+
   function noteAway(idle) {
-    if (!root.bar) return
-    if (idle) root.bar.run(root.quoted(root.command) + " away " + root.awayAfterSeconds)
-    else root.bar.run(root.quoted(root.command) + " back")
+    if (idle) awayNotes.push(["away", String(root.awayAfterSeconds)])
+    else awayNotes.push(["back"])
+    sendAwayNote()
+  }
+
+  function sendAwayNote() {
+    if (awayNote.running || awayNotes.length === 0) return
+    awayNote.command = [root.command].concat(awayNotes.shift())
+    awayNote.running = true
   }
 
   function refresh() {
@@ -90,11 +98,18 @@ BarWidget {
   }
 
   IdleMonitor {
-    enabled: root.status === "in"
+    enabled: true
     timeout: root.awayAfterSeconds
     respectInhibitors: true
     onIsIdleChanged: root.noteAway(isIdle)
   }
+
+  Process {
+    id: awayNote
+    onExited: root.sendAwayNote()
+  }
+
+  Component.onCompleted: root.noteAway(false)
 
   FileView {
     path: Quickshell.env("HOME") + "/.local/state/omarchy/current/theme/colors.toml"

@@ -15,10 +15,10 @@ from chronata.adapters.places.transport.git_push import GitRemotes
 from chronata.adapters.places.transport.git_transport import GitTransport
 from chronata.adapters.secrets.secret_service import SecretService
 from chronata.adapters.storage import data_folder, locations
+from chronata.adapters.storage.away_file import AwayFile
 from chronata.adapters.storage.data_folder import DataFolder, find_saved_copy
 from chronata.adapters.storage.label_hours_file import LabelHoursFile
 from chronata.adapters.storage.ledger_file import LedgerFile
-from chronata.adapters.storage.away_file import AwayFile
 from chronata.adapters.storage.owner_only_folder import OwnerOnlyFolder
 from chronata.adapters.storage.reminder_pace_file import ReminderPaceFile
 from chronata.adapters.storage.write_lock import write_lock

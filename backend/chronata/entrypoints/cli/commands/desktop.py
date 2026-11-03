@@ -1,3 +1,4 @@
+import argparse
 import json
 
 from chronata.entrypoints.bar import clock_button
@@ -5,6 +6,8 @@ from chronata.entrypoints.web.address import DEFAULT_PORT
 from chronata.entrypoints.web.page_door import PageDoor
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
+
+MOST_IDLE_SECONDS = 24 * 60 * 60
 
 
 def ui(args, app: App) -> None:
@@ -18,6 +21,16 @@ def bar_status(args, app: App) -> None:
 
 def bar_toggle(args, app: App) -> None:
     clock_button.toggle(app, PageDoor(app.desktop, DEFAULT_PORT, app.running))
+
+
+def idle_seconds(text: str) -> int:
+    try:
+        seconds = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{text}' is not a whole number of seconds")
+    if not 0 <= seconds <= MOST_IDLE_SECONDS:
+        raise argparse.ArgumentTypeError(f"idle time has to be between 0 and {MOST_IDLE_SECONDS} seconds")
+    return seconds
 
 
 def away(args, app: App) -> None:
@@ -50,7 +63,7 @@ def register(commands) -> None:
     command.set_defaults(run=bar_toggle)
 
     command = commands.add_parser("away", help="note that the PC has had no input, so the bar can ask about it (run by the bar)")
-    command.add_argument("idle_seconds", type=int, help="how long there has been no input")
+    command.add_argument("idle_seconds", type=idle_seconds, help="how long there has been no input, up to a day")
     command.set_defaults(run=away)
 
     command = commands.add_parser("back", help="note that input has come back after being away (run by the bar)")

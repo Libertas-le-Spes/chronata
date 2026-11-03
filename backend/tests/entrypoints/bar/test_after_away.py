@@ -1,6 +1,7 @@
 import unittest
 
 from chronata.entrypoints.bar import clock_button as bar
+from chronata.use_cases.questions.questions import Answers
 from tests.fakes import Fixture, at, hours
 
 
@@ -23,7 +24,7 @@ class ClickingTheBarAfterBeingAway(unittest.TestCase):
 
     def test_it_asks_about_the_time_away_instead_of_clocking_out(self):
         self.click(None)
-        self.assertEqual(self.f.desktop.asked[0][0], "You were away from the PC from 18:00 to 19:40 (1:40), after your shift. Were you working?")
+        self.assertEqual(self.f.desktop.asked[0][0], "You were away from the PC from 18:00 to 19:40 (1:40), past the end of your shift. Were you working?")
         self.assertIsNone(self.shift().end)
 
     def test_it_offers_the_four_answers(self):
@@ -65,10 +66,39 @@ class ClickingTheBarAfterBeingAway(unittest.TestCase):
         self.assertEqual(self.f.desktop.notices[-1][0], "Could not waive that time")
         self.assertIsNotNone(self.f.app.away.to_ask_about())
 
+    def test_the_click_counts_as_coming_back_when_no_return_was_noted(self):
+        self.f.at("2026-10-14T20:00:00")
+        self.f.app.away.began(600)
+        self.f.at("2026-10-14T21:00:00")
+        self.click("Still working")
+        self.assertEqual(self.f.desktop.asked[0][0], "You were away from the PC from 19:50 to 21:00 (1:10), past the end of your shift. Were you working?")
+
+    def test_the_click_is_kept_as_the_return_when_the_question_is_cancelled(self):
+        self.f.at("2026-10-14T20:00:00")
+        self.f.app.away.began(600)
+        self.f.at("2026-10-14T21:00:00")
+        self.click(None)
+        self.f.at("2026-10-14T22:00:00")
+        self.assertEqual(self.f.app.away.to_ask_about().stretch.back, at("2026-10-14T21:00:00"))
+
     def test_without_dialogs_the_click_clocks_out_as_before(self):
         self.f.desktop.dialogs_installed = False
         self.click()
         self.assertIsNotNone(self.shift().end)
+
+
+
+class AwayRightAfterClockingIn(unittest.TestCase):
+    def test_clocking_out_when_you_left_is_not_offered_because_it_would_end_the_shift_as_it_began(self):
+        self.f = Fixture("2026-10-14T18:05:00")
+        self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.clocking.clock_in(None, None, None, Answers(overtime=True))
+        self.f.at("2026-10-14T18:10:00")
+        self.f.app.away.began(600)
+        self.f.at("2026-10-14T18:40:00")
+        self.f.desktop.answers = [None]
+        bar.toggle(self.f.app, self.f.page)
+        self.assertEqual(self.f.desktop.asked[0][1], ["Still working", "Clock out now", "Waive 18:05–18:40 and keep working"])
 
 
 if __name__ == "__main__":
