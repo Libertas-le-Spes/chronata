@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from chronata.timekeeping.entries.waivers import TimeWaived, WaiverWithdrawn
 from chronata.timekeeping.shifts.durations import hours
@@ -17,7 +17,7 @@ class Waivers:
         now = self.log.clock()
         written = typed_input.required(reason)
         pieces = self.log.shifts_with(shift_ids)
-        begins = typed_input.moment(start, pieces[0].start.date(), now)
+        begins = _waived_from(start, pieces[0], now)
         ends = typed_input.end_after(begins, end, now)
         if ends > now:
             raise UserError("a waived stretch cannot end in the future")
@@ -36,6 +36,15 @@ class Waivers:
             raise UserError(f"shift {shift_id} has no waiver starting at {start}")
         message = f"took back the waiver for {gap.start:%Y-%m-%d %H:%M:%S} to {gap.end:%H:%M:%S}, {hours(gap.end - gap.start)} counted again"
         return self.log.write(WaiverWithdrawn(shift.id, gap.start, written), message, now)
+
+
+def _waived_from(start: str, first: Shift, now: datetime) -> datetime:
+    begins = typed_input.moment(start, first.start.date(), now, allow_future=True)
+    if begins >= first.start or not typed_input.time_only(start):
+        return begins
+    if _clocked_until(first, now).date() == first.start.date():
+        return begins
+    return begins + timedelta(days=1)
 
 
 def _clocked_through(pieces: list[Shift], begins: datetime, ends: datetime, now: datetime) -> Shift:

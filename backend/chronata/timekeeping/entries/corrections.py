@@ -5,7 +5,7 @@ from typing import ClassVar
 from chronata.timekeeping.entries.new_entry import with_label, with_note
 from chronata.timekeeping.entries.wording import detail, quoted
 from chronata.timekeeping.record.record import Entry
-from chronata.timekeeping.shifts.shifts import Correction, Happening, Shift
+from chronata.timekeeping.shifts.shifts import Break, Correction, Happening, Shift
 from chronata.timekeeping.shifts.start_answer import StartAnswer, start_answer_in
 
 
@@ -96,9 +96,19 @@ class BreakExplained:
         data = entry.data
         shift = found[data["shift"]]
         started = datetime.fromisoformat(data["start"])
-        shift.breaks = [replace(b, reason=data["reason"]) if b.start == started else b for b in shift.breaks]
+        shift.breaks = _explained(shift.breaks, started, data["reason"])
         shift.changes.append(f"reason for the break at {started:%H:%M}: {data['reason']}")
         shift.happenings.append(Happening(started, "Why the PC was off", quoted(data["reason"])))
+
+
+def _explained(breaks: list[Break], started: datetime, reason: str) -> list[Break]:
+    explained = []
+    for gap in breaks:
+        if gap.pc_off and gap.start == started:
+            explained.append(replace(gap, reason=reason))
+        else:
+            explained.append(gap)
+    return explained
 
 
 def _span(start: datetime, end: datetime | None) -> str:

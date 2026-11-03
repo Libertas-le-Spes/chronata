@@ -73,8 +73,11 @@ def moment(text: str | None, on_day: date, now: datetime, allow_future: bool = F
 
 def end_after(start: datetime, text: str, now: datetime) -> datetime:
     end = moment(text, start.date(), now, allow_future=True)
-    time_only = " " not in text and "T" not in text
-    return end + timedelta(days=1) if time_only and end <= start else end
+    return end + timedelta(days=1) if time_only(text) and end <= start else end
+
+
+def time_only(text: str) -> bool:
+    return " " not in text and "T" not in text
 
 
 def required(reason: str | None) -> str:

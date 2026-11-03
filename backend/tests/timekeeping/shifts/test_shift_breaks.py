@@ -22,6 +22,17 @@ class BreaksInAShift(unittest.TestCase):
         shift.add_break(Break(at("2026-10-14T13:00:00"), at("2026-10-14T14:00:00"), CLOCKED_OUT))
         self.assertEqual(shift.worked(shift.end), timedelta(hours=6))
 
+    def test_a_break_left_after_the_shift_end_adds_no_time(self):
+        shift = day_shift()
+        shift.add_break(Break(at("2026-10-14T21:00:00"), at("2026-10-14T23:00:00"), WAIVED, "away"))
+        self.assertEqual(shift.worked(shift.end), timedelta(hours=12))
+
+    def test_the_last_return_is_the_latest_break_end_even_when_breaks_nest(self):
+        shift = day_shift()
+        shift.add_break(Break(at("2026-10-14T12:00:00"), at("2026-10-14T18:00:00"), WAIVED, "away"))
+        shift.add_break(Break(at("2026-10-14T13:00:00"), at("2026-10-14T14:00:00"), CLOCKED_OUT))
+        self.assertEqual(shift.since, at("2026-10-14T18:00:00"))
+
     def test_only_a_waived_break_is_found_as_a_waiver(self):
         shift = day_shift()
         shift.add_break(Break(at("2026-10-14T13:00:00"), at("2026-10-14T14:00:00"), CLOCKED_OUT))

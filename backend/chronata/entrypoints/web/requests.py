@@ -52,17 +52,33 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
 
 
 def _waive(app, body: dict) -> Outcome:
-    return app.waivers.waive(_ids(body), body.get("start"), body.get("end"), body.get("reason"))
+    return app.waivers.waive(_shift_ids(body), _text(body, "start"), _text(body, "end"), _text(body, "reason"))
 
 
 def _withdraw_waiver(app, body: dict) -> Outcome:
-    return app.waivers.withdraw(_shift_id(body), body.get("start", ""), body.get("reason"))
+    return app.waivers.withdraw(_shift_id(body.get("id")), _text(body, "start"), _text(body, "reason"))
 
 
-def _shift_id(body: dict) -> int:
-    given = body.get("id")
+def _shift_ids(body: dict) -> list[int]:
+    given = body.get("ids")
+    if not isinstance(given, list):
+        raise UserError("choose a shift")
+    chosen = []
+    for shift_id in given:
+        chosen.append(_shift_id(shift_id))
+    return chosen
+
+
+def _shift_id(given) -> int:
     if isinstance(given, bool) or not isinstance(given, int):
         raise UserError("choose a shift")
+    return given
+
+
+def _text(body: dict, name: str) -> str:
+    given = body.get(name, "")
+    if not isinstance(given, str):
+        raise UserError(f"the {name} has to be text")
     return given
 
 

@@ -24,10 +24,24 @@ class TheWaiverRequests(unittest.TestCase):
 
     def test_counting_again_without_a_shift_number_is_refused(self):
         app = app_with_waivers()
-        for given in ({}, {"id": "5"}, {"id": True}):
-            with self.subTest(given=given), self.assertRaises(UserError):
-                changes(app)["/api/withdraw-waiver"]({**given, "start": "17:30", "reason": "x"})
+        bodies = [{"start": "17:30", "reason": "x"}, {"id": "5", "start": "17:30", "reason": "x"}, {"id": True, "start": "17:30", "reason": "x"}]
+        for body in bodies:
+            with self.subTest(body=body), self.assertRaises(UserError):
+                changes(app)["/api/withdraw-waiver"](body)
         app.waivers.withdraw.assert_not_called()
+
+    def test_waiving_with_shift_numbers_that_are_not_whole_numbers_is_refused(self):
+        app = app_with_waivers()
+        for ids in ("1", 5, [True], [1.5], None):
+            with self.subTest(ids=ids), self.assertRaises(UserError):
+                changes(app)["/api/waive"]({"ids": ids, "start": "17:30", "end": "23:10", "reason": "forgot"})
+        app.waivers.waive.assert_not_called()
+
+    def test_waiving_with_a_reason_that_is_not_text_is_refused(self):
+        app = app_with_waivers()
+        with self.assertRaises(UserError):
+            changes(app)["/api/waive"]({"ids": [5], "start": "17:30", "end": "23:10", "reason": 5})
+        app.waivers.waive.assert_not_called()
 
 
 if __name__ == "__main__":

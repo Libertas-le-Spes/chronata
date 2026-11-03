@@ -72,8 +72,9 @@ class WhatCannotBeWaived(unittest.TestCase):
     def test_a_stretch_in_the_future(self):
         self.f.at("2026-10-14T23:20:00")
         self.f.app.clocking.clock_in(None, None, None, Answers(overtime=True))
+        running = self.f.app.log.shifts()[-1].id
         with self.assertRaisesRegex(UserError, "future"):
-            self.f.app.waivers.waive([self.shift], "23:15", "23:40", "not yet")
+            self.f.app.waivers.waive([running], "23:21", "23:40", "not yet")
 
     def test_a_stretch_overlapping_one_already_waived(self):
         self.f.app.waivers.waive([self.shift], "17:30", "20:00", "forgot to clock out")
@@ -94,6 +95,40 @@ class WhatCannotBeWaived(unittest.TestCase):
         start = self.f.app.log.shifts()[0].breaks[0].start.isoformat()
         with self.assertRaisesRegex(UserError, "reason"):
             self.f.app.waivers.withdraw(self.shift, start, "")
+
+
+class WaiversAndCorrections(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture("2026-10-14T08:00:00")
+        self.shift = day_left_running(self.f)
+        self.f.app.waivers.waive([self.shift], "20:00", "23:10", "forgot to clock out")
+
+    def test_moving_the_end_before_a_waiver_is_refused_until_it_is_counted_again(self):
+        with self.assertRaisesRegex(UserError, "count it again first"):
+            self.f.app.corrections.correct([self.shift], None, "17:00", "left at five")
+
+    def test_moving_the_start_after_a_waiver_begins_is_refused_until_it_is_counted_again(self):
+        with self.assertRaisesRegex(UserError, "count it again first"):
+            self.f.app.corrections.correct([self.shift], "21:00", None, "started late in the evening")
+
+    def test_a_correction_that_keeps_the_waiver_inside_the_shift_is_allowed(self):
+        self.f.app.corrections.correct([self.shift], "08:30", None, "came in later")
+        self.assertEqual(f"{self.f.app.log.shifts()[0].start:%H:%M}", "08:30")
+
+    def test_explaining_a_pc_break_cannot_change_a_waivers_reason(self):
+        start = self.f.app.log.shifts()[0].breaks[0].start.isoformat()
+        with self.assertRaisesRegex(UserError, "no PC-off break"):
+            self.f.app.corrections.explain_break(self.shift, start, "something else")
+
+
+class WaivingPastMidnight(unittest.TestCase):
+    def test_a_time_after_midnight_is_read_on_the_next_day_of_the_shift(self):
+        self.f = Fixture("2026-10-14T20:00:00")
+        self.f.app.setup.configure(hours("08:00", "17:00", "12:00", "60"), "Primary")
+        self.f.app.clocking.clock_in(None, None, None, Answers(overtime=True))
+        self.f.at("2026-10-15T02:00:00")
+        self.f.app.waivers.waive([self.f.app.log.shifts()[0].id], "01:00", "02:00", "forgot to clock out")
+        self.assertEqual(self.f.app.log.shifts()[0].worked(self.f.now), timedelta(hours=5))
 
 
 class WaivingWhileStillClockedIn(unittest.TestCase):
