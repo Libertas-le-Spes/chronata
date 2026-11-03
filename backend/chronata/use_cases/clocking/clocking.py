@@ -36,13 +36,13 @@ class Clocking:
 
     def _carry_on(self, shift: Shift, start: datetime, all_shifts: list[Shift], note: str | None, answers: Answers, now: datetime) -> Outcome:
         answered = start_answer(self.log.hours, shift.label, start, all_shifts, answers)
-        if answered.said_overtime_for(self.log.hours.counted_under(shift.label)):
+        if _apart_from(shift, answered, self.log.hours.counted_under(shift.label)):
             return self._start_shift(shift.label, start, note, answered, now)
         message = f"back on today's shift at {start:%H:%M:%S} after a {hours(start - shift.end)} break"
         return self.log.write(ClockResumed(shift.id, start, self.pc.current_boot_id(), note), message, now)
 
     def _start_shift(self, label: str, start: datetime, note: str | None, answered: StartAnswer, now: datetime) -> Outcome:
-        message = f"in {start:%Y-%m-%d %H:%M:%S}" + (f" on {label}" if label else "")
+        message = f"in {start:%Y-%m-%d %H:%M:%S}{_on(label)}"
         return self.log.write(ClockIn(start, self.pc.current_boot_id(), label, note, answered), message, now)
 
     def _chosen_label(self, label: str | None, all_shifts: list[Shift], answers: Answers) -> str:
@@ -69,6 +69,18 @@ class Clocking:
 
     def unclocked_since(self) -> datetime | None:
         return unclocked_since(self.log.shifts(), self.pc.on_since(), self.log.clock())
+
+
+def _apart_from(shift: Shift, answered: StartAnswer, counted: str) -> bool:
+    if answered.said_overtime_for(counted):
+        return True
+    return shift.start_answer.said_overtime_for(counted)
+
+
+def _on(label: str) -> str:
+    if not label:
+        return ""
+    return f" on {label}"
 
 
 def _refuse_if_clocked_in(all_shifts: list[Shift]) -> None:

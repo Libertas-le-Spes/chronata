@@ -162,6 +162,11 @@ class StartingAfterTheShiftEnded(unittest.TestCase):
         pieces = [shift("2026-10-05", "08:00", "17:00", "Primary"), shift("2026-10-05", "17:00", "18:00", "Secondary")]
         self.assertFalse(weeks_by_label(pieces, both)["Secondary"][0].days[0].punctuality.started_after_shift)
 
+    def test_a_later_stretch_answered_normal_hours_is_not_counted_as_overtime(self):
+        later = answered(shift("2026-10-05", "19:30", "21:30"), StartAnswer(overtime_after_shift=False, label=""))
+        day = only_day([answered(shift("2026-10-05", "18:00", "19:00"), StartAnswer(overtime_after_shift=True, label="")), later])
+        self.assertEqual(day.overtime.earned, timedelta(hours=1))
+
     def test_overtime_after_the_shift_counts_every_hour_as_overtime(self):
         self.assertEqual(self.evening(StartAnswer(overtime_after_shift=True, label="")).overtime.earned, timedelta(hours=2))
 
@@ -185,7 +190,7 @@ class ComingBackAfterTheShift(unittest.TestCase):
         day = self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label="Secondary"))
         self.assertEqual((day.overtime.earned, day.uncovered_lateness), (timedelta(minutes=48), timedelta()))
 
-    def test_an_overtime_answer_on_a_stretch_corrected_to_start_during_the_shift_does_not_count(self):
+    def test_an_overtime_answer_on_a_stretch_starting_during_the_shift_does_not_count(self):
         day = self.late_day_and_evening(StartAnswer(overtime_after_shift=True, label=""), evening_start="16:30")
         self.assertEqual(day.uncovered_lateness, timedelta())
 

@@ -221,6 +221,16 @@ class ClockingInAfterTheShift(unittest.TestCase):
         self.f.app.clocking.clock_in(None, None, "Primary", Answers(normal_hours=True))
         self.assertEqual(self.f.app.log.record.entries()[-1].kind, "clock_resumed")
 
+    def test_answering_normal_hours_after_an_overtime_evening_starts_a_shift_of_its_own(self):
+        self.work_the_morning()
+        self.f.app.clocking.clock_in(None, None, "Primary", Answers(overtime=True))
+        self.f.at("2026-10-14T19:00:00")
+        self.f.app.clocking.clock_out(None, None)
+        self.f.at("2026-10-14T19:30:00")
+        self.f.app.clocking.clock_in(None, None, "Primary", Answers(normal_hours=True))
+        entry = self.f.app.log.record.entries()[-1]
+        self.assertEqual((entry.kind, entry.data["overtime_after_shift"]), ("clock_in", False))
+
     def test_coming_back_before_the_shift_ends_carries_on_without_asking(self):
         self.work_the_morning()
         self.f.at("2026-10-14T13:00:00")
