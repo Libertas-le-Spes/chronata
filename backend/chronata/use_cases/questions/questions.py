@@ -33,8 +33,11 @@ class Answers:
 
 def _checked(answer: Field, value):
     if not isinstance(value, answer.type):
-        raise UserError(f"the answer “{answer.name.replace('_', ' ')}” is not the kind of answer it should be")
+        raise UserError(f"the answer “{answer.name.replace('_', ' ')}” has to be {ANSWER_KINDS[answer.type]}")
     return value
+
+
+ANSWER_KINDS = {bool: "yes or no", str: "text"}
 
 
 @dataclass(frozen=True)

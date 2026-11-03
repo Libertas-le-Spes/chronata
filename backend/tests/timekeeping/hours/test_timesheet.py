@@ -133,8 +133,9 @@ class LatenessOnASecondLabel(unittest.TestCase):
     def test_saying_you_are_late_for_it_counts_the_lateness(self):
         self.assertEqual(self.secondary_day(StartAnswer(late=True)).punctuality.late, timedelta(hours=5))
 
-    def test_a_late_answer_stops_counting_once_the_shift_is_moved_past_its_hours(self):
-        pieces = [shift("2026-10-05", "07:00", "08:00", "Primary"), answered(shift("2026-10-05", "18:00", "19:00", "Secondary"), StartAnswer(late=True))]
+    def test_a_late_answer_on_a_shift_that_starts_after_its_hours_does_not_count(self):
+        evening = answered(shift("2026-10-05", "18:00", "19:00", "Secondary"), StartAnswer(late=True))
+        pieces = [shift("2026-10-05", "07:00", "08:00", "Primary"), evening]
         self.assertEqual(weeks_by_label(pieces, self.hours)["Secondary"][0].days[0].punctuality.late, timedelta())
 
     def test_the_label_you_clocked_in_on_first_counts_its_lateness_without_asking(self):
