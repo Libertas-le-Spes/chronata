@@ -1,10 +1,15 @@
-import ast
 import unittest
 from pathlib import Path
 
+from tests.source_scan import WHOLE_PACKAGE, Source
+
 PACKAGE = Path(__file__).parent.parent / "chronata"
+CORE = PACKAGE / "timekeeping"
 CORE_MAY_IMPORT = {"collections", "dataclasses", "datetime", "difflib", "hashlib", "json", "typing", "unicodedata"}
-CORE_MAY_NOT_CALL = {"open", "__import__", "eval", "exec", "compile", "input", "print", "breakpoint", "globals", "vars"}
+CORE_MAY_NOT_NAME = {"open", "__import__", "eval", "exec", "compile", "input", "print", "breakpoint", "globals", "vars", "locals",
+                     "getattr", "setattr", "delattr", "__builtins__"}
+CORE_MAY_NOT_REACH = {"sys", "os", "modules", "builtins", "__builtins__", "__dict__", "__globals__", "__subclasses__", "__import__",
+                      "__loader__", "__spec__", "system", "popen"}
 
 MAY_IMPORT = {
     "timekeeping": {"timekeeping"},
@@ -20,45 +25,16 @@ def ring_of(module: str) -> str:
     return module.split(".")[1]
 
 
-def imports_of(path: Path) -> list[tuple[int, str]]:
-    found = []
-    for node in ast.walk(ast.parse(path.read_text())):
-        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("chronata."):
-            found.append((node.lineno, node.module))
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if alias.name.startswith("chronata."):
-                    found.append((node.lineno, alias.name))
-    return found
+def source_of(path: Path) -> Source:
+    return Source(path.read_text())
 
 
-def modules_imported_by(path: Path) -> list[str]:
-    names = []
-    for node in ast.walk(ast.parse(path.read_text())):
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                names.append(alias.name)
-        if isinstance(node, ast.ImportFrom):
-            names.append(_imported_from(node))
-    return names
-
-
-def _imported_from(node: ast.ImportFrom) -> str:
-    if node.level > 0 or node.module is None:
-        return "a relative import"
-    return node.module
-
-
-def builtins_called_by(path: Path) -> list[str]:
-    names = []
-    for node in ast.walk(ast.parse(path.read_text())):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            names.append(node.func.id)
-    return names
+def shown(path: Path) -> str:
+    return str(path.relative_to(PACKAGE.parent))
 
 
 def core_may_import(name: str) -> bool:
-    if name.startswith("chronata.timekeeping."):
+    if name == "chronata.timekeeping" or name.startswith("chronata.timekeeping."):
         return True
     return name.split(".")[0] in CORE_MAY_IMPORT
 
@@ -71,33 +47,42 @@ class DependenciesPointInward(unittest.TestCase):
             if module in ("chronata.__main__", "chronata.__init__"):
                 continue
             allowed = MAY_IMPORT[ring_of(module)]
-            for line, imported in imports_of(path):
-                if ring_of(imported) not in allowed:
-                    breaches.append(f"{path.relative_to(PACKAGE.parent)}:{line} ({ring_of(module)}) imports {imported}")
+            for line, imported in source_of(path).chronata_imports():
+                if imported == WHOLE_PACKAGE or ring_of(imported) not in allowed:
+                    breaches.append(f"{shown(path)}:{line} ({ring_of(module)}) imports {imported}")
         self.assertEqual(breaches, [])
 
     def test_no_module_uses_a_relative_import_the_ring_check_would_not_see(self):
         relative = []
         for path in sorted(PACKAGE.rglob("*.py")):
-            if "a relative import" in modules_imported_by(path):
-                relative.append(str(path.relative_to(PACKAGE.parent)))
+            if source_of(path).has_relative_import():
+                relative.append(shown(path))
         self.assertEqual(relative, [])
 
+
+class TheCoreStaysInsideThisProgram(unittest.TestCase):
     def test_the_core_imports_only_what_it_is_allowed(self):
         not_allowed = []
-        for path in sorted((PACKAGE / "timekeeping").rglob("*.py")):
-            for name in modules_imported_by(path):
+        for path in sorted(CORE.rglob("*.py")):
+            for name in source_of(path).modules():
                 if not core_may_import(name):
-                    not_allowed.append(f"{path.relative_to(PACKAGE.parent)} imports {name}")
+                    not_allowed.append(f"{shown(path)} imports {name}")
         self.assertEqual(not_allowed, [])
 
-    def test_the_core_calls_no_built_in_that_reads_files_or_runs_code(self):
+    def test_the_core_names_no_built_in_that_reads_files_or_runs_code(self):
         not_allowed = []
-        for path in sorted((PACKAGE / "timekeeping").rglob("*.py")):
-            for name in builtins_called_by(path):
-                if name in CORE_MAY_NOT_CALL:
-                    not_allowed.append(f"{path.relative_to(PACKAGE.parent)} calls {name}")
+        for path in sorted(CORE.rglob("*.py")):
+            for name in sorted(source_of(path).names_used() & CORE_MAY_NOT_NAME):
+                not_allowed.append(f"{shown(path)} names {name}")
         self.assertEqual(not_allowed, [])
+
+    def test_the_core_reaches_nothing_through_an_allowed_module(self):
+        not_allowed = []
+        for path in sorted(CORE.rglob("*.py")):
+            for name in sorted(source_of(path).attributes_used() & CORE_MAY_NOT_REACH):
+                not_allowed.append(f"{shown(path)} reaches .{name}")
+        self.assertEqual(not_allowed, [])
+
 
 if __name__ == "__main__":
     unittest.main()
