@@ -1,10 +1,7 @@
 from datetime import timedelta
 
 from chronata.use_cases.log.outcome import Outcome, UserError
-from chronata.use_cases.reminders.reminder_pace import ReminderPace, ReminderPaceStore
-
-FEWEST_MINUTES = 5
-MOST_MINUTES = 240
+from chronata.use_cases.reminders.reminder_pace import FEWEST_MINUTES, MOST_MINUTES, ReminderPace, ReminderPaceStore, allowed_minutes
 
 
 class ClockOutReminderSetting:
@@ -17,7 +14,7 @@ class ClockOutReminderSetting:
     def remind_every(self, minutes: int) -> Outcome:
         if not isinstance(minutes, int):
             raise UserError("say how many minutes, as a whole number")
-        if not FEWEST_MINUTES <= minutes <= MOST_MINUTES:
+        if not allowed_minutes(minutes):
             raise UserError(f"choose between {FEWEST_MINUTES} and {MOST_MINUTES} minutes")
         self.store.save(ReminderPace(timedelta(minutes=minutes)))
         return Outcome(f"after your shift ends, you are reminded to clock out every {minutes} minutes", None)

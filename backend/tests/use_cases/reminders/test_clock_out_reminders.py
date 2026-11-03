@@ -69,6 +69,26 @@ class OnAWorkday(ClockOutReminders):
         self.f.app.clocking.clock_in(None, None, None, Answers(normal_hours=True))
         self.assertEqual(self.reminded_at("2026-10-14", "17:30", "17:49", "17:50"), ["17:50"])
 
+    def test_a_pace_changed_after_one_reminder_sets_the_next(self):
+        self.start("2026-10-14T08:00:00")
+        self.reminded_at("2026-10-14", "17:00")
+        self.f.app.reminder_setting.remind_every(240)
+        self.assertEqual(self.reminded_at("2026-10-14", "17:30", "20:59", "21:00"), ["21:00"])
+
+    def test_after_the_service_restarts_the_first_tick_past_the_shift_end_reminds(self):
+        self.start("2026-10-14T08:00:00")
+        self.reminded_at("2026-10-14", "17:00")
+        self.reminders = Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, self.f.page, self.f.app.reminder_setting)
+        self.assertEqual(self.reminded_at("2026-10-14", "17:05", "17:20", "17:35"), ["17:05", "17:35"])
+
+    def test_it_replaces_the_twelve_hour_reminder(self):
+        self.start("2026-10-14T08:00:00")
+        self.reminded_at("2026-10-14", "19:30")
+        self.f.at("2026-10-14T20:00:00")
+        before = len(self.f.desktop.notices)
+        self.reminders.tick()
+        self.assertEqual([summary for summary, _ in self.f.desktop.notices[before:]], ["Your shift ended at 17:00"])
+
     def test_clicking_it_clocks_out(self):
         self.start("2026-10-14T08:00:00")
         self.reminded_at("2026-10-14", "17:00")
@@ -93,13 +113,28 @@ class OnADayOff(ClockOutReminders):
 
 
 class OnALabelWithoutSetHours(ClockOutReminders):
-    def test_it_never_comes_because_there_is_no_shift_end(self):
+    def setUp(self):
         self.f = Fixture("2026-10-14T08:00:00")
         self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
         self.f.app.labels.create("Secondary", Answers(no_set_hours=True))
         self.f.app.clocking.clock_in(None, None, "Secondary", Answers(off_default=True))
         self.reminders = Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, self.f.page, self.f.app.reminder_setting)
+
+    def test_it_never_comes_because_there_is_no_shift_end(self):
         self.assertEqual(self.reminded_at("2026-10-14", "17:00", "18:00"), [])
+
+    def test_the_twelve_hour_reminder_still_comes(self):
+        self.reminded_at("2026-10-14", "20:00")
+        self.assertEqual(self.f.desktop.notices[-1][0], "Still working?")
+
+
+class OnAnUnlabelledShift(ClockOutReminders):
+    def test_the_default_labels_shift_end_is_used(self):
+        self.f = Fixture("2026-10-14T08:00:00")
+        self.f.app.setup.configure(hours("08:00", "17:00"), "Primary")
+        self.f.app.clocking.clock_in(None, None, "", Answers(off_default=True))
+        self.reminders = Reminders(self.f.app.log, self.f.app.clocking, self.f.app.pc, self.f.desktop, self.f.page, self.f.app.reminder_setting)
+        self.assertEqual(self.reminded_at("2026-10-14", "16:59", "17:00"), ["17:00"])
 
 
 class ChoosingThePace(unittest.TestCase):

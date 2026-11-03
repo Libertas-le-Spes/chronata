@@ -21,7 +21,7 @@ class Reminders:
         self.desktop = desktop
         self.page = page
         self.at_login = [NeedsSetUp(), PcOffUnexplained(), ShiftLeftOpen()]
-        self.during_the_day = [LunchTime(), LongShift(), LunchOver(), NotClockedIn(), ClockOut(setting)]
+        self.during_the_day = [LunchTime(), LongShift(setting), LunchOver(), NotClockedIn(), ClockOut(setting)]
         self.actions = Actions(self._clock_in, self._clock_out, self._open)
 
     def on_login(self) -> None:

@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
 
+from chronata.use_cases.reminders.clock_out import schedule_for
+from chronata.use_cases.reminders.reminder_setting import ClockOutReminderSetting
 from chronata.use_cases.reminders.situation import Nudge, Situation
 
 REMINDER_HOURS = range(7, 18)
@@ -21,12 +23,15 @@ class LunchTime:
 
 
 class LongShift:
-    def __init__(self):
+    def __init__(self, setting: ClockOutReminderSetting):
+        self.setting = setting
         self.warned: set[int] = set()
 
     def due(self, situation: Situation) -> Nudge | None:
         current = situation.current
         if not _clocked_in_long(situation) or current.id in self.warned:
+            return None
+        if schedule_for(situation, current, self.setting.current()) is not None:
             return None
         self.warned.add(current.id)
         return Nudge("Still working?", f"Clocked in since {current.start:%H:%M}. Click to open the log.", situation.actions.open())
