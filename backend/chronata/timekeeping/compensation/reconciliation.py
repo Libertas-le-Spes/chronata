@@ -44,4 +44,6 @@ class Reconciliation:
             return True
         if self.unmatched:
             return True
-        return len(self.lateness) > 0
+        if self.lateness:
+            return True
+        return False

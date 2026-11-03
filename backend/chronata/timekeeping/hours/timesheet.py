@@ -13,11 +13,12 @@ from chronata.timekeeping.hours.working_day import WorkingDay
 from chronata.timekeeping.shifts.shifts import Shift, completed, open_shift
 
 
-def weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, now: datetime | None = None, clocked_in: bool = False,
-          day_starts: dict[date, datetime] | None = None) -> list[Week]:
-    moment = MeasuringMoment(now, clocked_in)
-    if day_starts is None:
-        day_starts = _day_starts(finished_shifts)
+def weeks(only_label_shifts: list[Shift], working_day: WorkingDay | None) -> list[Week]:
+    return _label_weeks(only_label_shifts, working_day, MeasuringMoment(None, False), _day_starts(only_label_shifts))
+
+
+def _label_weeks(finished_shifts: list[Shift], working_day: WorkingDay | None, moment: MeasuringMoment,
+                 day_starts: dict[date, datetime]) -> list[Week]:
     found = []
     for start, clocked_days in _clocked_days_by_week(finished_shifts, day_starts):
         days, allowance = _measured(clocked_days, working_day, moment)
@@ -38,7 +39,7 @@ def weeks_by_label(all_shifts: list[Shift], hours: LabelHours, now: datetime | N
     day_starts = _day_starts(counted)
     by_label = {}
     for label, label_shifts in grouped.items():
-        by_label[label] = weeks(label_shifts, hours.for_label(label), now, label == clocked_in_on, day_starts)
+        by_label[label] = _label_weeks(label_shifts, hours.for_label(label), MeasuringMoment(now, label == clocked_in_on), day_starts)
     return by_label
 
 

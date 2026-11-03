@@ -20,19 +20,18 @@ class ClockIn:
     boot: str
     label: str = ""
     note: str | None = None
-    start: StartAnswer = StartAnswer()
+    answer: StartAnswer = StartAnswer()
 
     def data(self) -> dict:
         data = {"at": self.at.isoformat(), "boot": self.boot}
         data.update(with_label(self.label))
-        data.update(self.start.data())
+        data.update(self.answer.data())
         return with_note(data, self.note)
 
     @staticmethod
     def apply(found: dict[int, Shift], entry: Entry) -> None:
         start = datetime.fromisoformat(entry.data["at"])
-        shift = Shift(entry.seq, start, None, entry.recorded_at - start, entry.data.get("label", ""))
-        shift.start_answer = start_answer_in(entry.data)
+        shift = Shift(entry.seq, start, None, entry.recorded_at - start, entry.data.get("label", ""), start_answer=start_answer_in(entry.data))
         counted_from = f"counted from {start:%H:%M:%S}" if entry.recorded_at - start >= SAME_MOMENT else ""
         shift.happenings.append(Happening(entry.recorded_at, MANUAL_CLOCK_IN, detail(counted_from, quoted(entry.data.get("note")))))
         found[entry.seq] = shift

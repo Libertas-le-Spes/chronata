@@ -127,7 +127,7 @@ class LatenessOnASecondLabel(unittest.TestCase):
         return weeks_by_label(pieces, self.hours)["Secondary"][0].days[0]
 
     def test_starting_a_different_project_later_in_the_day_is_not_late(self):
-        self.assertEqual(self.secondary_day(StartAnswer(other_project=True)).punctuality.late, timedelta())
+        self.assertEqual(self.secondary_day(StartAnswer(late=False)).punctuality.late, timedelta())
 
     def test_saying_you_are_late_for_it_counts_the_lateness(self):
         self.assertEqual(self.secondary_day(StartAnswer(late=True)).punctuality.late, timedelta(hours=5))
@@ -142,14 +142,22 @@ class StartingAfterTheShiftEnded(unittest.TestCase):
         return only_day([answered(shift("2026-10-05", "18:00", "20:00"), answer)])
 
     def test_normal_hours_after_the_shift_are_not_counted_as_late(self):
-        day = self.evening(StartAnswer(normal_hours=True))
+        day = self.evening(StartAnswer(overtime_after_shift=False))
         self.assertEqual((day.punctuality.late, day.punctuality.started_after_shift), (timedelta(), True))
 
     def test_a_start_after_the_shift_is_listed_to_check(self):
         self.assertIn("started after the shift ended", punctuality(self.evening(StartAnswer())))
 
+    def test_overtime_after_the_shift_is_still_marked_to_check(self):
+        self.assertTrue(self.evening(StartAnswer(overtime_after_shift=True)).punctuality.started_after_shift)
+
+    def test_a_later_label_after_its_shift_is_not_marked_when_nothing_was_asked(self):
+        both = LabelHours("Primary", {"Primary": WorkingDay(time(8), time(17)), "Secondary": WorkingDay(time(8), time(16))})
+        pieces = [shift("2026-10-05", "08:00", "17:00", "Primary"), shift("2026-10-05", "17:00", "18:00", "Secondary")]
+        self.assertFalse(weeks_by_label(pieces, both)["Secondary"][0].days[0].punctuality.started_after_shift)
+
     def test_overtime_after_the_shift_counts_every_hour_as_overtime(self):
-        self.assertEqual(self.evening(StartAnswer(overtime=True)).overtime.earned, timedelta(hours=2))
+        self.assertEqual(self.evening(StartAnswer(overtime_after_shift=True)).overtime.earned, timedelta(hours=2))
 
 
 class MakingUpALateStart(unittest.TestCase):

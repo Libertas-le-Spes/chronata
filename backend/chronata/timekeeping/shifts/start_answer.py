@@ -1,32 +1,36 @@
 from dataclasses import dataclass
 
 LATE = "late"
-AFTER_SHIFT = "after_shift"
-OVERTIME = "overtime"
-NORMAL_HOURS = "normal hours"
+OVERTIME_AFTER_SHIFT = "overtime_after_shift"
 
 
 @dataclass(frozen=True)
 class StartAnswer:
-    late: bool = False
-    other_project: bool = False
-    overtime: bool = False
-    normal_hours: bool = False
+    late: bool | None = None
+    overtime_after_shift: bool | None = None
+
+    @property
+    def said_late(self) -> bool:
+        return self.late is True
+
+    @property
+    def said_overtime(self) -> bool:
+        return self.overtime_after_shift is True
 
     def data(self) -> dict:
         data = {}
-        if self.late:
-            data[LATE] = True
-        if self.other_project:
-            data[LATE] = False
-        if self.overtime:
-            data[AFTER_SHIFT] = OVERTIME
-        if self.normal_hours:
-            data[AFTER_SHIFT] = NORMAL_HOURS
+        if self.late is not None:
+            data[LATE] = self.late
+        if self.overtime_after_shift is not None:
+            data[OVERTIME_AFTER_SHIFT] = self.overtime_after_shift
         return data
 
 
 def start_answer_in(data: dict) -> StartAnswer:
-    late = data.get(LATE)
-    after_shift = data.get(AFTER_SHIFT)
-    return StartAnswer(late is True, late is False, after_shift == OVERTIME, after_shift == NORMAL_HOURS)
+    return StartAnswer(_yes_or_no(data.get(LATE)), _yes_or_no(data.get(OVERTIME_AFTER_SHIFT)))
+
+
+def _yes_or_no(stored) -> bool | None:
+    if isinstance(stored, bool):
+        return stored
+    return None

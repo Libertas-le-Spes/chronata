@@ -24,7 +24,7 @@ class Workday:
         return Day(clocked.date, worked, overtime, clocked.first_in, clocked.last_out, punctuality, judged_at is not None)
 
     def _punctuality(self, clocked: ClockedDay, short_of_due: timedelta) -> Punctuality:
-        if clocked.first_in.time() >= self.working_day.shift_end:
+        if clocked.started_after(self.working_day.shift_end):
             return started_after_shift(short_of_due)
         return judged(self._late(clocked), short_of_due, self.working_day.early_leave_grace)
 

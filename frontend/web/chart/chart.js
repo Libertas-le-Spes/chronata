@@ -12,7 +12,7 @@ function roundedTop(x, y, width, height, radius) {
 function dayStatus(day) {
   if (day.soFar || day.future) return null;
   if (day.afterShift) {
-    return { tone: "warn", text: "! after shift", detail: "Started after the shift ended; check this day" };
+    return { tone: "warn", text: "! after shift", detail: "Started after the shift ended, so not counted as late; check the times are right" };
   }
   if (day.late && day.madeUp) return { tone: "good", text: "✓ made up", detail: `Late ${hours(day.late)}, made up` };
   if (day.late) return { tone: "warn", text: `! ${hours(day.short)} short`, detail: `Late ${hours(day.late)}, ${hours(day.short)} short` };

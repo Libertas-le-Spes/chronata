@@ -24,7 +24,7 @@ def totals(compensation: dict[str, Reconciliation]) -> list[str]:
 
 
 def _periods(label: str, reconciliation: Reconciliation) -> list[str]:
-    if not reconciliation.anything_to_show:
+    if not reconciliation.periods and not reconciliation.unmatched:
         return []
     if not reconciliation.periods:
         return ["  Compensation recorded", f"    none yet; add it with: chronata compensation FROM TO HOURS{_label_option(label)}"]

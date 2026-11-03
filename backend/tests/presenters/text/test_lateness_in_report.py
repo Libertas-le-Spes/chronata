@@ -22,7 +22,7 @@ class LatenessInTheReport(unittest.TestCase):
         self.assertIn("    2026-10-06 Tue: -0:07", self.lines)
 
     def test_the_totals_take_compensation_and_lateness_off_the_overtime_worked(self):
-        totals = self.lines[-5:]
+        totals = self.lines[self.lines.index("All labels"):]
         self.assertEqual(totals, ["All labels",
                                   "  Overtime worked:                2:00",
                                   "  Compensated:                   -0:00",

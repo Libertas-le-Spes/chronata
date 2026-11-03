@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from chronata.timekeeping.shifts.durations import NONE
 from chronata.timekeeping.shifts.shifts import Shift
@@ -31,11 +31,16 @@ class ClockedDay:
     def lateness_counts(self) -> bool:
         if self.opened_the_day:
             return True
-        return self.first_shift.start_answer.late
+        return self.first_shift.start_answer.said_late
 
     @property
     def worked_as_overtime(self) -> bool:
-        return self.first_shift.start_answer.overtime
+        return self.first_shift.start_answer.said_overtime
+
+    def started_after(self, shift_end: time) -> bool:
+        if not self.opened_the_day:
+            return False
+        return self.first_in.time() >= shift_end
 
 
 def _start_of(shift: Shift) -> datetime:

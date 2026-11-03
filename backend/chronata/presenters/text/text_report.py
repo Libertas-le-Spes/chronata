@@ -37,7 +37,7 @@ def _story_line(line: Line, entry: DayEntry) -> str:
 def punctuality(day: Day) -> str | None:
     punctuality = day.punctuality
     if punctuality.started_after_shift:
-        return "started after the shift ended, so not counted as late; check this day"
+        return "started after the shift ended, so not counted as late; check the times are right"
     if punctuality.arrived_late:
         return f"arrived {hours(punctuality.late)} late, {_after_arriving_late(day)}"
     if punctuality.short > NONE:

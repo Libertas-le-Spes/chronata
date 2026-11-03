@@ -30,8 +30,14 @@ function latenessCard(lateness) {
   );
 }
 
+function periodUnpaidRow(period) {
+  if (period.unpaid === 0) {
+    return el("div", { class: "good" }, el("span", {}, "Unpaid"), el("span", {}, "None"));
+  }
+  return el("div", { class: "bad" }, el("span", {}, "Unpaid"), el("span", {}, hours(period.unpaid)));
+}
+
 function periodCard(period) {
-  const settled = period.unpaid === 0;
   return el("div", { class: "card period" },
     el("div", { class: "period-head" },
       el("h3", {}, `${longDate(period.start)} – ${longDate(period.end)}`),
@@ -41,7 +47,7 @@ function periodCard(period) {
       el("div", {}, el("span", {}, "Overtime worked"), el("span", {}, hours(period.owed))),
       el("div", {}, el("span", {}, "Paid"), el("span", {}, hours(period.paid))),
       el("div", {}, el("span", {}, "Time off"), el("span", {}, hours(period.timeOff))),
-      el("div", { class: settled ? "good" : "bad" }, el("span", {}, "Unpaid"), el("span", {}, settled ? "None" : hours(period.unpaid))),
+      periodUnpaidRow(period),
     ),
   );
 }

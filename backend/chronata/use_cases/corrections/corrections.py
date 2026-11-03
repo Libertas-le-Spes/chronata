@@ -3,6 +3,7 @@ from datetime import datetime
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
 from chronata.timekeeping.shifts.durations import hours
 from chronata.timekeeping.shifts.shifts import Shift, named
+from chronata.use_cases.questions.start_questions import start_answer
 from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log, one_writer_at_a_time
 from chronata.use_cases.log.outcome import Outcome, UserError
@@ -22,8 +23,10 @@ class Corrections:
         ends = typed_input.end_after(begins, end, now)
         if ends > now:
             raise UserError("that shift has not ended yet; clock in instead")
-        label = self.labels.settle(label, self.labels.in_use(self.log.shifts()), answers, needs_hours=True)
-        added = ShiftAdded(begins, ends, typed_input.required(reason), label, note)
+        all_shifts = self.log.shifts()
+        label = self.labels.settle(label, self.labels.in_use(all_shifts), answers, needs_hours=True)
+        answered = start_answer(self.log.hours, label, begins, all_shifts, answers)
+        added = ShiftAdded(begins, ends, typed_input.required(reason), label, note, answered)
         return self.log.write(added, f"added {begins:%Y-%m-%d %H:%M:%S} to {ends:%H:%M:%S}, worked {hours(ends - begins)}", now)
 
     @one_writer_at_a_time

@@ -44,6 +44,5 @@ def _totals(reconciliation: Reconciliation) -> dict:
     return {
         "owed": minutes(reconciliation.owed.earned),
         "compensated": minutes(reconciliation.compensated),
-        "uncoveredLateness": minutes(reconciliation.uncovered_lateness),
         "unpaid": minutes(reconciliation.unpaid),
     }

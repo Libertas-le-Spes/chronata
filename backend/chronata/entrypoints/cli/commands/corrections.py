@@ -1,4 +1,4 @@
-from chronata.entrypoints.cli.answers import answer_options, answers
+from chronata.entrypoints.cli.answers import answer_options, answers, start_options
 from chronata.use_cases.log.outcome import Outcome
 from chronata.wiring import App
 
@@ -28,6 +28,7 @@ def register(commands) -> None:
     command.add_argument("--note")
     command.add_argument("--label")
     answer_options(command)
+    start_options(command)
     command.set_defaults(run=add)
 
     command = commands.add_parser("correct", help="fix a shift's times; the original stays on record")
