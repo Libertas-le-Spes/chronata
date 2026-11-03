@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable
 
 from chronata.entrypoints.web.page_facts import page_facts
@@ -35,7 +36,9 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/correct": lambda body: app.corrections.correct(_ids(body), body.get("start"), body.get("end"), body.get("reason"),
                                                                  _answers(body)),
         "/api/mistake": lambda body: app.corrections.mark_mistake(_ids(body), body.get("reason")),
-        "/api/explain": lambda body: app.corrections.explain_break(int(body["id"]), body.get("start", ""), body.get("reason")),
+        "/api/waive": partial(_waive, app),
+        "/api/withdraw-waiver": partial(_withdraw_waiver, app),
+        "/api/explain": partial(_explain, app),
         "/api/compensation": lambda body: app.compensations.record(
             body.get("label", ""), body.get("from"), body.get("to"), float(body.get("hours", "")), body.get("kind", ""),
             body.get("reference"), _answers(body)
@@ -46,6 +49,41 @@ def changes(app) -> dict[str, Callable[[dict], Outcome]]:
         "/api/places/remove": lambda body: app.saving.remove_place(body.get("id", "")),
         "/api/setup": lambda body: app.setup.configure(_answers(body), body.get("label")),
     }
+
+
+def _explain(app, body: dict) -> Outcome:
+    return app.corrections.explain_break(_shift_id(body.get("id")), _text(body, "start"), _text(body, "reason"))
+
+
+def _waive(app, body: dict) -> Outcome:
+    return app.waivers.waive(_shift_ids(body), _text(body, "start"), _text(body, "end"), _text(body, "reason"))
+
+
+def _withdraw_waiver(app, body: dict) -> Outcome:
+    return app.waivers.withdraw(_shift_id(body.get("id")), _text(body, "start"), _text(body, "reason"))
+
+
+def _shift_ids(body: dict) -> list[int]:
+    given = body.get("ids")
+    if not isinstance(given, list):
+        raise UserError("choose a shift")
+    chosen = []
+    for shift_id in given:
+        chosen.append(_shift_id(shift_id))
+    return chosen
+
+
+def _shift_id(given) -> int:
+    if isinstance(given, bool) or not isinstance(given, int):
+        raise UserError("choose a shift")
+    return given
+
+
+def _text(body: dict, name: str) -> str:
+    given = body.get(name, "")
+    if not isinstance(given, str):
+        raise UserError(f"the {name} has to be text")
+    return given
 
 
 def _ids(body: dict) -> list[int]:

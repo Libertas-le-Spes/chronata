@@ -2,7 +2,7 @@ from datetime import datetime
 
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
 from chronata.timekeeping.shifts.durations import hours
-from chronata.timekeeping.shifts.shifts import Shift, named
+from chronata.timekeeping.shifts.shifts import Break, Shift, named
 from chronata.timekeeping.shifts.start_answer import StartAnswer
 from chronata.use_cases.labels.labelling import Labelling
 from chronata.use_cases.log.log import Log, one_writer_at_a_time
@@ -39,6 +39,7 @@ class Corrections:
         if any(span_start >= span_end for span_start, span_end in spans.values()):
             raise UserError("a shift has to end after it starts")
         written = typed_input.required(reason)
+        _refuse_stranded_waivers(pieces, spans)
         first_answer = self._first_answer(pieces, begins, answers)
         changed = _changed(pieces, spans, written, first_answer)
         if not changed:
@@ -69,11 +70,30 @@ class Corrections:
     @one_writer_at_a_time
     def explain_break(self, shift_id: int, start: str, reason: str) -> Outcome:
         shift = self.log.shift(shift_id)
-        gap = next((b for b in shift.breaks if b.start.isoformat() == start), None)
+        gap = _pc_off_break(shift, start)
         if gap is None:
-            raise UserError(f"shift {shift_id} has no break starting at {start}")
+            raise UserError(f"shift {shift_id} has no PC-off break starting at {start}")
         message = f"noted why the PC was off from {gap.start:%H:%M}: {typed_input.required(reason)}"
         return self.log.write(BreakExplained(shift.id, start, reason.strip()), message, self.log.clock())
+
+
+def _pc_off_break(shift: Shift, start: str) -> Break | None:
+    for gap in shift.breaks:
+        if gap.pc_off and gap.start.isoformat() == start:
+            return gap
+    return None
+
+
+def _refuse_stranded_waivers(pieces: list[Shift], spans: dict[int, tuple[datetime, datetime]]) -> None:
+    for shift in pieces:
+        if shift.id in spans:
+            new_start, new_end = spans[shift.id]
+            _refuse_waivers_outside(shift, new_start, new_end)
+
+
+def _refuse_waivers_outside(shift: Shift, start: datetime, end: datetime) -> None:
+    for gap in shift.waivers_outside(start, end):
+        raise UserError(f"the waived stretch {gap.start:%H:%M:%S} to {gap.end:%H:%M:%S} would fall outside the new times; count it again first")
 
 
 def _changed(pieces: list[Shift], spans: dict[int, tuple[datetime, datetime]], reason: str, first_answer: StartAnswer) -> list[ShiftCorrected]:

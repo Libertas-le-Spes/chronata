@@ -5,6 +5,7 @@ from chronata.timekeeping.shifts.start_answer import StartAnswer
 
 CLOCKED_OUT = "clocked out"
 PC_OFF = "PC off"
+WAIVED = "waived"
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,20 @@ class Break:
     @property
     def unexplained_pc_off(self) -> bool:
         return self.cause == PC_OFF and not self.reason
+
+    @property
+    def waived(self) -> bool:
+        return self.cause == WAIVED
+
+    @property
+    def pc_off(self) -> bool:
+        return self.cause == PC_OFF
+
+    def within(self, start: datetime, end: datetime) -> bool:
+        return start <= self.start and self.end <= end
+
+    def overlaps(self, start: datetime, end: datetime) -> bool:
+        return self.start < end and start < self.end
 
 
 @dataclass(frozen=True)
@@ -54,7 +69,27 @@ class Shift:
 
     @property
     def since(self) -> datetime:
-        return self.breaks[-1].end if self.breaks else self.start
+        latest = self.start
+        for gap in self.breaks:
+            latest = max(latest, gap.end)
+        return latest
+
+    def add_break(self, gap: Break) -> None:
+        self.breaks.append(gap)
+        self.breaks.sort(key=_break_start)
+
+    def waivers_outside(self, start: datetime, end: datetime) -> list[Break]:
+        outside = []
+        for gap in self.breaks:
+            if gap.waived and not gap.within(start, end):
+                outside.append(gap)
+        return outside
+
+    def waived_from(self, start: datetime) -> Break | None:
+        for gap in self.breaks:
+            if gap.waived and gap.start == start:
+                return gap
+        return None
 
     def worked(self, until: datetime) -> timedelta:
         return sum((ends - begins for begins, ends in self.segments(until)), timedelta())
@@ -63,10 +98,14 @@ class Shift:
         finish = self.end or until
         pieces, cursor = [], self.start
         for gap in self.breaks:
-            pieces.append((cursor, gap.start))
-            cursor = gap.end
+            pieces.append((cursor, min(gap.start, finish)))
+            cursor = max(cursor, gap.end)
         pieces.append((cursor, finish))
         return [(begins, ends) for begins, ends in pieces if ends > begins]
+
+
+def _break_start(gap: Break) -> datetime:
+    return gap.start
 
 
 def open_shift(all_shifts: list[Shift]) -> Shift | None:

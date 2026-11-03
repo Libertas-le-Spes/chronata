@@ -61,9 +61,20 @@ def _entry(entry: DayEntry, day: Day | None, records: DayRecords) -> dict:
         "pcShare": pc_share(entry, sessions, now),
         "punctuality": _punctuality(day),
         "ids": [piece.id for piece in entry.counted],
+        "waivers": _waivers(entry),
         "lines": [_line(line, entry) for line in day_story(entry, records)],
         "pieces": [_piece(piece, sessions, stamps, now) for piece in entry.pieces],
     }
+
+
+def _waivers(entry: DayEntry) -> list[dict]:
+    found = []
+    for piece in entry.counted:
+        for gap in piece.breaks:
+            if gap.waived:
+                found.append({"shift": piece.id, "start": gap.start.isoformat(), "end": gap.end.isoformat(),
+                              "minutes": minutes(gap.end - gap.start), "reason": gap.reason})
+    return found
 
 
 def _line(line: Line, entry: DayEntry) -> dict:

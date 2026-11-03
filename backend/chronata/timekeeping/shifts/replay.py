@@ -2,11 +2,13 @@ from chronata.timekeeping.entries.clocking import ClockIn, ClockOut, ClockResume
 from chronata.timekeeping.entries.corrections import BreakExplained, ShiftAdded, ShiftCorrected, ShiftVoided
 from chronata.timekeeping.entries.labels import ShiftLabelled
 from chronata.timekeeping.entries.pc import PcOffBreak
+from chronata.timekeeping.entries.waivers import TimeWaived, WaiverWithdrawn
 from chronata.timekeeping.record.record import Entry
 from chronata.timekeeping.shifts.shifts import Shift
 
 SHIFT_CHANGES = {kind.kind: kind.apply for kind in (
     ClockIn, ClockOut, ClockResumed, PcOffBreak, BreakExplained, ShiftAdded, ShiftCorrected, ShiftLabelled, ShiftVoided,
+    TimeWaived, WaiverWithdrawn,
 )}
 
 

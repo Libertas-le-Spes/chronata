@@ -31,6 +31,7 @@ from chronata.use_cases.log.log import Log
 from chronata.use_cases.log.ports import Clock, Desktop, History, PowerHistory, Secrets, Timestamper
 from chronata.use_cases.pc.pc_records import PcRecords
 from chronata.use_cases.saving.saving import Saving
+from chronata.use_cases.waivers.waivers import Waivers
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,7 @@ class App:
     clocking: Clocking
     labels: Labelling
     corrections: Corrections
+    waivers: Waivers
     pc: PcRecords
     compensations: Compensations
     setup: WorkingDaySetup
@@ -80,7 +82,7 @@ def open_app(data: Path | None = None, config: Path | None = None, clock: Clock 
     log.publish = saving
     labels = Labelling(log)
     pc = PcRecords(log, power)
-    return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), pc, Compensations(log, labels), WorkingDaySetup(log, labels),
+    return App(log, Clocking(log, pc, labels), labels, Corrections(log, labels), Waivers(log), pc, Compensations(log, labels), WorkingDaySetup(log, labels),
                saving, history, timestamper, desktop or this_machine.desktop(), power, locations.web_page_folder(), running)
 
 
