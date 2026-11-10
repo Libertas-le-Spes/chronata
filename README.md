@@ -8,7 +8,7 @@ Because the proof travels with the log, it can be saved anywhere: an Obsidian va
 
 Mistakes are corrected or marked as mistakes, never deleted, because a visible correction is more credible than a clean record.
 
-Time you were clocked in but not working, such as an evening after forgetting to clock out, is waived rather than corrected away: the clocked times stay as they were, and the waived stretch shows beside them with your reason. Giving time up openly is harder to dispute than a shift that was quietly shortened.
+Time you were clocked in but not working, such as an evening after forgetting to clock out, is waived rather than corrected away: the clocked times stay as they were, and the waived stretch shows beside them with your reason. Giving time up openly is harder to dispute than a shift that was quietly shortened. If you came in late that day, the start of the stretch that makes up the late start keeps counting, and only the rest is waived, so waiving an evening never undoes making up the morning.
 
 To stop that time building up in the first place, Chronata reminds you to clock out once your shift has ended, every 30 minutes, and every hour on a day off. The Reminders button, or `chronata reminders --every <minutes>` or `--off`, changes how often.
 
